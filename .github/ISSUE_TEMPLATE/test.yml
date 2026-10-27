@@ -1,0 +1,44 @@
+name: Test task
+description: An automated test or a manual playtest
+labels: ["type:test"]
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: What is tested
+    validations: { required: true }
+  - type: input
+    id: story
+    attributes:
+      label: Linked story
+      placeholder: "#"
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Test type
+      options:
+        - Automated
+        - Manual playtest
+        - Visual check
+        - Performance
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Test steps
+      placeholder: |
+        1.
+        2.
+        3.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations: { required: true }
+  - type: textarea
+    id: record
+    attributes:
+      label: Pass/fail record
+      description: Date, build version, result and notes for each run.
+      placeholder: "| Date | Build | Result | Notes |"

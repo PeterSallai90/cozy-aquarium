@@ -1,0 +1,39 @@
+name: Bug
+description: Something does not work as specified
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What was expected
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Build version
+      description: Shown on the main menu, or the pull request / CI run the build came from.
+    validations: { required: true }
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or video
+      description: Drag files here.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log file
+      description: Attach the latest log from %APPDATA%\Godot\app_userdata\Cozy Aquarium\logs

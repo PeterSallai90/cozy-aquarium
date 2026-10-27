@@ -1,0 +1,34 @@
+name: Feature / user story
+description: A player-facing capability
+labels: ["type:feature", "mode:1"]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      placeholder: As a <player>, I want <capability>, so that <benefit>.
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Given / When / Then, one per line, including edge cases.
+    validations: { required: true }
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test notes
+      description: What is tested automatically, what needs a manual playtest.
+  - type: textarea
+    id: mode2
+    attributes:
+      label: Mode 2 impact
+      description: Any data or hooks the simulation will need later.
+  - type: textarea
+    id: design
+    attributes:
+      label: Mockups, references, links
