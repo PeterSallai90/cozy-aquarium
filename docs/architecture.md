@@ -13,7 +13,7 @@ Cozy Aquarium is a free 3D PC game where players build and rebuild a home aquari
 | D3 | Distribution | itch.io first, free; Steam optional later | Proposed |
 | D4 | Business goal | Free / hobby release | Decided |
 | D5 | Visual style | Stylized low-poly, cozy | Decided |
-| D6 | Engine and language | Godot 4.x latest stable, statically typed GDScript, Forward+ renderer | Proposed |
+| D6 | Engine and language | Godot 4.7.2 (pinned), statically typed GDScript, Forward+ renderer | Proposed |
 | D7 | Camera | Front default view, orbit around and over, limited below the tank; photo mode may enter the tank | Decided |
 | D8 | Text encoding | Unicode (UTF-8) everywhere; fonts must cover CJK and other non-Latin scripts | Decided |
 | D9 | Languages | English default, Hungarian selectable; localization-ready from day one | Decided |
@@ -79,12 +79,12 @@ Godot 4 with statically typed GDScript is the core choice, because every part of
 
 | Area | Choice | Why |
 | --- | --- | --- |
-| Engine | Godot 4.x, latest stable at project start (4.6.3 confirmed; adopt 4.7 if stable by then), standard build, not .NET | Free (MIT), text-based scenes, headless test and export, no license activation in CI |
+| Engine | Godot 4.7.2 (pinned at project start), standard build, not .NET | Free (MIT), text-based scenes, headless test and export, no license activation in CI |
 | Language | GDScript with static typing enforced | Best engine integration, fast iteration; typing gives the AI compile-time feedback |
 | Renderer | Forward+ | Best water, glow, volumetric fog and light quality; acceptable because the target is PC only |
 | Tests | GdUnit4 (unit and scene tests) | Runs headless in CI; supports scene runners for input and camera tests |
 | Lint and format | gdtoolkit 4 (`gdlint`, `gdformat`) | Consistent style regardless of which model wrote the code |
-| 3D content | Blender 4.x, driven by Python scripts; CC0 asset packs | Low-poly assets can be generated and versioned as code |
+| 3D content | Blender 5.2, driven by Python scripts; CC0 asset packs | Low-poly assets can be generated and versioned as code |
 | Code editor | VS Code with the godot-tools extension | For you to read code and diffs; the AI edits files directly |
 | AI coding agent | Claude Code | Works in the repository, runs Godot, tests and Git itself |
 | Version control | Git with Git LFS, GitHub (personal account) | Issues, board, pull requests and CI in one place |
@@ -421,7 +421,7 @@ When the browser opens, check that you are signed in to the **personal** GitHub 
 
 ### Step 5 – Install Godot (pinned version)
 
-1. Download the **standard** (not .NET) Windows 64-bit zip of the latest stable Godot 4 release from godotengine.org. Note the exact version number (for example 4.6.3). It is recorded later in `docs/adr/0001-engine.md`, when Claude Code creates the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2); CI uses the same number.
+1. Download the **standard** (not .NET) Windows 64-bit zip of the latest stable Godot 4 release from godotengine.org. Note the exact version number (the project uses 4.7.2). It is recorded later in `docs/adr/0001-engine.md`, when Claude Code creates the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2); CI uses the same number.
 2. Create the folder `C:\Tools\Godot` and extract both files there: the editor `.exe` and the `_console.exe`.
 3. Rename them to `godot.exe` and `godot_console.exe`.
 4. Add `C:\Tools\Godot` to your PATH:
@@ -455,7 +455,7 @@ Reopen the terminal and check `blender --version`.
 
 ```powershell
 py -m pip install --upgrade pip
-py -m pip install "gdtoolkit==4.*" pre-commit
+py -m pip install "gdtoolkit==4.5.0" pre-commit
 gdlint --version
 pre-commit --version
 ```
@@ -486,7 +486,7 @@ claude --version
 claude                 # first start: sign in with your Claude account in the browser
 ```
 
-Inside Claude Code, `/model` switches between Sonnet 5.5 and Opus 5.5. The Claude Desktop app also includes Claude Code if you prefer a window to a terminal.
+Inside Claude Code, `/model` switches between Sonnet 5.5 and Opus 5.5. The Claude Desktop app also includes Claude Code if you prefer a window to a terminal; the Desktop steps are described in GitHub repository setup → Create the repository, and work the same way for every later issue.
 
 **If `claude` is not recognized** after installation:
 
@@ -575,6 +575,16 @@ Move-Item "$HOME\Downloads\<exported file name>.md" docs\architecture.md
 
 > Create the repository skeleton described in docs/architecture.md, sections "Repository layout", "GitHub repository setup" and "Project board": all folders; .gitattributes, .gitignore, .editorconfig, .pre-commit-config.yaml, CLAUDE.md and README.md; docs/adr/0001-engine.md recording Godot version \<your version from Step 5>; docs/asset-licenses.md with only the table header; .github/ISSUE\_TEMPLATE with feature.yml, bug.yml and test.yml; .github/pull\_request\_template.md; and an empty Godot 4 project in /game with the Forward+ renderer. Commit any files already in docs/. Open a pull request.
 
+**Using the Claude Desktop app instead of the terminal** (it includes Claude Code, so no separate install is needed):
+
+1. Open the Claude Desktop app and click the **Code** tab at the top center of the window.
+2. Choose **Local**, click **Select folder**, and pick `C:\Dev\cozy-aquarium`.
+3. In the model dropdown next to the send button, choose **Opus 5.5** for the skeleton; Sonnet 5.5 is enough for most later issues.
+4. Paste the task above into the message box and send it.
+5. Approve the proposed changes. The Code tab starts in a permission mode where Claude proposes each file change and command (such as `git` and `gh`) and waits for your approval. Keep it for the first sessions; switch to a less interrupting mode once you trust the workflow.
+
+The Desktop app uses the same Git and GitHub login as the terminal, so commits and pull requests still go to your personal account; `gh auth status` confirms it. Details: [Claude Code desktop quickstart](https://code.claude.com/docs/en/desktop-quickstart.md).
+
 4. Review the pull request, merge it on GitHub, then run `git pull` locally.
 
 The subsections below (.gitattributes to CLAUDE.md) are the contents Claude Code writes in step 3; you do not type them yourself.
@@ -655,7 +665,7 @@ end_of_line = crlf
 ```yaml
 repos:
   - repo: https://github.com/Scony/godot-gdscript-toolkit
-    rev: 4.3.2          # pin to the latest 4.x tag when created
+    rev: 4.5.0          # pinned at repository creation
     hooks:
       - id: gdformat
       - id: gdlint
@@ -685,7 +695,7 @@ Cozy 3D aquarium builder for PC. Mode 1 (cozy builder) only. Mode 2 (simulation)
 never implement it, but keep its catalog fields intact. Read docs/vision.md and docs/glossary.md.
 
 ## Tech
-- Godot <pinned version>, standard build, GDScript only, Forward+ renderer.
+- Godot 4.7.2, standard build, GDScript only, Forward+ renderer.
 - Static typing everywhere: typed variables, parameters and return values. No untyped `var x = ...`
   unless the type is inferred with `:=`.
 - Project root is /game. Run Godot as `godot_console --headless --path game`.
@@ -901,7 +911,7 @@ on:
     branches: [main]
 
 env:
-  GODOT_VERSION: "4.6.3"        # must match docs/adr/0001-engine.md
+  GODOT_VERSION: "4.7.2"        # must match docs/adr/0001-engine.md
 
 jobs:
   lint:
@@ -910,7 +920,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install "gdtoolkit==4.*"
+      - run: pip install "gdtoolkit==4.5.0"
       - run: gdformat --check game
       - run: gdlint game
       - run: python tools/scripts/check_translations.py     # every key in en.po and hu.po
