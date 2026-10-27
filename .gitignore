@@ -1,0 +1,23 @@
+# Godot 4 cache (re-created automatically); .import files ARE committed
+.godot/
+
+# Build output
+build/
+export/
+*.pck
+*.exe
+
+# Python
+__pycache__/
+.venv/
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+Thumbs.db
+.DS_Store
+
+# Secrets, never committed
+.env
+*.key
