@@ -26,6 +26,7 @@ Cozy Aquarium is a free 3D PC game where players build and rebuild a home aquari
 | D16 | Fish interaction | Watching plus feeding; no consequences in Mode 1 | Proposed |
 | D17 | Saving | Autosave plus named slots; screenshots from photo mode | Proposed |
 | D18 | Performance target | 60 fish and 100 decor items at 60 FPS on a mid-range PC | Proposed |
+| D19 | Repository visibility | Public: the free GitHub plan enforces branch rulesets only on public repositories, and public repositories get unlimited Actions minutes | Decided |
 
 "Proposed" items are architect assumptions awaiting the product owner's confirmation. Every decision that changes later gets a new row in the repository's `docs/adr` folder rather than an edit here. That folder is created with the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2).
 
@@ -385,6 +386,7 @@ winget install --id GitHub.cli -e                    # gh: GitHub from the comma
 winget install --id Microsoft.VisualStudioCode -e    # code editor for reading code and diffs
 winget install --id BlenderFoundation.Blender -e     # 3D asset generation
 winget install --id Python.Python.3.12 -e           # for gdtoolkit and pre-commit
+winget install --id OpenJS.NodeJS.LTS -e            # OPTIONAL: only needed for the Godot MCP server (Step 10)
 ```
 
 Close and reopen the terminal afterwards so the new programs are on your PATH.
@@ -513,7 +515,32 @@ $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 
 - **Poedit** (poedit.net) to review `.po` translation files comfortably.
 - **itch.io account** and the `butler` command line tool, needed once releases start (see CI/CD).
-- **A Godot MCP server** (community projects) that lets Claude Code launch the game and read its errors directly. Evaluate one in a separate branch before relying on it.
+- **A Godot MCP server** (community project) that lets Claude Code launch the game and read its errors directly. Installation steps follow below.
+
+#### Optional: Godot MCP server
+
+The recommended server is **Coding-Solo/godot-mcp** ([GitHub](https://github.com/Coding-Solo/godot-mcp)). It lets Claude Code launch the Godot editor, run the project in debug mode, capture its output and stop it. It is a community project, made by neither Godot nor Anthropic, so treat it like any third-party code running on your machine.
+
+1. **Install Node.js.** Node.js is required only for this optional server, which runs through `npx`. Skip this if you installed it in Step 2.
+
+```powershell
+winget install --id OpenJS.NodeJS.LTS -e
+```
+
+Close Windows Terminal completely, reopen it, and check with `node --version`.
+
+2. **Register the server with Claude Code.** Run this inside `C:\Dev\cozy-aquarium`:
+
+```powershell
+claude mcp add godot -e GODOT_PATH=C:\Tools\Godot\godot.exe -- cmd /c npx -y @coding-solo/godot-mcp
+```
+
+`cmd /c` is the wrapper Claude Code generally needs on native Windows to start `npx`-based servers; if the server does not connect, try the command without it. The default local scope keeps this configuration on your machine only. Do not use `--scope project`: it would write your local Godot path into a shared file in the public repository. Because nothing is written to the repository, no separate branch is needed for evaluation.
+
+3. **Check that it works.** Restart Claude Code and type `/mcp`; the `godot` server must show as connected. Then ask: *"Use the Godot MCP server to tell me the installed Godot version."* It must report 4.7.2.
+4. **Pin the version.** `npx -y` always fetches the newest release, so new third-party code could run without notice. After a successful test, look up the current version on the package's npm page, run `claude mcp remove godot`, and add it again with the version pinned: `@coding-solo/godot-mcp@<version>`.
+
+A richer alternative, **hi-godot/godot-ai**, works inside the Godot editor itself (scenes, nodes) through an editor plugin and a Python server. It has more moving parts and a known Windows startup issue in its documentation; revisit it around milestone M1 if the simpler server is not enough.
 
 ### Step 11 – Verify everything
 
@@ -551,13 +578,33 @@ The repository lives on your personal GitHub account and is created from the com
 | Public (recommended for a free game) | Unlimited free GitHub Actions minutes, including Windows and macOS runners; possible community contributions | Code and assets are visible to everyone |
 | Private | Only you see it | Monthly free Actions minute cap; Windows and macOS runners consume it several times faster |
 
-The repository can switch from private to public at any time, so starting private and opening it before the first release is also reasonable.
+**Decision (D19): public.** On a free personal account, GitHub enforces branch rulesets only on public repositories, so a private repository would leave `main` unprotected.
+
+If the repository was already created as private, switch it from the repository folder:
+
+```powershell
+gh repo edit --visibility public --accept-visibility-change-consequences
+```
+
+or in the browser: **Settings → General → Danger Zone → Change repository visibility → Make public**.
+
+Before switching, check:
+
+- [ ] No secrets were ever committed, including in old commits: no `.env` files, API keys, passwords or tokens. The `butler` key belongs only in GitHub Secrets.
+- [ ] Every third-party asset is logged in `docs/asset-licenses.md` and allows public distribution.
+- [ ] You are comfortable with the MIT license: anyone may reuse the code, with attribution.
+
+After switching:
+
+- [ ] **Settings → Rules → Rulesets:** the `main` ruleset shows as active.
+- [ ] **Settings → Code security:** turn on secret scanning and push protection (free for public repositories). GitHub then blocks pushes that contain recognizable keys.
+- [ ] **Settings → Actions → General:** keep the default that requires approval before workflows run for pull requests from outside contributors.
 
 ### Create the repository
 
 ```powershell
 mkdir C:\Dev; cd C:\Dev
-gh repo create cozy-aquarium --private --clone --description "A cozy 3D aquarium builder" --license mit
+gh repo create cozy-aquarium --public --clone --description "A cozy 3D aquarium builder" --license mit
 cd cozy-aquarium
 ```
 
@@ -729,6 +776,8 @@ never implement it, but keep its catalog fields intact. Read docs/vision.md and 
 ```
 
 ### Protect the main branch
+
+The free GitHub plan enforces this ruleset only because the repository is public (decision D19). On a private repository, GitHub saves the ruleset but does not enforce it.
 
 In GitHub: **Settings → Rules → Rulesets → New branch ruleset** for `main`:
 
@@ -1157,7 +1206,7 @@ The biggest risks are visual quality and AI drift, both handled by early proofs 
 ### Open questions for the product owner
 
 - [ ] Confirm or change the "Proposed" decisions D3 and D13–D18.
-- [ ] Public or private repository at the start?
+- [ ] Public or private repository at the start? Decided: public (D19).
 - [ ] Should fish have names and personalities in Mode 1, or only species?
 - [ ] Any reference games or pictures that capture the look you want?
 - [ ] Target date for M1 First playable?
