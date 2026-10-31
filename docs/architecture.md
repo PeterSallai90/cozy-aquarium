@@ -4,31 +4,33 @@ Oct 27, 2026 · @Peter Sallai
 
 ## Purpose and decisions so far
 
-Cozy Aquarium is a free 3D PC game where players build and rebuild a home aquarium and stock it with fish, written entirely by AI under a human product owner. This document is the single reference for the architecture, the Windows 11 development setup, the GitHub board and CI/CD, and the first backlog. Mode 1 (cozy builder) is in scope; Mode 2 (simulation) is out of scope but the architecture prepares for it.
+Cozy Aquarium is a free 3D PC game where players build and rebuild a home aquarium and stock it with fish, written entirely by AI under a human product owner. This document is the single reference for the architecture, the Windows 11 development setup, the GitHub board and CI/CD, and the first backlog. Mode 1 (cozy builder) is in scope; Mode 2 (simulation) is out of scope but the architecture prepares for it. Naming note: Mode 2 is called "simulation mode" in this guide, and "survival mode" refers to the same mode; the final name is decided later.
 
 | # | Decision | Choice | Status |
 | --- | --- | --- | --- |
-| D1 | Game mode in scope | Mode 1 cozy builder; Mode 2 simulation later | Decided |
+| D1 | Game mode in scope | Mode 1 cozy builder; Mode 2 simulation later ("simulation mode" and "survival mode" both mean Mode 2; final name decided later) | Decided |
 | D2 | Platform | PC: Windows primary, Linux and macOS builds as a bonus | Decided |
-| D3 | Distribution | itch.io first, free; Steam optional later | Proposed |
+| D3 | Distribution | itch.io first, free, published only once the product owner is satisfied with the game's quality and experience; Steam optional later | Decided |
 | D4 | Business goal | Free / hobby release | Decided |
 | D5 | Visual style | Stylized low-poly, cozy | Decided |
-| D6 | Engine and language | Godot 4.7.2 (pinned), statically typed GDScript, Forward+ renderer | Proposed |
-| D7 | Camera | Front default view, orbit around and over, limited below the tank; photo mode may enter the tank | Decided |
+| D6 | Engine and language | Godot 4.7.2 (pinned), statically typed GDScript, Forward+ renderer; environment set up with these tools | Decided |
+| D7 | Camera | Front default view, orbit around and over, limited below the tank; photo mode may enter the tank, including through the glass | Decided |
 | D8 | Text encoding | Unicode (UTF-8) everywhere; fonts must cover CJK and other non-Latin scripts | Decided |
 | D9 | Languages | English default, Hungarian selectable; localization-ready from day one | Decided |
 | D10 | Team | Human product owner and playtester; AI as BA partner, architect, developer, reviewer | Decided |
 | D11 | Code hosting and board | GitHub on the owner's personal account (separate from the Claude account); GitHub Projects board | Decided |
 | D12 | Development machine | Windows 11 x64 | Decided |
-| D13 | Tanks | Three rectangular sizes in the MVP | Proposed |
-| D14 | Progression | Pure sandbox, everything unlocked | Proposed |
-| D15 | Species | 12–15 real freshwater species | Proposed |
-| D16 | Fish interaction | Watching plus feeding; no consequences in Mode 1 | Proposed |
-| D17 | Saving | Autosave plus named slots; screenshots from photo mode | Proposed |
-| D18 | Performance target | 60 fish and 100 decor items at 60 FPS on a mid-range PC | Proposed |
+| D13 | Tanks | Three rectangular sizes in the MVP; more tank shapes added once the three rectangular tanks work | Decided |
+| D14 | Progression | Mode 1 is a pure sandbox: everything unlocked from the start | Decided |
+| D15 | Species | 15 real freshwater species | Decided |
+| D16 | Fish interaction | Watching and feeding. No consequences in Mode 1, whether the player never feeds or overfeeds. Fish react to food when they notice it, not all at the same moment | Decided |
+| D17 | Saving | Mode 1: autosave every five minutes by default, plus manual saves at any time; each save slot shows the last game screen. Mode 2 saving designed later. Photo mode is independent of saves; photos go to a "Cozy Aquarium" subfolder inside the player's Pictures folder, never directly into Pictures | Decided |
+| D18 | Performance target | 60 fish and 100 decor items at 60 FPS on a mid-range PC | Decided |
 | D19 | Repository visibility | Public: the free GitHub plan enforces branch rulesets only on public repositories, and public repositories get unlimited Actions minutes | Decided |
+| D20 | Fish personality and names | Personality based on the species, plus an individual variation for every fish; every fish has a name, and the player chooses whether names are shown. Details later | Decided |
+| D21 | Timeline | No target dates; milestones are done when they are ready | Decided |
 
-"Proposed" items are architect assumptions awaiting the product owner's confirmation. Every decision that changes later gets a new row in the repository's `docs/adr` folder rather than an edit here. That folder is created with the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2).
+All decisions are decided. A decision that changes later gets a new ADR in `docs/adr` and an updated row in this table. That folder is created with the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2).
 
 ## Team and roles
 
@@ -164,7 +166,7 @@ Plants, decorations, substrates and tanks follow the same pattern: presentation 
 }
 ```
 
-Rules: `format_version` increases with every breaking change and a migration function upgrades old saves; saves are UTF-8 JSON in the user data folder; the autosave slot is written after every command, debounced to at most once per 5 seconds. The model and serializer are written in backlog issues 5 and 6.
+Rules: `format_version` increases with every breaking change and a migration function upgrades old saves; saves are UTF-8 JSON in the user data folder; the game autosaves every five minutes by default, and the player can save to a named slot at any time; every save stores a thumbnail of the last game screen, which the slot list shows. Saving for Mode 2 is designed later. Photo mode pictures are not part of saves (see Camera specification). The model and serializer are written in backlog issues 5 and 6.
 
 ### Core systems
 
@@ -172,9 +174,9 @@ Rules: `format_version` increases with every breaking change and a migration fun
 | --- | --- | --- |
 | Placement | Pick, place, move, rotate, scale, delete items inside the tank | Raycast onto substrate and items; snapping; overlap check with collision shapes; ghost preview |
 | Substrate | Sand and gravel types, colours, sculpting slopes | Heightmap mesh; colour as shader parameter |
-| Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states |
+| Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states; species personality with individual variation per fish (D20) |
 | Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
-| Feeding | Drop food, fish swim to it | Particle food with simple physics; fish switch to a seek state |
+| Feeding | Drop food; fish notice and eat it gradually, not all at once; no hunger or overfeeding consequences in Mode 1 | Particle food with simple physics; each fish notices food after its own short random delay, then switches to a seek state |
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification |
 | Water rendering | Cozy, readable water | Glass shader, caustics projected on substrate, volumetric fog tint, bubbles |
 | Save/load | Slots, autosave, migration | JSON via the model serializer |
@@ -245,7 +247,7 @@ Photo mode is a free camera for composing pictures, including underwater shots b
 - **Getting in:** the camera enters the water through the open top or straight through the glass walls. When it crosses a pane, it skips the glass thickness in a single step, so it never stops inside the glass or takes a picture from there. Crossing the glass switches the underwater effect on or off instantly. A "Dive in" shortcut moves the camera smoothly from its current position to just below the water surface.
 - **Underwater look:** when the camera is below the water line, an underwater effect switches on: depth-based colour tint and fog, moving caustic light, floating particles, and a gentle wobble. Looking up at the surface shows a bright, rippled surface.
 - **Photo tools:** pause the fish (freeze time), depth of field with focus distance, a few cozy colour filters, frame overlays (rule of thirds), and hide or show the cabinet and room.
-- **Taking a picture:** `Enter` or the shutter button saves a PNG at screen resolution or 2× to a "Cozy Aquarium" folder inside the player's Pictures folder, and shows a small confirmation.
+- **Taking a picture:** `Enter` or the shutter button saves a PNG at screen resolution or 2× to a "Cozy Aquarium" subfolder inside the player's Pictures folder, never directly into Pictures itself, and shows a small confirmation. The game creates the subfolder on the first photo. It finds the Pictures folder through the operating system (Godot's system-directory function) rather than a fixed path, because Windows can move Pictures, for example into OneDrive. Photos are independent of game saves: loading or deleting a save never touches them.
 - **Leaving:** `Esc` returns to the build camera at its last orbit position.
 
 ### Acceptance criteria (camera epic)
@@ -257,7 +259,7 @@ Photo mode is a free camera for composing pictures, including underwater shots b
 - Given photo mode, when the player flies through a glass wall from outside, then the camera enters the water, the underwater effect turns on, and the camera never comes to rest inside the glass.
 - Given photo mode above the tank, when the player flies down through the water surface, then the camera enters the water and the underwater effect turns on.
 - Given photo mode underwater, when the player flies into a rock or plant, then the camera slides along it instead of entering it.
-- Given photo mode, when the player takes a photo, then a PNG appears in the Pictures folder and no UI is visible in it.
+- Given photo mode, when the player takes a photo, then a PNG appears in the "Cozy Aquarium" subfolder of the Pictures folder and no UI is visible in it.
 
 ## Unicode, localization and fonts
 
@@ -730,9 +732,9 @@ repos:
 
 Run `pre-commit install` once in the repository folder, after the skeleton pull request is merged and pulled (step 4 above); before that, the configuration file does not exist.
 
-### CLAUDE.md (the AI team's rulebook)
+### Initial CLAUDE.md template (used once for the repository skeleton)
 
-Claude Code reads this file at the start of every session. It is the most important lever for consistent AI output, so you approve every change to it.
+The live file is CLAUDE.md in the repository. It has changed since the skeleton and takes precedence over this template. Claude Code reads that file at the start of every session. It is the most important lever for consistent AI output, so you approve every change to it.
 
 ```markdown
 # Cozy Aquarium – rules for AI contributors
@@ -1043,6 +1045,8 @@ Semantic versions: `0.x.y` until release 1.0. Minor version per milestone (`0.1`
 
 Apart from the license and the exported architecture document, every repository file in this guide is written by Claude Code, and none of them exist before the repository skeleton (backlog issue 2); this chapter lists them all in the order they appear.
 
+**Source of truth:** once a file exists in the repository, the repository version wins over any example in this guide. The examples here (`.gitignore`, `CLAUDE.md`, `ci.yml` and the others) are the starting templates and are not kept in sync with later changes.
+
 ### The order of creation
 
 1. **Windows setup, Steps 0–11:** installs tools on your machine only; no repository files yet.
@@ -1134,7 +1138,7 @@ The first backlog has 10 epics and 42 items across four milestones; M1 "First pl
 | --- | --- | --- |
 | M0 Foundation | Everything runs end to end with no gameplay | An empty scene builds in CI, tests run, language switches, a save file round-trips |
 | M1 First playable (v0.1) | The core cozy loop in one tank | You can arrange a tank, add 3 species, orbit the camera, save and reload |
-| M2 Content and photo mode (v0.2) | Variety and sharing | 12–15 species, 10 plants, 15 decorations, 5 substrates, photo mode with underwater shots |
+| M2 Content and photo mode (v0.2) | Variety and sharing | 15 species, 10 plants, 15 decorations, 5 substrates, photo mode with underwater shots |
 | M3 Release 1.0 | Ready for itch.io | Audio, performance target met, Hungarian complete, release pipeline live |
 
 The AI BA turns each row into a full issue (story, acceptance criteria, out of scope, test notes) before it moves to Ready. Sizes are estimates for planning; anything that turns out L is split.
@@ -1169,7 +1173,7 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 26 | Feeding: drop food, fish seek it | E5 Fish | M2 | feature | M | P1 |
 | 27 | Main menu, save slots, autosave | E6 Saves and menus | M1 | feature | M | P0 |
 | 28 | M1 manual playtest checklist and run | E6 Saves and menus | M1 | test | S | P0 |
-| 29 | Parametric fish generator: 12–15 species with real Mode 2 data | E7 Content | M2 | asset | L (split per 4 species) | P0 |
+| 29 | Parametric fish generator: 15 species with real Mode 2 data | E7 Content | M2 | asset | L (split per 4 species) | P0 |
 | 30 | Plant generator: 10 plants with sway shader | E7 Content | M2 | asset | M | P0 |
 | 31 | Decorations: 15 rocks, wood and ornaments | E7 Content | M2 | asset | M | P0 |
 | 32 | Five substrate types (sand, gravel, pebbles, black sand, coloured gravel) | E7 Content | M2 | asset | S | P1 |
@@ -1205,11 +1209,11 @@ The biggest risks are visual quality and AI drift, both handled by early proofs 
 
 ### Open questions for the product owner
 
-- [ ] Confirm or change the "Proposed" decisions D3 and D13–D18.
-- [ ] Public or private repository at the start? Decided: public (D19).
-- [ ] Should fish have names and personalities in Mode 1, or only species?
-- [ ] Any reference games or pictures that capture the look you want?
-- [ ] Target date for M1 First playable?
+- [x] Confirm or change the "Proposed" decisions D3 and D13–D18. Decided: D3, D6 and D13–D18 confirmed, with details in the decisions table.
+- [x] Public or private repository at the start? Decided: public (D19).
+- [x] Should fish have names and personalities in Mode 1, or only species? Decided (D20): personality is based on the species, with an individual variation for every fish; every fish has a name, and the player can choose whether names are shown. Details later.
+- [x] Any reference games or pictures that capture the look you want? No reference for now.
+- [x] Target date for M1 First playable? Decided (D21): no target dates; milestones are done when they are ready.
 
 ### Next steps
 
