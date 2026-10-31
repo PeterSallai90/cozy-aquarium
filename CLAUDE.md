@@ -3,9 +3,12 @@
 ## Product
 Cozy 3D aquarium builder for PC. Mode 1 (cozy builder) only. Mode 2 (simulation) is future work:
 never implement it, but keep its catalog fields intact. Read docs/vision.md and docs/glossary.md.
+Mode 2 is called "simulation mode" in the docs; "survival mode" refers to the same mode; the final
+name is decided later. Treat both names as Mode 2.
 
 ## Tech
 - Godot 4.7.2, standard build, GDScript only, Forward+ renderer.
+- gdtoolkit 4.5.0 (gdformat, gdlint); same version in .pre-commit-config.yaml and ci.yml.
 - Static typing everywhere: typed variables, parameters and return values. No untyped `var x = ...`
   unless the type is inferred with `:=`.
 - Project root is /game. Run Godot as `godot_console --headless --path game`.
