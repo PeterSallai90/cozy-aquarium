@@ -26,6 +26,10 @@ Check at least:
 - CLAUDE.md rules: pure-data model, Commands with do()/undo(), EventBus or signals only, catalog
   in .tres, tr() keys in en.po and hu.po, static typing, UTF-8 and LF, asset budgets and licence
   log, no Mode 2 implementation;
+- any change to the gate itself (.github/workflows/owner-gate.yml, labeler.yml,
+  notify-owner.yml, .github/labeler.yml, .claude/settings.json, .claude/hooks/) gets extra
+  scrutiny: a pull request is checked by its own version of these files, so a weakened gate
+  must be caught here;
 - correctness, edge cases, performance, readability;
 - run the checks yourself: `gdlint game && gdformat --check game` and the full test suite
   `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests`.

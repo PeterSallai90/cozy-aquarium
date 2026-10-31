@@ -104,6 +104,8 @@ feature/<issue> ──PR──▶ develop ──release PR──▶ main
 - automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `.github/labeler.yml` (the path rules themselves), `game/project.godot`, `docs/adr/` (Godot version) and `docs/asset-licenses.md` (new third-party assets);
 - by the developer or code reviewer for visible look-and-feel changes, which paths alone cannot detect.
 
+Known limit: the labeler and the owner gate run on the `pull_request` event, so a pull request is checked by its own version of `owner-gate.yml`, `labeler.yml` and `.github/labeler.yml`. Those paths are gated themselves, and the code reviewer checks any change to them with extra care; review such pull requests closely before adding `owner-approved`.
+
 To let a gated pull request through, add the `owner-approved` label (GitHub does not let you approve pull requests that your own account opened, and the agents act as your account). Agents never add `owner-approved`, never merge into `main`, and never change rulesets; `CLAUDE.md` states this and the Claude Code permission settings deny it.
 
 **Playable builds:** every merge into `develop` publishes a Windows build as a GitHub pre-release named `develop-latest`, replacing the previous one. Download it any time from the repository's **Releases** page.
@@ -843,7 +845,7 @@ never implement it, but keep its catalog fields intact. Read docs/vision.md and 
 
 Two branches are protected: `main` holds released versions, and `develop` collects finished work (see AI team → Branches and gates). The free GitHub plan enforces these rulesets only because the repository is public (decision D19); on a private repository GitHub saves rulesets but does not enforce them.
 
-The AI team setup (backlog B43) creates `develop` from `main` and updates the rulesets; the table shows the result, so you can check it under **Settings → Rules → Rulesets**.
+After the AI team setup (backlog B43) is merged, Claude Code creates `develop` from `main`, and you update the rulesets and the settings below by hand (agents never change rulesets or repository settings). The table shows the result, so you can check it under **Settings → Rules → Rulesets**.
 
 | Setting | `main` | `develop` |
 | --- | --- | --- |
