@@ -1,0 +1,59 @@
+name: Owner gate
+
+on:
+  pull_request:
+    # edited: re-check when the base branch changes (develop to main).
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+# Queue instead of cancel: a cancelled run could skip labeling.
+concurrency:
+  group: owner-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  label:
+    uses: ./.github/workflows/labeler.yml
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+  # Required status check. Fails for pull requests into main without owner-approved, and for
+  # pull requests into develop that have needs:owner without owner-approved.
+  owner-gate:
+    needs: label
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/github-script@v9.0.0
+        env:
+          LABEL_RESULT: ${{ needs.label.result }}
+        with:
+          script: |
+            if (process.env.LABEL_RESULT !== 'success') {
+              core.setFailed(`The labeler did not finish (${process.env.LABEL_RESULT}); re-run this workflow.`);
+              return;
+            }
+            const pr = context.payload.pull_request;
+            const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const names = labels.map((label) => label.name);
+            const approved = names.includes('owner-approved');
+            const base = pr.base.ref;
+            core.info(`Base: ${base}; labels: ${names.join(', ') || '(none)'}`);
+            if (base === 'main' && !approved) {
+              core.setFailed('Pull requests into main need the owner-approved label from the product owner.');
+            } else if (base === 'develop' && names.includes('needs:owner') && !approved) {
+              core.setFailed('needs:owner is set: waiting for the product owner to add owner-approved.');
+            } else {
+              core.info('Owner gate passed.');
+            }

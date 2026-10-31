@@ -1,0 +1,49 @@
+name: Pre-release
+
+# Publishes the Windows build of every push to develop as the pre-release develop-latest.
+# Reuses the build-windows job of ci.yml: runs after CI succeeded on develop and takes its
+# artifact, so only tested builds are published and nothing is built twice.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [develop]
+
+concurrency:
+  group: prerelease-develop
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: CozyAquarium-windows-${{ github.event.workflow_run.head_sha }}
+          path: build/windows
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Zip the build
+        run: |
+          cd build/windows
+          zip -qr ../../CozyAquarium-windows-develop.zip .
+      - name: Replace the develop-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh release delete develop-latest --cleanup-tag --yes || true
+          gh release create develop-latest CozyAquarium-windows-develop.zip \
+            --prerelease \
+            --target "$SHA" \
+            --title "develop-latest" \
+            --notes "Latest Windows build of develop at ${SHA}. Replaced on every merge into develop."

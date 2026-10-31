@@ -1,0 +1,52 @@
+name: Notify owner
+
+# Posts a comment as the GitHub Actions bot that mentions the product owner. The agents act as the
+# owner's account, and GitHub never notifies anyone about their own comments or labels.
+on:
+  issues:
+    types: [labeled]
+  pull_request_target:
+    types: [labeled]
+  workflow_call:
+    inputs:
+      number:
+        type: number
+        required: true
+      label:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  notify:
+    # Called from labeler.yml (the caller's event is pull_request), or one of the two labels added.
+    if: >-
+      (github.event_name != 'issues' && github.event_name != 'pull_request_target') ||
+      github.event.label.name == 'needs:decision' ||
+      github.event.label.name == 'needs:owner'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v9.0.0
+        env:
+          OWNER_LOGIN: PeterSallai90
+          NUMBER: ${{ inputs.number || github.event.issue.number || github.event.pull_request.number }}
+          LABEL: ${{ inputs.label || github.event.label.name }}
+        with:
+          script: |
+            const { OWNER_LOGIN, NUMBER, LABEL } = process.env;
+            const waiting = {
+              'needs:decision':
+                'a product decision is waiting for you (`needs:decision`). The question and the options are in the comments above; answer here or in the Claude Code session.',
+              'needs:owner':
+                'this pull request is waiting for you (`needs:owner`). Review it and add the `owner-approved` label to let it merge.',
+            };
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(NUMBER),
+              body: `@${OWNER_LOGIN} ${waiting[LABEL] ?? `the label \`${LABEL}\` was added.`}`,
+            });

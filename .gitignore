@@ -18,6 +18,9 @@ __pycache__/
 Thumbs.db
 .DS_Store
 
+# Claude Code local state (review approval record)
+.claude/state/
+
 # Secrets, never committed
 .env
 *.key
