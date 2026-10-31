@@ -1,0 +1,35 @@
+name: Labeler
+
+# Called by owner-gate.yml so the owner gate reads the labels only after labeling finished.
+# Labels added with GITHUB_TOKEN do not trigger other workflows, so this workflow calls
+# notify-owner.yml itself when it adds needs:owner.
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      new-labels: ${{ steps.labeler.outputs.new-labels }}
+    steps:
+      - id: labeler
+        uses: actions/labeler@v7.0.0
+        with:
+          configuration-path: .github/labeler.yml
+          sync-labels: false
+
+  notify:
+    needs: label
+    if: contains(format(',{0},', needs.label.outputs.new-labels), ',needs:owner,')
+    uses: ./.github/workflows/notify-owner.yml
+    permissions:
+      issues: write
+      pull-requests: write
+    with:
+      number: ${{ github.event.pull_request.number }}
+      label: needs:owner

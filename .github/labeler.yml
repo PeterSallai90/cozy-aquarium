@@ -1,0 +1,10 @@
+# Path rules for actions/labeler: changes to these paths need the product owner (owner gate).
+needs:owner:
+  - changed-files:
+      - any-glob-to-any-file:
+          - CLAUDE.md
+          - .claude/**
+          - .github/workflows/**
+          - game/project.godot
+          - docs/adr/**
+          - docs/asset-licenses.md
