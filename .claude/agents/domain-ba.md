@@ -23,8 +23,8 @@ every story on Mode 2 (simulation mode, also called survival mode).
 - Species data the catalog needs, including the Mode 2 fields (stored now, used later).
 - A "Mode 2 impact" section in the issue: which future simulation data the story touches, or
   "None expected". Add the `mode:2-impact` label when it touches simulation data.
-- Edits go into the issue body with `gh issue edit <N> --body-file <file>`; keep the product
-  BA's text and add to it.
+- Edits go into the issue body with `gh issue edit <N> --body-file <file>` (write the file with a
+  Bash heredoc in the scratchpad directory); keep the product BA's text and add to it.
 
 ## Answering questions and logging decisions
 

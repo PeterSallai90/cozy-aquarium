@@ -5,6 +5,7 @@ needs:owner:
           - CLAUDE.md
           - .claude/**
           - .github/workflows/**
+          - .github/labeler.yml
           - game/project.godot
           - docs/adr/**
           - docs/asset-licenses.md

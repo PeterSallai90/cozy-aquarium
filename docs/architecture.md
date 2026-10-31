@@ -101,7 +101,7 @@ feature/<issue> ──PR──▶ develop ──release PR──▶ main
 
 **Owner gate:** a required check that fails while a pull request has the `needs:owner` label without the `owner-approved` label. `needs:owner` is set in two ways:
 
-- automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `game/project.godot`, `docs/adr/` (Godot version) and `docs/asset-licenses.md` (new third-party assets);
+- automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `.github/labeler.yml` (the path rules themselves), `game/project.godot`, `docs/adr/` (Godot version) and `docs/asset-licenses.md` (new third-party assets);
 - by the developer or code reviewer for visible look-and-feel changes, which paths alone cannot detect.
 
 To let a gated pull request through, add the `owner-approved` label (GitHub does not let you approve pull requests that your own account opened, and the agents act as your account). Agents never add `owner-approved`, never merge into `main`, and never change rulesets; `CLAUDE.md` states this and the Claude Code permission settings deny it.
@@ -926,6 +926,8 @@ gh label create "area:ci"        --color BFD4F2
 gh label create "mode:1"         --color EDEDED
 gh label create "mode:2-impact"  --color EDEDED --description "Affects future simulation data"
 gh label create "needs:decision" --color E99695 --description "Blocked on the product owner"
+gh label create "needs:owner"    --color D93F0B --description "Waiting for the product owner: owner gate blocks merge until owner-approved"
+gh label create "owner-approved" --color 0E8A16 --description "Set only by the product owner; lets a gated pull request through"
 ```
 
 ### Issue templates (.github/ISSUE\_TEMPLATE)
@@ -1020,7 +1022,7 @@ None of these files exist until the repository skeleton is merged. Claude Code t
 
 | Workflow | Trigger | Jobs | Result |
 | --- | --- | --- | --- |
-| ci.yml | Every pull request and push to `main` | lint → test → build-windows | Green check required for merge; Windows zip as a run artifact (kept 14 days) |
+| ci.yml | Every pull request and push to `main` or `develop` | lint → test → build-windows | Green check required for merge; Windows zip as a run artifact (kept 14 days) |
 | release.yml | Tag `v*` (for example `v0.3.0`) | build Windows, Linux, macOS → upload to itch.io | New version on itch.io; GitHub Release with zips and changelog |
 | visual.yml (later) | Nightly and on demand | Render fixed camera shots with a software renderer, compare to approved screenshots | Report with differences; AI reviewer comments on suspicious changes |
 
@@ -1028,9 +1030,9 @@ The AI team setup (backlog B43) adds four small workflows around these two:
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| prerelease.yml | Push to `develop` | Builds Windows and replaces the GitHub pre-release `develop-latest` with the new zip |
-| owner-gate.yml | Pull request opened, updated, labeled or unlabeled | Required check: fails for pull requests into `main` without `owner-approved`, and for pull requests into `develop` that have `needs:owner` without `owner-approved` |
-| labeler.yml | Pull request opened or updated | Adds `needs:owner` when the change touches gated paths (see AI team → Branches and gates) |
+| prerelease.yml | Push to `develop`, after CI succeeded | Takes the Windows build of that CI run and replaces the GitHub pre-release `develop-latest` with the new zip |
+| owner-gate.yml | Pull request opened, updated, edited (base branch changed), labeled or unlabeled | Runs labeler.yml first, then the required check: fails for pull requests into `main` without `owner-approved`, and for pull requests into `develop` that have `needs:owner` without `owner-approved` |
+| labeler.yml | Called by owner-gate.yml | Adds `needs:owner` when the change touches gated paths (see AI team → Branches and gates), and calls notify-owner.yml when it does |
 | notify-owner.yml | `needs:decision` or `needs:owner` added | Posts a bot comment that @mentions you, so GitHub notifies you |
 
 All builds run on Ubuntu runners: Godot exports Windows, Linux and macOS builds from Linux, which is faster and cheaper than Windows runners. The macOS build is unsigned, which itch.io allows; players must right-click → Open the first time.

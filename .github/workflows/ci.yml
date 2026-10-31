@@ -19,8 +19,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.12"
       - run: pip install "gdtoolkit==4.5.0"
@@ -33,12 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           lfs: true
       - name: Cache Godot
         id: cache-godot
-        uses: actions/cache@v6
+        uses: actions/cache@v6.1.0
         with:
           path: ~/godot
           key: godot-${{ env.GODOT_VERSION }}-linux
@@ -63,7 +63,7 @@ jobs:
             exit 0
           fi
           godot --headless --path game -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: test-reports
@@ -74,12 +74,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           lfs: true
       - name: Cache Godot and export templates
         id: cache-godot
-        uses: actions/cache@v6
+        uses: actions/cache@v6.1.0
         with:
           path: ~/godot-export
           key: godot-${{ env.GODOT_VERSION }}-linux-templates
@@ -107,7 +107,7 @@ jobs:
           mkdir -p build/windows
           godot --headless --path game --export-release "Windows Desktop" ../build/windows/CozyAquarium.exe
           test -f build/windows/CozyAquarium.exe
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: CozyAquarium-windows-${{ github.sha }}
           path: build/windows

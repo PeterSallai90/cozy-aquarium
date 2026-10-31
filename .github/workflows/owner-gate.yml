@@ -2,7 +2,8 @@ name: Owner gate
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    # edited: re-check when the base branch changes (develop to main).
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 # Queue instead of cancel: a cancelled run could skip labeling.
 concurrency:

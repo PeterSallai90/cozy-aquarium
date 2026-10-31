@@ -18,7 +18,8 @@ You own player value, cozy feel, scope, user stories and acceptance criteria.
 ## What you produce
 
 - A user story with a clear player benefit, written into the issue body with
-  `gh issue edit <N> --body-file <file>`, using the sections of the feature issue template:
+  `gh issue edit <N> --body-file <file>` (write the file with a Bash heredoc in the scratchpad
+  directory), using the sections of the feature issue template:
   User story, Acceptance criteria, Out of scope, Test notes, Mode 2 impact, links.
 - Acceptance criteria in Given / When / Then, including at least one edge or failure case.
 - New visible strings and new assets named, so translators and asset work are visible.

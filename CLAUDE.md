@@ -48,8 +48,8 @@ name is decided later. Treat both names as Mode 2.
 - A PR is opened only after the code-reviewer agent approved the current HEAD commit; a hook blocks
   `gh pr create` otherwise.
 - PR description: link the issue ("Closes #N"), list what changed, how to playtest, known limits.
-- After creating a pull request, always enable auto-merge: `gh pr merge --auto --squash`. The owner
-  gate blocks the merge when the owner is needed.
+- After creating a pull request into develop, always enable auto-merge:
+  `gh pr merge --auto --squash`. The owner gate blocks the merge when the owner is needed.
 - Never commit to main. Never change CLAUDE.md, CI workflows or the Godot version without an issue
   that explicitly asks for it.
 - Agents never add the `owner-approved` label, never merge into main and never change rulesets or

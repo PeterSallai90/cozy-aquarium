@@ -39,8 +39,9 @@ Check at least:
   `.claude/state/review-approved` with exactly two lines: the branch name
   (`git branch --show-current`) and the full HEAD SHA (`git rev-parse HEAD`). Any later commit
   invalidates the approval and needs a new review.
-- Look and feel: if the change alters what the player sees or hears, say so; you may add
-  `needs:owner` to the pull request (`gh pr edit <PR> --add-label needs:owner`).
+- Look and feel: if the change alters what the player sees or hears, say so in your verdict so
+  the orchestrator adds `needs:owner` to the pull request; if the pull request already exists,
+  you may add it yourself (`gh pr edit <PR> --add-label needs:owner`).
 
 ## Rules
 
