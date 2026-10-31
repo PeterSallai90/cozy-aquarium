@@ -32,49 +32,111 @@ Cozy Aquarium is a free 3D PC game where players build and rebuild a home aquari
 
 All decisions are decided. A decision that changes later gets a new ADR in `docs/adr` and an updated row in this table. That folder is created with the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2).
 
-## Team and roles
+## AI team
 
-The product owner makes every decision and accepts every feature; five AI roles do the rest, each with its own instructions so that they check each other instead of agreeing by default.
+You talk to one Claude Code session, the orchestrator; it runs specialist agents with fixed models, keeps the board and issues up to date itself, and calls you only for the decisions and gates you chose.
 
-| Role | Who | Responsibilities | Model and environment |
+The team is built for the Claude Pro plan: Sonnet 5.5 by default, Opus only where it pays off and only if Claude Code offers it on the plan, one issue at a time. It is set up in Claude Code by backlog item B43 (see "Files that make up the team" below). The claude.ai project "Aquarium – BA" from the earlier plan is no longer used: the BA agents work inside the repository, so nothing is copied between chat windows.
+
+### Roles
+
+| Agent | Defined in | Model | Job |
 | --- | --- | --- | --- |
-| Product owner, playtester | You | Vision, priorities, decisions, acceptance, playtesting every build | — |
-| BA partner | AI | Drafts epics and stories, writes acceptance criteria, finds edge cases and gaps, checks new stories against existing ones, runs the Definition of Ready check | Claude Opus 5.5 in a claude.ai Project "Aquarium – BA" |
-| Architect | AI | Breaks stories into technical tasks, writes ADRs, keeps `CLAUDE.md` and the catalog schema consistent | Claude Opus 5.5 in Claude Code (planning mode) |
-| Developer | AI | Implements issues on a branch, writes tests, opens pull requests | Claude Sonnet 5.5 in Claude Code; escalate to Opus 5.5 for shaders, fish behaviour and camera maths |
-| Reviewer | AI | Reviews every pull request against the acceptance criteria and `CLAUDE.md`; reviews CI screenshots for visual regressions | Claude Opus 5.5 via the Claude GitHub integration or a Claude Code review session |
-| Chores | AI | Labels and triages issues, writes changelogs and release notes, drafts translations | Claude Haiku 5.5 |
+| Orchestrator | The main Claude Code session; rules in the Orchestrator section of `CLAUDE.md` | Sonnet 5.5 | Your only conversation partner. Picks the next work from the board, runs the requirements and delivery flows, delegates to agents, sends you digests, escalates |
+| Product BA | `.claude/agents/product-ba.md` | Sonnet 5.5 | Player value, cozy feel, scope, user stories, acceptance criteria |
+| Domain BA | `.claude/agents/domain-ba.md` | Sonnet 5.5 | Aquarium realism, species data, Mode 2 impact |
+| Requirements reviewer | `.claude/agents/requirements-reviewer.md` | Sonnet 5.5 | Challenges every story, asks questions, finds gaps and contradictions, runs the Definition of Ready |
+| Architect | `.claude/agents/architect.md` | Opus 5.5 if available in Claude Code on the plan, otherwise Sonnet 5.5 | Technical plan per issue, ADRs, architecture drift checks |
+| Tester | `.claude/agents/tester.md` | Sonnet 5.5 | Writes test cases from the acceptance criteria before coding starts, runs the suite, playtests through the Godot MCP server, writes the test report |
+| Developer | `.claude/agents/developer.md` | Sonnet 5.5 | Implements the issue on a feature branch until all tests pass |
+| Code reviewer | `.claude/agents/code-reviewer.md` | Opus 5.5 if available, otherwise Sonnet 5.5 | Independent review against the issue and `CLAUDE.md`; only its approval allows a pull request |
+| Board keeper | `.claude/agents/board-keeper.md` | Haiku 5.5 | Issues, labels, fields, statuses, links between issues and pull requests |
 
-### Setting up the AI BA partner
+Each agent file names its model with an alias (`sonnet`, `opus`, `haiku`), which Claude Code resolves to the current model. That is how model choice is automatic: the orchestrator picks the agent, and the agent file decides the model.
 
-Set this up now, in parallel with the Windows and GitHub setup: it does not depend on the repository, and the BA partner helps write the first documents.
+### Working with the orchestrator
 
-1. In claude.ai, create a Project named **Aquarium – BA** and select Claude Opus 5.5.
-2. Add this document to the project knowledge: export it as Markdown or PDF and upload it. It already contains the catalog schema ("Catalog schema") and the decisions log ("Purpose and decisions so far").
-3. Paste the following into the project instructions:
+- Open the Claude Desktop app → **Code** → Local → `C:\Dev\cozy-aquarium` and just say what you want: *"Continue with the board"*, *"Refine the feeding story"*, *"New idea: a day and night cycle in the room"*, *"I found a bug: …"*.
+- From your phone, **Remote Control** lets you follow and answer the same session. The PC must stay on while the team works.
+- The orchestrator reports when it starts an issue, when a pull request merges, a digest of decisions the BA agents made, and anything that needs you.
 
-```markdown
-You are the business analyst partner for Cozy Aquarium, a cozy 3D aquarium builder.
-The product owner makes all decisions. Your job is to make their decisions well-informed.
+### Requirements flow
 
-For every feature idea:
-1. Restate the goal in one sentence and name the player benefit.
-2. Write a user story: As a <player type>, I want <capability>, so that <benefit>.
-3. Write acceptance criteria in Given / When / Then form, including failure and edge cases.
-4. List what is explicitly out of scope.
-5. Flag contradictions with existing decisions or stories, and open questions.
-6. Note any impact on Mode 2 (simulation) data, even if Mode 2 is not built yet.
+1. An idea or bug arrives: from you, from the tester, or from the backlog.
+2. The product BA drafts the story; the domain BA adds realism and Mode 2 impact.
+3. The requirements reviewer asks questions; the two BAs answer them. One review round, unless the reviewer finds a real gap.
+4. Every answer is logged on the issue as a comment starting with "BA decision:", and the orchestrator sends you a short digest.
+5. The reviewer runs the Definition of Ready; the board keeper moves the issue to **Ready**.
 
-Challenge vague or conflicting requirements. Do not agree just to be agreeable.
-Keep stories small enough for one pull request (roughly one day of AI work).
-Output issues in the repository's issue-template format so they can be pasted into GitHub.
+The BAs decide on their own unless a question hits one of these escalation triggers, in which case the issue gets the `needs:decision` label and you are notified:
+
+- it contradicts a decided row in the decisions table;
+- it changes scope (adds, drops or moves a feature between milestones);
+- it is a look-and-feel judgment;
+- it affects release or distribution;
+- it is a naming decision (game, modes, species display names);
+- the BAs cannot agree.
+
+### Delivery flow
+
+1. **Architect** writes the technical plan as an issue comment.
+2. **Tester** writes the test cases from the acceptance criteria and commits them, failing, on the feature branch. Tests written before and apart from the code catch more mistakes.
+3. **Developer** implements until the tests pass, lint is clean and the build works.
+4. **Code reviewer** reviews the change. A rejection goes back to the developer; after three rejected rounds the orchestrator escalates to you.
+5. **Pull request into `develop`**, only after approval, with the test report attached. A hook enforces this: `gh pr create` is blocked unless the reviewer's approval record names the branch's current commit, so any change after the review needs a new review.
+6. **CI and the owner gate** run; GitHub merges automatically when both are green.
+7. **Board keeper** updates the issue and the board.
+
+### Branches and gates
+
+```
+feature/<issue> ──PR──▶ develop ──release PR──▶ main
+          auto-merge when CI and owner gate are green      you merge
 ```
 
-4. Draft `docs/vision.md` with the BA partner as its first task: the player experience, the target audience, and what the game is not. Upload the finished file to the project knowledge.
-5. Draft `docs/glossary.md` as its second task: the shared terms every AI role must use, such as decor item, substrate and tank size. Upload it as well.
-6. Once the repository skeleton exists (GitHub repository setup → Create the repository, backlog issue 2), let Claude Code commit both files into `docs/`. From then on, the repository is the source of truth for every document.
-7. Refresh the project knowledge at each milestone and whenever a decision changes. Project knowledge holds copies, not live links, so stale copies make the BA reason from outdated decisions.
-8. Work in one chat per epic. When a story is ready, paste it into a GitHub issue (or let Claude Code create the issue with the `gh` command line tool) and move it to **Ready**.
+| Pull request | Merged by | Requires |
+| --- | --- | --- |
+| Feature branch → `develop` | GitHub auto-merge, switched on by the agent | CI green; owner gate green |
+| `develop` → `main` (release) | You | CI green; `owner-approved` label |
+
+**Owner gate:** a required check that fails while a pull request has the `needs:owner` label without the `owner-approved` label. `needs:owner` is set in two ways:
+
+- automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `game/project.godot`, `docs/adr/` (Godot version) and `docs/asset-licenses.md` (new third-party assets);
+- by the developer or code reviewer for visible look-and-feel changes, which paths alone cannot detect.
+
+To let a gated pull request through, add the `owner-approved` label (GitHub does not let you approve pull requests that your own account opened, and the agents act as your account). Agents never add `owner-approved`, never merge into `main`, and never change rulesets; `CLAUDE.md` states this and the Claude Code permission settings deny it.
+
+**Playable builds:** every merge into `develop` publishes a Windows build as a GitHub pre-release named `develop-latest`, replacing the previous one. Download it any time from the repository's **Releases** page.
+
+### Notifications
+
+- **In the session:** the orchestrator tells you directly.
+- **On GitHub:** when `needs:decision` or `needs:owner` is added to an issue or pull request, a workflow posts a comment as the GitHub Actions bot that @mentions you, which reaches you by email and in the GitHub mobile app. A bot is needed because GitHub never notifies you about comments made by your own account, and the agents use your account.
+
+### Usage on the Pro plan
+
+- Usage limits are shared between Claude chat and Claude Code; every agent and every chat draws from the same allowance.
+- Sonnet 5.5 is the default. Opus 5.5 runs only for the architect and the code reviewer, and only if `/model` in Claude Code lists it.
+- One issue at a time; no parallel development.
+- The BA discussion runs as subagents in rounds, not as an agent team: agent teams run every teammate as a full session and are still experimental.
+- If limits slow the team down too much, the Max plan is the lever: Opus by default for planning and review, and the BA group as a real agent team whose members message each other directly.
+
+### Files that make up the team
+
+All created by backlog item B43 in one pull request, which is gated (`needs:owner`) because it changes `CLAUDE.md` and CI:
+
+| File | Purpose |
+| --- | --- |
+| `.claude/agents/*.md` (8 files) | One file per agent: role, instructions, allowed tools, model alias |
+| `.claude/settings.json` | Default model for the main session, permission allow and deny rules, hook registration |
+| `.claude/hooks/require_review.py` | Blocks `gh pr create` without a current review approval |
+| `CLAUDE.md`, Orchestrator section | Flows, escalation triggers, digest format, one-issue-at-a-time rule |
+| `.github/labeler.yml` and `.github/workflows/labeler.yml` | Path rules that add `needs:owner` |
+| `.github/workflows/owner-gate.yml` | The owner gate check |
+| `.github/workflows/notify-owner.yml` | Bot comment that notifies you |
+| `.github/workflows/prerelease.yml` | `develop-latest` Windows pre-release |
+
+`.claude/state/`, where the review approval record lives, is ignored by Git.
 
 ## Technology stack
 
@@ -777,16 +839,26 @@ never implement it, but keep its catalog fields intact. Read docs/vision.md and 
 - Import:  godot_console --headless --path game --import
 ```
 
-### Protect the main branch
+### Branch protection: main and develop
 
-The free GitHub plan enforces this ruleset only because the repository is public (decision D19). On a private repository, GitHub saves the ruleset but does not enforce it.
+Two branches are protected: `main` holds released versions, and `develop` collects finished work (see AI team → Branches and gates). The free GitHub plan enforces these rulesets only because the repository is public (decision D19); on a private repository GitHub saves rulesets but does not enforce them.
 
-In GitHub: **Settings → Rules → Rulesets → New branch ruleset** for `main`:
+The AI team setup (backlog B43) creates `develop` from `main` and updates the rulesets; the table shows the result, so you can check it under **Settings → Rules → Rulesets**.
 
-- [ ] Require a pull request before merging, with 0 required approvals. Claude Code opens pull requests under your account, and GitHub does not let authors approve their own pull requests; your approval is the act of merging after playtesting.
-- [ ] Require status checks to pass: `lint`, `test`, `build-windows`.
-- [ ] Block force pushes and deletions.
-- [ ] Require linear history (squash merges keep the history readable).
+| Setting | `main` | `develop` |
+| --- | --- | --- |
+| Require a pull request before merging | Yes, 0 approvals | Yes, 0 approvals |
+| Required status checks | `lint`, `test`, `build-windows`, `owner-gate` | `lint`, `test`, `build-windows`, `owner-gate` |
+| Block force pushes and deletions | Yes | Yes |
+| Require linear history | Yes | Yes |
+| Bypass list | Empty | Empty |
+
+The approvals stay at 0 because GitHub does not let you approve pull requests your own account opened, and Claude Code opens them under your account. Your control is the owner gate instead: for pull requests into `main` it always requires the `owner-approved` label, and for pull requests into `develop` it requires that label only when `needs:owner` is set.
+
+In **Settings → General**:
+
+- [ ] **Pull Requests:** enable **Allow auto-merge** and **Automatically delete head branches**.
+- [ ] **Default branch:** set to `develop`, so new pull requests target it unless told otherwise.
 
 ### Claude on GitHub (optional, later)
 
@@ -797,6 +869,8 @@ Claude Code can install a GitHub app and workflow in your repository (run `/inst
 One GitHub Projects board shows every feature, bug, test task and chore with its status; issues are the work items, epics are parent issues with sub-issues, and pull requests move cards automatically.
 
 Run the commands in this section inside the repository folder, after the skeleton pull request is merged (GitHub repository setup → Create the repository, step 4). The issue and pull request templates shown below are written by Claude Code in that skeleton step; the board, its fields and the labels are created by the commands here.
+
+Once the AI team is set up (backlog B43), the board keeper agent maintains the board: statuses, labels, fields and links. You no longer move cards yourself. **Human review** now means "waiting for the product owner": a `needs:decision` issue or a `needs:owner` pull request.
 
 ### Create the board
 
@@ -950,6 +1024,15 @@ None of these files exist until the repository skeleton is merged. Claude Code t
 | release.yml | Tag `v*` (for example `v0.3.0`) | build Windows, Linux, macOS → upload to itch.io | New version on itch.io; GitHub Release with zips and changelog |
 | visual.yml (later) | Nightly and on demand | Render fixed camera shots with a software renderer, compare to approved screenshots | Report with differences; AI reviewer comments on suspicious changes |
 
+The AI team setup (backlog B43) adds four small workflows around these two:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| prerelease.yml | Push to `develop` | Builds Windows and replaces the GitHub pre-release `develop-latest` with the new zip |
+| owner-gate.yml | Pull request opened, updated, labeled or unlabeled | Required check: fails for pull requests into `main` without `owner-approved`, and for pull requests into `develop` that have `needs:owner` without `owner-approved` |
+| labeler.yml | Pull request opened or updated | Adds `needs:owner` when the change touches gated paths (see AI team → Branches and gates) |
+| notify-owner.yml | `needs:decision` or `needs:owner` added | Posts a bot comment that @mentions you, so GitHub notifies you |
+
 All builds run on Ubuntu runners: Godot exports Windows, Linux and macOS builds from Linux, which is faster and cheaper than Windows runners. The macOS build is unsigned, which itch.io allows; players must right-click → Open the first time.
 
 ### ci.yml
@@ -959,7 +1042,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 env:
   GODOT_VERSION: "4.7.2"        # must match docs/adr/0001-engine.md
@@ -1062,7 +1145,7 @@ Apart from the license and the exported architecture document, every repository 
 | --- | --- | --- | --- | --- |
 | `LICENSE` | MIT license | GitHub repository setup | Create the repository, step 1 | `gh repo create` |
 | `docs/architecture.md` | Export of this document, the specification Claude Code reads | GitHub repository setup | Create the repository, step 2 | You |
-| `docs/vision.md`, `docs/glossary.md` | Product vision and shared terms | Team and roles → Setting up the AI BA partner | Drafted with the AI BA; saved in step 2 or committed later | AI BA and you |
+| `docs/vision.md`, `docs/glossary.md` | Product vision and shared terms | AI team → Requirements flow | Drafted with the AI BA; saved in step 2 or committed later | AI BA and you |
 | `.gitattributes` | Line endings, Git LFS file types | GitHub repository setup | Backlog issue 2 | Claude Code |
 | `.gitignore` | Files Git ignores | GitHub repository setup | Backlog issue 2 | Claude Code |
 | `.editorconfig` | UTF-8, LF, indentation | GitHub repository setup | Backlog issue 2 | Claude Code |
@@ -1090,6 +1173,8 @@ Apart from the license and the exported architecture document, every repository 
 
 Git does not store empty folders, so the skeleton places an empty `.gitkeep` file in each folder that has no content yet.
 
+The files of the AI team (backlog B43) are listed in AI team → Files that make up the team.
+
 ### Outside the repository (your machine only)
 
 | Path or setting | Purpose | Created in |
@@ -1106,29 +1191,29 @@ After creation, every file changes only through an issue and a pull request. `CL
 
 ## Day-to-day workflow
 
-Every change follows the same path from idea to merge, and you appear at exactly three points: deciding what to build, playtesting the result, and merging it.
+Every change follows the same path, run by the orchestrator and its agents; you appear only at the start, at the gates you chose, and at the release.
 
-&#91;embedded content: issue lifecycle · 8 steps, one rework loop\]
+&#91;embedded content: issue lifecycle with the AI team · 8 steps, one rework loop\]
 
-A failed CI run, a review with requested changes, or a failed playtest all send the pull request back to the developer AI on the same branch; the board card returns to AI in progress.
+A rejected review or a failed CI run sends the work back to the developer agent on the same branch. Pull requests that need you (`needs:owner`) wait on develop until you add `owner-approved`; everything else merges automatically.
 
 ### A typical session
 
-1. **Pick work:** open the board, move the top Ready issue to AI in progress.
-2. **Start Claude Code** in the repository: `claude`, then *"Work on issue #23. Read CLAUDE.md and the issue, plan first, then implement with tests and open a pull request."* Use `/model` to choose Opus 5.5 for planning-heavy issues.
-3. **Approve the plan:** Claude Code shows its plan before changing files. Check it against the acceptance criteria; correct it if needed.
-4. **Let it work:** it creates the branch, writes code and tests, runs lint and tests locally, commits, pushes and opens the pull request.
-5. **Review:** start a fresh Claude Code session with Opus 5.5: *"Review PR #57 against issue #23 and CLAUDE.md. List problems by severity."* Fixes go back to the developer session.
-6. **Playtest:** download the Windows build from the pull request's CI run, unzip, play, tick the acceptance criteria.
-7. **Merge:** squash-merge on GitHub. The card moves to Done automatically.
+1. Open the Claude Desktop app → **Code** → Local → `C:\Dev\cozy-aquarium`.
+2. Tell the orchestrator what you want: *"Continue with the board"*, *"Refine the feeding story"*, or a new idea or bug in your own words.
+3. The orchestrator runs the requirements and delivery flows and reports: issue started, BA decisions digest, pull request merged.
+4. When notified, answer in the session or on the GitHub issue, or add `owner-approved` to a gated pull request.
+5. Play the latest `develop-latest` build from the Releases page whenever you like, and tell the orchestrator about anything you notice; it files the bugs.
+6. When a milestone feels done, ask the orchestrator for a release pull request from `develop` to `main`, add `owner-approved`, and merge it.
 
 ### Habits that keep AI output good
 
-- One issue per session; start a new session for the next issue so old context does not leak in.
-- When the AI repeats the same mistake twice, add a rule to `CLAUDE.md` through a small chore pull request.
-- Every bug found in playtesting becomes a `type:bug` issue with steps to reproduce, never a quick fix in chat.
-- Once a week, ask the AI BA to review the backlog for duplicates, gaps and outdated stories.
-- Before each milestone, the AI architect reviews the code for drift from this document and files `type:chore` issues.
+- Let the orchestrator keep one issue per flow; each agent starts with a fresh context, so old work does not leak in.
+- When the same mistake repeats, ask the orchestrator to propose a `CLAUDE.md` rule; that pull request is gated, so you see it.
+- Report every bug through the orchestrator, never as a quick fix in chat, so it becomes a tracked issue with steps to reproduce.
+- Once a week, ask for a backlog review by the BA agents: duplicates, gaps, outdated stories.
+- Before each milestone, ask for an architecture drift check by the architect agent.
+- On the Pro plan, watch the usage limits; if the team keeps hitting them, consider the Max plan.
 
 ## Initial backlog
 
@@ -1188,6 +1273,8 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 41 | itch.io page: description, screenshots from photo mode | E9 Polish and release | M3 | chore | S | P1 |
 | 42 | Visual regression screenshots in CI | E9 Polish and release | M3 | chore | M | P2 |
 
+Added after the initial backlog: **B43, AI team setup** (epic E0 Foundation, milestone M0, type chore, size M, priority P0): the agents, hook, settings, Orchestrator section of `CLAUDE.md`, `develop` branch, rulesets and the four workflows described in the AI team chapter.
+
 Once the repository exists, Claude Code can create all of these as issues, sub-issues and milestones with `gh` in one session, from this table.
 
 ## Risks, open questions and next steps
@@ -1217,9 +1304,8 @@ The biggest risks are visual quality and AI drift, both handled by early proofs 
 
 ### Next steps
 
-1. Work through the Windows 11 setup guide, steps 0–11.
-2. Create the repository and the board.
-3. In parallel with steps 1–2, set up the "Aquarium – BA" project in claude.ai and draft the vision and glossary with it.
-4. Let Claude Code run issue 2 (repository skeleton), then issue 3 (CI).
-5. Let Claude Code create the remaining backlog issues from the backlog table.
-6. Start M0 Foundation.
+1. Let Claude Code build the AI team (backlog B43) with the setup prompt.
+2. Review the setup pull request and merge it into `main`.
+3. Check the rulesets and repository settings against "Branch protection: main and develop".
+4. From then on, talk to the orchestrator: start with the vision and glossary, drafted by the BA agents.
+5. Continue milestone M0 with the next Ready issue.
