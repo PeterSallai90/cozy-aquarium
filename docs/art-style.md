@@ -46,8 +46,8 @@ How to read this guide:
 - **Rule:** the model is scaled from the catalog field `adult_length_cm`, never baked to a
   stylized size, and the relative sizes and body proportions between species stay true.
 - **Guideline:** cozy exaggeration (slightly larger eyes, a rounder head) is fine.
-- **Rule:** decor, hardscape and plants are authored at real size in centimetres, so a rock or a
-  piece of wood looks right beside a 3 to 5 cm fish.
+- **Rule:** decor, hardscape and plants are authored at real size (1 unit = 1 m; a 20 cm rock is
+  0.2 units), so a rock or a piece of wood looks right beside a 3 to 5 cm fish.
 - **Rule:** no geometry below the substrate line.
 
 ## Triangle budgets
@@ -103,17 +103,28 @@ MultiMesh, one instance or one clump).
 These conventions let a Blender generator script (the first one is issue #21) follow this guide
 without further questions.
 
-- **Rule:** faces that use palette colours take their colour from UVs that point into the shared
-  palette atlas.
-- **Rule:** fish mask texture channels: R = pattern region 1, G = pattern region 2, B = eye
-  region (a dark eye with a small highlight). The colour of each region is a shader parameter.
+- **Rule:** every mesh has two UV sets. UV0 (glTF `TEXCOORD_0`, Godot `UV`) is a proper
+  non-overlapping unwrap. It is used by the per-asset mask texture and the per-asset gradient
+  texture, and only meshes that have one of these need a real unwrap. UV1 (glTF `TEXCOORD_1`,
+  Godot `UV2`) is the atlas lookup: each face points into one cell of the shared palette atlas, so
+  faces collapse onto cells there. No texture other than the palette atlas is sampled with UV1.
+- **Rule:** the body of a masked fish takes its base colour from the palette atlas through UV1.
+  The mask regions then override that base colour only inside their region, using per-region
+  shader parameters. The base colour is never a shader parameter of its own.
+- **Rule:** fish mask texture channels (sampled with UV0): R = pattern region 1, G = pattern
+  region 2, B = eye region (a dark eye with a small highlight). The colour of each region is a
+  shader parameter.
 - **Rule:** the vertex colour alpha channel is the fin translucency mask (1 = translucent fin,
   0 = opaque body). One transmission-strength shader parameter serves all species. Plants use the
-  same channel for thin leaves.
+  same channel for thin leaves. It needs a custom shader that reads vertex colour alpha as a mask;
+  a `StandardMaterial3D` with vertex colour as albedo would treat the alpha as transparency.
 - **Rule:** 1 Blender unit = 1 m. The model front faces glTF +Z (Blender -Y, Godot
   `Vector3.MODEL_FRONT`); all generators use this one front axis.
-- **Rule:** fish are authored at unit body length with the origin at the body centre and scaled at
-  runtime from `adult_length_cm`. Decor, plants and hardscape are authored at real size.
+- **Rule:** fish are authored at unit body length (1 unit, so the standard length: snout tip to the
+  base of the tail fin, excluding the tail fin and all other fins) with the origin at the centre of
+  the bounding box of the body without fins. They are scaled at runtime so that this standard length
+  equals `adult_length_cm`. Fins extend beyond 1 unit (a betta tail may reach 1.5 to 2 units).
+  Decor, plants and hardscape are authored at real size.
 
 ### Fish
 
@@ -129,7 +140,8 @@ without further questions.
 - **Rule:** each plant has a base-to-tip gradient, darker at the base and lighter at the tip.
 - **Guideline:** transmission is strong on thin leaves (vallisneria, hornwort, Amazon sword) and
   weak on thick leaves (anubias, java fern).
-- **Rule:** ribbon, stem, rosette, carpet and moss plants have distinct silhouettes.
+- **Rule:** each plant type (ribbon, stem, rosette, carpet, moss) is identifiable from its
+  side-view silhouette alone.
 
 ### Hardscape and substrate
 
@@ -153,8 +165,8 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 | --- | --- | --- | --- | --- |
 | Caustics | **Rule**: required | Slow animated projected texture, up-facing surfaces first (substrate, low decor, lower back wall); fades with depth and in shade | `caustic_intensity`, `caustic_speed`, `caustic_scale` | its area:render issue |
 | Depth colour tint | **Rule**: required | Slight blue-green shift and loss of contrast and saturation with distance | `depth_tint_color`, `depth_tint_strength` | its area:render issue |
-| In-tank fog | **Rule**: required | Volumetric fog limited to the water volume | `fog_density`, `fog_color` | its area:render issue |
-| Bloom | **Rule**: required | Environment glow | `glow_intensity`, `glow_threshold` | its area:render issue |
+| In-tank fog | **Rule**: required | Volumetric fog limited to the water volume | `volumetric_fog_density`, `volumetric_fog_albedo` | its area:render issue |
+| Bloom | **Rule**: required | Environment glow | `glow_intensity`, `glow_hdr_threshold` | its area:render issue |
 | AgX tonemapping | **Rule**: required | Environment tonemapper set to AgX | `tonemap_exposure`, `tonemap_white` | its area:render issue |
 | Light transmission through fins and leaves | **Rule**: required | Back-light and transmission in the material, driven by the translucency mask | `transmission_strength`, `transmission_color` | its area:render issue |
 | Bubbles | **Rule**: required | GPU particles that start where bubbles occur in a real tank: an air stone or the filter outflow | `bubble_rate`, `bubble_size`, `bubble_speed` | its area:render issue |
@@ -164,6 +176,10 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 | SSAO | **Rule**: optional | Environment ambient occlusion | `ssao_intensity` | its area:render issue |
 | Soft fresnel edge glow | **Rule**: optional, soft and subtle | Fresnel term in the material | `fresnel_strength` | its area:render issue |
 
+- **Rule:** names of built-in Godot `Environment` properties (for example `glow_intensity`,
+  `glow_hdr_threshold`, `tonemap_exposure`, `tonemap_white`) are the real property names. For
+  custom shader parameters the names in the table are examples, and the effect's own area:render
+  issue fixes the final names.
 - **Rule:** an optional effect may be added, but is not required. The soft fresnel edge glow, if
   used, stays subtle.
 - **Rule:** bubbles and floating particles appear only where they do in a real tank: bubbles from
@@ -202,7 +218,7 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 
 - **Rule:** CC0 packs and AI-generator outputs are adapted in Blender to this guide (budgets,
   shading, palette) before use. The licence row in `docs/asset-licenses.md` is required as before.
-- Human-sculpted or AI-generated hero pieces are the only **hand-made only** path.
+- **Rule:** human-sculpted or AI-generated hero pieces are the only **hand-made only** path.
 
 ## Mode 2
 
