@@ -87,6 +87,12 @@ func clear() -> bool:
 	return true
 
 
+## True while execute(), undo(), redo() or clear() is running, including inside their signal
+## handlers.
+func is_busy() -> bool:
+	return _busy
+
+
 func can_undo() -> bool:
 	return not _undo_stack.is_empty()
 
