@@ -117,6 +117,6 @@ Blocked: <none | needs:decision: question>
 ```
 
 ## Commands
-- Tests:   godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests
+- Tests:   godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
 - Lint:    gdlint game && gdformat --check game
 - Import:  godot_console --headless --path game --import

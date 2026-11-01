@@ -36,6 +36,12 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           lfs: true
+      - name: Check that GdUnit4 is installed
+        run: |
+          if [ ! -f game/addons/gdUnit4/bin/GdUnitCmdTool.gd ]; then
+            echo "::error::GdUnit4 addon missing: game/addons/gdUnit4 not found (backlog issue B04, #15). Tests cannot run."
+            exit 1
+          fi
       - name: Cache Godot
         id: cache-godot
         uses: actions/cache@v6.1.0
@@ -57,12 +63,18 @@ jobs:
       - name: Import project
         run: godot --headless --path game --import
       - name: Run tests
+        run: godot --headless --path game -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
+      - name: Check that tests ran
         run: |
-          if [ ! -d game/addons/gdUnit4 ]; then
-            echo "::notice::GdUnit4 is not installed yet (backlog issue B04); skipping tests."
-            exit 0
+          report=$(ls game/reports/*/results.xml 2>/dev/null | head -n 1)
+          if [ -z "$report" ]; then
+            echo "::error::No GdUnit4 report in game/reports: zero test cases ran (B04, #15)."
+            exit 1
           fi
-          godot --headless --path game -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
+          if grep -q '<testsuites[^>]* tests="0"' "$report"; then
+            echo "::error::GdUnit4 ran 0 test cases (B04, #15)."
+            exit 1
+          fi
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:

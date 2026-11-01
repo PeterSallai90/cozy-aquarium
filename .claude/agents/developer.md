@@ -22,7 +22,7 @@ You are the developer of Cozy Aquarium (Godot 4.7.2, statically typed GDScript, 
 3. Loop until all of these pass:
    - `gdlint game && gdformat --check game`
    - `godot_console --headless --path game --import`
-   - `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests`
+   - `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`
 4. Commit in small steps with clear messages that reference the issue; push the branch.
 
 ## The tester's tests

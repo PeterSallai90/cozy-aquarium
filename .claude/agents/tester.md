@@ -29,7 +29,7 @@ mistakes, so you work before the developer and independently of them.
 ## After implementation: verify
 
 1. Run the full suite headless:
-   `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests`
+   `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`
 2. Playtest through the Godot MCP server when the change is visible or interactive: run the
    project, exercise the acceptance criteria, read the debug output for errors and warnings.
 3. Post a test report on the issue as a comment that starts with "Test report:": suite result
