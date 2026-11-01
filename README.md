@@ -13,7 +13,7 @@ project; gameplay arrives with the M1 "First playable" issues.
 
 - Godot 4.7.2 (standard build), statically typed GDScript, Forward+ renderer
 - GdUnit4 for tests, gdtoolkit (`gdlint`, `gdformat`) for linting and formatting
-- Blender, driven by Python scripts, for low-poly assets
+- Blender, driven by Python scripts, for stylized assets (rules in [docs/art-style.md](docs/art-style.md))
 - Git LFS for binary assets; GitHub Actions for CI; itch.io for releases
 
 ## Repository layout
@@ -21,9 +21,9 @@ project; gameplay arrives with the M1 "First playable" issues.
 | Path | Contents |
 | --- | --- |
 | `game/` | The Godot project (`project.godot`): catalog, model, systems, scenes, shaders, UI, assets, localization, tests |
-| `tools/blender/` | Python scripts that generate low-poly assets |
+| `tools/blender/` | Python scripts that generate stylized assets |
 | `tools/scripts/` | Helper scripts (export, screenshot, pseudo-localization, CI checks) |
-| `docs/` | Architecture guide, ADRs, asset license log |
+| `docs/` | Architecture guide, art style guide, ADRs, asset license log |
 | `.github/` | Issue templates, pull request template, workflows |
 
 ## Getting started
