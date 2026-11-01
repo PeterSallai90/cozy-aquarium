@@ -10,6 +10,7 @@ var settings_path: String = SettingsStore.DEFAULT_PATH
 var os_locale_source: Callable = Callable()
 
 var _service: LanguageService
+var _format: LocalFormat
 
 
 func _ready() -> void:
@@ -21,6 +22,16 @@ func _ready() -> void:
 	else:
 		locale = OS.get_locale()
 	_service.start(locale)
+	_format = LocalFormat.new(
+		get_language,
+		func() -> int: return LocalFormat.system_offset_minutes(),
+		func() -> float: return Time.get_unix_time_from_system()
+	)
+
+
+## The date, time and number helper; null before this node is ready.
+func local_format() -> LocalFormat:
+	return _format
 
 
 func get_supported_languages() -> PackedStringArray:
