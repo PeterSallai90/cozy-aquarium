@@ -1,0 +1,2 @@
+# Keys that exist only at run time and cannot be found in code, scenes or the catalog.
+# One per line: "key" or "key key.plural". Blank lines and # comments are ignored.

@@ -170,7 +170,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 1. **Catalog** – read-only definitions of every species, plant, substrate, decoration and tank. Stored as typed Godot resources (`.tres`, plain text).
 2. **Aquarium model** – the current state: chosen tank, substrate and colour, placed items with transforms, fish instances. Pure data, no nodes, serializable to JSON.
 3. **Commands** – every change to the model (place, move, rotate, recolour, delete, add fish) is a command object with `do()` and `undo()`. This gives unlimited undo/redo and a single place to validate changes.
-4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals; they never talk to each other directly. The model never references `EventBus`.
+4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals and carries `language_changed(language)` from the `Localization` autoload; they never talk to each other directly. The model never references `EventBus`.
 5. **Presentation** – scenes, shaders, UI and audio that render the model.
 6. **Game mode** – `CozyMode` now. `SimulationMode` later adds a fixed-rate simulation tick and rules on top of the same model and catalog.
 
@@ -184,7 +184,7 @@ extends Resource
 
 # --- Mode 1: identity and presentation ---
 @export var id: StringName                  # "neon_tetra"
-@export var name_key: String                # translation key "FISH_NEON_TETRA_NAME"
+@export var name_key: String                # translation key "fish.neon_tetra.name"
 @export var description_key: String
 @export var scene: PackedScene              # stylized model with swim shader
 @export var colour_variants: Array[Color] = []
@@ -263,8 +263,8 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification |
 | Water rendering | Cozy, readable water | Glass shader, caustics projected on substrate, volumetric fog tint, bubbles |
 | Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`) |
-| Settings | Language, audio, graphics quality, controls | Godot `ConfigFile` in the user data folder |
-| Localization | All visible text | gettext `.po`, `tr()` keys only |
+| Settings | Language (issue 7); audio, graphics quality, controls (issue 9) | One Godot `ConfigFile`, `user://settings.cfg`, written only through `SettingsStore` (`game/systems/settings_store.gd`): one section per area (`[general]` holds `language`; issue 9 adds `[audio]`, `[graphics]`, `[controls]`), the file is read again right before each write so unknown sections and keys survive, it is replaced safely (`.tmp` plus rename), a file that does not parse is copied to `settings.cfg.bak` on the next write, and the game never writes it at startup |
+| Localization | All visible text; the current language | gettext `.po`, `tr()`/`tr_n()` keys only; the `Localization` autoload (`game/systems/localization/`, registered after `EventBus`) owns the language API and emits `EventBus.language_changed` |
 
 ### Repository layout
 
@@ -275,16 +275,16 @@ cozy-aquarium/
 ├─ game/                     # the Godot project (project.godot lives here)
 │  ├─ catalog/               # .tres definitions: fish/, plants/, decor/, substrates/, tanks/
 │  ├─ model/                 # aquarium model, commands, command history, save codec (no Node scripts, no file I/O)
-│  ├─ systems/               # EventBus autoload, save store (file I/O), placement, fish, camera, photo, settings
+│  ├─ systems/               # EventBus and Localization autoloads (localization/), save store, settings store, placement, fish, camera, photo
 │  ├─ scenes/                # main menu, build scene, tank, furniture
 │  ├─ shaders/               # water, glass, caustics, swim, sway, substrate
 │  ├─ ui/                    # themes, fonts, screens
 │  ├─ assets/                # models (.glb), textures, audio — tracked with Git LFS
-│  ├─ localization/          # messages.pot, en.po, hu.po
+│  ├─ localization/          # messages.pot (generated), en.po, hu.po, extra_keys.txt
 │  └─ tests/                 # GdUnit4 tests mirroring the folders above
 ├─ tools/
 │  ├─ blender/               # Python scripts that generate stylized assets
-│  └─ scripts/               # helper scripts (export, screenshot, pseudo-localization)
+│  └─ scripts/               # helper scripts (pot generator, translation and license checks, export, screenshot, pseudo-localization)
 ├─ docs/
 │  ├─ adr/                   # architecture decision records
 │  ├─ art-style.md
@@ -364,10 +364,17 @@ The files named in this section are created with the repository, not before: `.e
 | --- | --- |
 | Default language | English |
 | Selectable at launch | English, Magyar (Hungarian), each shown in its own language in the menu |
-| First start | Use the Windows display language if it is supported, otherwise English |
-| Storage | Selected language saved in settings; switching applies immediately without restart |
-| Source strings | Never in code or scenes: only translation keys through `tr()` and `tr_n()` |
-| Files | `game/localization/messages.pot` (extracted), `en.po`, `hu.po` |
+| First start | Use the Windows display language if it is supported, otherwise English. Only the locale that Godot reports is read (`OS.get_locale()`): its language part before the first `_` or `-`, compared case-insensitively, so `hu`, `hu_HU`, `hu-HU` and `hu_Latn_HU` give Magyar and anything else, including an empty value, gives English. No registry, `reg.exe` or other process |
+| Storage | Selected language saved in `user://settings.cfg`, section `[general]`, key `language` (`en` or `hu`), only when the player sets a language; switching applies immediately without restart. A missing, unsupported or damaged value means first start, and it stays on disk until the player next sets a language |
+| Language API | Autoload `Localization`: `get_supported_languages()` (`en`, `hu`), `get_language_display_name(code)`, `get_language()`, `set_language(code)` returning `OK` or `ERR_INVALID_PARAMETER`. A change emits `EventBus.language_changed(language)` once, after the locale switched. UI calls only this API and holds no language logic |
+| Source strings | Never in code or scenes: only translation keys through `tr()` and `tr_n()`. A text that code builds (inserted numbers, plurals) is rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`, and its control, like any control showing player text, has auto-translate turned off |
+| Key convention | Lower case, dot-separated `area.subject.detail`, `_` inside a segment, only `a-z 0-9 _ .`, at least two segments (for example `save.error.not_found`, `menu.main.new_aquarium`, `fish.neon_tetra.name`). No `msgctxt`. Checked by `tools/scripts/check_translations.py` |
+| Key areas | `menu`, `save`, `settings`, `language`, `tank`, `fish`, `item`, `ui`, `photo`, `datetime`, `number`, `unit`. The same list is `ALLOWED_AREAS` in `check_translations.py`; an issue that needs a new area adds it to both in its own pull request |
+| Plural keys | `<key>` for the singular and `<key>.plural` for the plural, used with two literals: `tr_n("fish.count", "fish.count.plural", n)`. A last segment `plural` is reserved for this. Both `.po` files use `Plural-Forms: nplurals=2; plural=(n != 1);` |
+| Non-literal keys | `tr(x.name_key)` and `tr(entry_key)` are allowed only for an identifier or member access whose last name is `key` or ends in `_key`; the plural form is `tr_n(e, e + ".plural", n)` with the same expression `e`. Any other non-literal key fails `generate_pot.py` |
+| Files | `game/localization/messages.pot` (generated by `python tools/scripts/generate_pot.py` from literal `tr()`/`tr_n()`/`atr()`/`atr_n()` keys in scripts, `text`/`tooltip_text`/`placeholder_text`/`title` in scenes, catalog `*_key` fields and `extra_keys.txt`; sorted, no references or dates, never edited by hand), `en.po` (English text under the key), `hu.po`, `extra_keys.txt` (keys that exist only at run time). UTF-8 without BOM, LF |
+| Fallback | `internationalization/locale/fallback` is `en`: a key missing or empty in `hu.po` shows the English text, and a key in neither file shows the key itself. CI makes sure the player never relies on either |
+| Test keys | Fixture keys live in test-only `.po` files under `game/tests/fixtures/localization/`, loaded and removed by the tests; they are never in `messages.pot`, `en.po` or `hu.po` and never ship |
 | Numbers and units | Metric; decimal separator follows the language (3.5 cm in English, 3,5 cm in Hungarian) |
 | Species names | Translated common name plus the Latin scientific name, which is never translated |
 
@@ -385,7 +392,7 @@ The fallback chain is set once in the global UI theme, so every label inherits i
 ### Quality gates
 
 - **Pseudo-localization:** Godot's built-in pseudo-localization runs in a CI test that lengthens every string by about 40% and adds accented characters, then checks screenshots for overflow and missing glyphs.
-- **Missing key check:** CI fails if any key in `messages.pot` is missing from `en.po` or `hu.po`.
+- **Translation check:** CI (`tools/scripts/check_translations.py` in the lint job) fails if `messages.pot` is missing or out of date with the code, a key breaks the key convention or the area list, a key in `messages.pot` is missing, empty or fuzzy in `en.po` or `hu.po`, a `.po` file holds a key that is not in `messages.pot`, or a file has a wrong `Language` or `Plural-Forms` header, a BOM or CRLF line endings.
 - **Glyph test:** a test scene renders a fixed sample (`Árvíztűrő tükörfúrógép`, `熱帯魚`, `열대어`, `Аквариум`) and checks that no glyph falls back to the empty box.
 - **Translation review:** the AI drafts Hungarian translations (Haiku 5.5 for volume, Opus 5.5 for anything tricky); you review them in a pull request before merge.
 
