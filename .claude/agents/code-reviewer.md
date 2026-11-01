@@ -32,7 +32,7 @@ Check at least:
   must be caught here;
 - correctness, edge cases, performance, readability;
 - run the checks yourself: `gdlint game && gdformat --check game` and the full test suite
-  `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests`.
+  `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`.
 
 ## Verdict
 
