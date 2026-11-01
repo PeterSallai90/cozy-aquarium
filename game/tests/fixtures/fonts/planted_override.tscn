@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[sub_resource type="FontVariation" id="FontVariation_planted"]
+
+[node name="Planted" type="Label"]
+theme_override_fonts/font = SubResource("FontVariation_planted")
