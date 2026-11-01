@@ -22,20 +22,8 @@ name is decided later. Treat both names as Mode 2.
 - Text files are UTF-8, LF line endings.
 
 ## Assets
-- Low-poly style. Triangle budgets and colouring:
-
-  | Asset | Triangle budget | Colouring |
-  | --- | --- | --- |
-  | Fish | 300–800 | Vertex colours or a shared palette texture; pattern masks for colour variants |
-  | Plants | 200–1,500 | Palette texture; sway in a vertex shader |
-  | Rocks, wood, decor | 100–600 | Palette texture; colour tint parameter |
-  | Tank, cabinet, room | 500–3,000 | Palette texture |
-
-- Flat shading or soft low-poly shading; no photographic textures.
-- One shared palette texture (a small gradient atlas) for most models keeps the look consistent and
-  draw calls low.
-- Colour customization works through shader parameters, never through duplicate models.
-- Fish swim through a vertex shader; no skeletal rigs in the MVP.
+- Art style rules (shading, triangle budgets, colouring, rendering and look, quality bar) live in
+  docs/art-style.md. Follow them for every asset and shader.
 - Generate assets with tools/blender scripts where possible.
 - Any third-party asset needs a row in docs/asset-licenses.md in the same PR.
 
