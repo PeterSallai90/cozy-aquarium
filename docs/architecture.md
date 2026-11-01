@@ -212,27 +212,44 @@ Plants, decorations, substrates and tanks follow the same pattern: presentation 
 
 ### Aquarium model and save format
 
+The sample is shown compact; the game writes the same keys in the same order, indented with two spaces (see Encoding below).
+
 ```json
 {
   "format_version": 1,
   "name": "My first tank",
   "tank_id": "tank_medium_60l",
-  "substrate": { "id": "sand_fine", "colour": "#E8D9B0", "heightmap": "base64..." },
+  "substrate": {
+    "id": "sand_fine",
+    "colour": "#E8D9B0",
+    "heightmap": { "size": [3, 2], "data": "AAAAAAAAAD8AAIA/AACAPgAAAD4AAIA9" }
+  },
   "items": [
-    { "uid": "a1f3", "catalog_id": "rock_slate_01", "position": [0.1, 0.0, -0.05],
-      "rotation_y": 35.0, "scale": 1.0, "colour": null }
+    { "uid": "a1f3c07e", "catalog_id": "rock_slate_01", "position": [0.1, 0.0, -0.05],
+      "rotation_y": 35.0, "scale": 1.0, "colour": null },
+    { "uid": "5b2e9d14", "catalog_id": "driftwood_02", "position": [-0.2, 0.0, 0.03],
+      "rotation_y": -90.0, "scale": 0.8, "colour": "#7A5C3E" }
   ],
   "fish": [
-    { "uid": "f001", "species_id": "neon_tetra", "variant": 0, "nickname": "" }
+    { "uid": "f0019a3c", "species_id": "neon_tetra", "variant": 0, "nickname": "" }
   ],
   "created": "2026-10-27T18:00:00Z",
   "modified": "2026-10-27T18:30:00Z"
 }
 ```
 
-Rules: `format_version` increases with every breaking change and a migration function upgrades old saves; saves are UTF-8 JSON in the user data folder; the game autosaves every five minutes by default, and the player can save to a named slot at any time; every save stores a thumbnail of the last game screen, which the slot list shows. Saving for Mode 2 is designed later. Photo mode pictures are not part of saves (see Camera specification). The model and serializer are written in backlog issues 5 and 6.
+Rules:
 
-Model conventions (issue #16): positions are metres in tank-local space (+Y up, +X to the right from the front view, +Z toward the front glass, origin at the centre of the inner tank floor); `rotation_y` is in degrees; `scale` is a uniform factor; an item without a colour has `has_colour = false` and is saved as `"colour": null`; uids are 8 lowercase hex characters shared by items and fish; the heightmap is a `PackedFloat32Array` of heights in metres above the tank floor plus its size, empty meaning flat. Commands never change `created` or `modified`; save/load sets them. The undo history is session-only and never saved.
+- **Versioning.** `format_version` increases with every change to the file shape that an older build would misread or lose on re-save, additive optional keys and blocks included, with no pre-release exception. Each increase adds exactly one migration step (from version N to N+1), which may be empty when old files need no change. Never change the meaning, unit or type of an existing key without a bump and a migration step. A build refuses a file with a newer `format_version` and never rewrites it. Unknown keys are ignored on load and dropped on save, so an optional key or block that does not bump the version is not allowed: an older build would silently drop it on re-save.
+- **Optional blocks for later data (Mode 2).** New data, including all Mode 2 data, is added only as new optional keys or blocks with defaults, never by changing a v1 key, so a file without them loads with defaults and every Mode 1 save is a valid Mode 2 starting point. Per-fish and per-item data goes into a separate block keyed by the `uid`, never into extra fields of the `fish` or `items` entries and never keyed by list index or species; an entry whose uid has no fish or item is orphaned and ignored, and a fish or item with no entry gets default state. Every such block comes with a version bump (rule above).
+- **Contents.** The file stores the Mode 1 model only, with ids for catalog data (`tank_id`, `substrate.id`, `catalog_id`, `species_id`, `variant` as an index into the species `colour_variants`). It never stores catalog values (litres, sizes, species needs, Mode 2 fields), the undo history, derived values such as personality, a mode field, camera or UI state, settings or photos. Units: metres (tank-local), degrees for `rotation_y`, unitless `scale`, heightmap values in metres above the tank floor, UTC timestamps `YYYY-MM-DDTHH:MM:SSZ`.
+- **Encoding.** UTF-8 without a byte order mark (one leading BOM is accepted on load, never written), LF line endings, two-space indentation, one trailing newline, keys in the order of the sample, items and fish in list order. Numbers are written at full precision so floats round-trip exactly. Colours are uppercase `#RRGGBB` when alpha rounds to 255, otherwise `#RRGGBBAA`; components are clamped to 0..1 and stored at 8 bits per channel; only an item `colour` may be `null` (no colour). The heightmap is `{ "size": [W, H], "data": "<base64>" }`, where `data` is W×H raw IEEE-754 float32 values, little-endian, row after row; a flat heightmap is `{ "size": [0, 0], "data": "" }`.
+- **Validation.** A load is all or nothing: the file is decoded into a fresh model, and only a fully valid one replaces the live model. Uids are exactly 8 lowercase hex characters and unique across items and fish; `uid`, `catalog_id` and `species_id` are required; any other missing key gets its default; a present key with the wrong type, including `null`, makes the file damaged. Limits: file size 16 MiB, heightmap side 1024, `variant` 0 to 255. The writer applies the same rules to the model and refuses to write a file the reader would refuse.
+- **Files.** The save store writes only below `user://` (no `..` segment, not ending in `/`) and replaces a file safely: it writes `<target>.tmp` in the same folder, checks its length, then renames it over the target. Result kinds: OK, not found or unreadable, damaged, newer version, path refused, write failed, internal.
+- **Slots, autosave and thumbnails.** The game autosaves every five minutes by default, and the player can save to a named slot at any time; each slot shows a thumbnail of the last game screen (D17). Slots, autosave and thumbnails are backlog issue 27; the thumbnail is stored outside the JSON (it is not a v1 key). Saving for Mode 2 is designed later. Photo mode pictures are not part of saves (see Camera specification).
+- **Where the code lives.** The model is backlog issue 5 and the serializer backlog issue 6. The serializer is split in two: the pure codec in `game/model` (`SaveCodec`, `SaveResult`, `SaveMigrations`: text to model and back, versioning, migrations and validation, with no file access and no clock) and the file I/O in `game/systems/save_store.gd` (`SaveStore`: save path policy, safe write, clock, and the load entry point that refills the live model and clears the undo history).
+
+Model conventions (issue #16): positions are metres in tank-local space (+Y up, +X to the right from the front view, +Z toward the front glass, origin at the centre of the inner tank floor); `rotation_y` is in degrees; `scale` is a uniform factor; an item without a colour has `has_colour = false` and is saved as `"colour": null`; uids are 8 lowercase hex characters shared by items and fish; the heightmap is a `PackedFloat32Array` of heights in metres above the tank floor plus its size, empty meaning flat. Commands never change `created` or `modified`; save and load set them through `AquariumModel.set_save_times()`, which only the save code calls (enforced by a test scan). The undo history is session-only and never saved.
 
 ### Core systems
 
@@ -245,7 +262,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | Feeding | Drop food; fish notice and eat it gradually, not all at once; no hunger or overfeeding consequences in Mode 1 | Particle food with simple physics; each fish notices food after its own short random delay, then switches to a seek state |
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification |
 | Water rendering | Cozy, readable water | Glass shader, caustics projected on substrate, volumetric fog tint, bubbles |
-| Save/load | Slots, autosave, migration | JSON via the model serializer |
+| Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`) |
 | Settings | Language, audio, graphics quality, controls | Godot `ConfigFile` in the user data folder |
 | Localization | All visible text | gettext `.po`, `tr()` keys only |
 
@@ -257,8 +274,8 @@ This layout does not exist yet. Claude Code creates the folders and configuratio
 cozy-aquarium/
 ├─ game/                     # the Godot project (project.godot lives here)
 │  ├─ catalog/               # .tres definitions: fish/, plants/, decor/, substrates/, tanks/
-│  ├─ model/                 # aquarium model, commands, command history, serializer (no Node scripts)
-│  ├─ systems/               # EventBus autoload, placement, fish, camera, photo, save, settings
+│  ├─ model/                 # aquarium model, commands, command history, save codec (no Node scripts, no file I/O)
+│  ├─ systems/               # EventBus autoload, save store (file I/O), placement, fish, camera, photo, settings
 │  ├─ scenes/                # main menu, build scene, tank, furniture
 │  ├─ shaders/               # water, glass, caustics, swim, sway, substrate
 │  ├─ ui/                    # themes, fonts, screens
@@ -1163,7 +1180,8 @@ Apart from the license and the exported architecture document, every repository 
 | `game/addons/gdUnit4/`, `game/tests/` | Test framework and first test | Technology stack | Backlog issue 4 | Claude Code |
 | `game/model/` | Aquarium model, Command base class, command history, uid generator | Game architecture | Backlog issue 5 | Claude Code |
 | `game/systems/event_bus.gd` and its autoload entry in `game/project.godot` | EventBus autoload | Game architecture | Backlog issue 5 | Claude Code |
-| `game/model/` serializer | Save and load JSON | Game architecture | Backlog issue 6 | Claude Code |
+| `game/model/save_codec.gd`, `save_result.gd`, `save_migrations.gd` | Pure save codec: JSON text to model and back, versions, migrations, validation | Game architecture | Backlog issue 6 | Claude Code |
+| `game/systems/save_store.gd` | Save file I/O: path policy, safe write, clock, load into the live model | Game architecture | Backlog issue 6 | Claude Code |
 | `game/localization/messages.pot`, `en.po`, `hu.po` | Translations | Unicode, localization and fonts | Backlog issue 7 | Claude Code; you review Hungarian |
 | `game/ui/` theme and fonts, glyph test scene | Font stack and fallbacks | Unicode, localization and fonts | Backlog issue 8 | Claude Code |
 | `tools/blender/generate_fish.py` | First asset generator | Art and asset pipeline | Backlog issue 10 | Claude Code |
