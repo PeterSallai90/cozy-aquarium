@@ -72,8 +72,8 @@ MultiMesh, one instance or one clump).
   mid-range PC. A budget that would break D18 is not accepted.
 - **Rule:** the worst-case tank triangle total at the D18 load is "to be measured (#49)". Issue
   #49 records it and confirms or lowers the budgets.
-- Informal estimate, not a limit: about 0.4 to 0.5 million triangles at the D18 load with every
-  item at the top of its range. Real tanks will be much lower.
+- For orientation only (informal estimate, not a limit): about 0.4 to 0.5 million triangles at the
+  D18 load with every item at the top of its range. Real tanks will be much lower.
 - **Rule:** a hero piece may use up to 2x its category budget (the hero limit column). The species
   or item issue that introduces it states that it is a hero piece and gives its triangle count.
 - **Rule:** there is no fixed per-scene limit on hero pieces. It depends on the tank size; D18
