@@ -158,3 +158,33 @@ func test_the_instance_without_an_injected_locale_source_still_starts() -> void:
 	add_child(node)
 	auto_free(node)
 	assert_array(["en", "hu"]).contains([node.get_language()])
+
+
+# --- the shared date, time and number formatter ------------------------------------------
+
+
+func test_local_format_is_null_before_ready() -> void:
+	var node: Node = LocalizationScript.new()
+	auto_free(node)
+	assert_object(node.local_format()).is_null()
+
+
+func test_local_format_follows_set_language_after_ready() -> void:
+	var node: Node = _make("de_DE")
+	var format: LocalFormat = node.local_format()
+	assert_object(format).is_not_null()
+	assert_str(format.format_number(3.5, 1)).is_equal("3.5")
+	assert_int(node.set_language("hu")).is_equal(OK)
+	assert_str(format.format_number(3.5, 1)).is_equal("3,5")
+	assert_str(node.local_format().format_number(3.5, 1)).is_equal("3,5")
+	assert_int(node.set_language("en")).is_equal(OK)
+	assert_str(format.format_number(3.5, 1)).is_equal("3.5")
+
+
+func test_local_format_dates_follow_the_language_and_the_real_clock() -> void:
+	var node: Node = _make("hu_HU")
+	var stamp: int = 1782864000 + 12 * 3600
+	var hungarian: String = node.local_format().format_date(stamp)
+	assert_str(hungarian).is_equal("2026. 07. 01.")
+	assert_int(node.set_language("en")).is_equal(OK)
+	assert_str(node.local_format().format_date(stamp)).is_equal("2026-07-01")

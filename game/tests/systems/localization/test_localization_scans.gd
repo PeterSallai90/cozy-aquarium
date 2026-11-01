@@ -114,8 +114,3 @@ func test_the_autoload_script_has_no_class_name() -> void:
 	var source: String = SourceScan.strip_comments(SourceScan.read(AUTOLOAD))
 	assert_str(source).is_not_empty()
 	assert_bool(source.contains("class_name")).is_false()
-
-
-func test_no_datetime_or_number_helper_ships_in_this_issue() -> void:
-	# Date, time and number display is #72 (B07b).
-	assert_bool(FileAccess.file_exists("res://systems/localization/local_format.gd")).is_false()
