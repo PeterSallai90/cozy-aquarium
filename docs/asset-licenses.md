@@ -8,3 +8,4 @@ path relative to `game/`, for example `assets/room/cabinet_01.glb`.
 
 | File | Source | Author | License | Link | Added |
 | --- | --- | --- | --- | --- | --- |
+| `addons/gdUnit4/` | GdUnit4 v6.2.2, tag archive `https://github.com/godot-gdunit-labs/gdUnit4/archive/refs/tags/v6.2.2.zip` (sha256 `ddb44730ffb9cd77fd70d283753450759b00c5016143d7572bf63625f64d5433`) | Mike Schulze (godot-gdunit-labs) | MIT, confirmed from the shipped `addons/gdUnit4/LICENSE` ("Copyright (c) 2023 Mike Schulze"). Bundled third-party parts: none found (no other LICENSE/NOTICE files, fonts or libraries; the 9 PNGs are GdUnit4's own images; `GdUnit4CSharpApi.cs` is MIT, same author). Only the HTML report template links jQuery 3.6.4 (MIT) from code.jquery.com, which is not bundled. | https://github.com/godot-gdunit-labs/gdUnit4/releases/tag/v6.2.2 | 2026-11-01 |
