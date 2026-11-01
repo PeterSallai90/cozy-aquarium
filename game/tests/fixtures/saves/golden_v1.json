@@ -1,0 +1,55 @@
+{
+  "format_version": 1,
+  "name": "Árvíztűrő 熱帯魚",
+  "tank_id": "tank_60",
+  "substrate": {
+    "id": "fine_sand",
+    "colour": "#E8D9B0",
+    "heightmap": {
+      "size": [3, 2],
+      "data": "AAAAAAAAAD8AAIA/AACAPgAAAD4AAIA9"
+    }
+  },
+  "items": [
+    {
+      "uid": "a1b2c3d4",
+      "catalog_id": "rock_flat",
+      "position": [0.5, 0.0, -0.25],
+      "rotation_y": 35.0,
+      "scale": 1.5,
+      "colour": "#7A5C3E"
+    },
+    {
+      "uid": "0badf00d",
+      "catalog_id": "plant_java_fern",
+      "position": [-0.25, 0.125, 0.5],
+      "rotation_y": -90.0,
+      "scale": 0.5,
+      "colour": "#11223380"
+    },
+    {
+      "uid": "00000003",
+      "catalog_id": "unknown_future_item",
+      "position": [0.0, 0.0, 0.0],
+      "rotation_y": 0.0,
+      "scale": 1.0,
+      "colour": null
+    }
+  ],
+  "fish": [
+    {
+      "uid": "f1000001",
+      "species_id": "neon_tetra",
+      "variant": 0,
+      "nickname": "Nemo"
+    },
+    {
+      "uid": "f1000002",
+      "species_id": "guppy",
+      "variant": 2,
+      "nickname": ""
+    }
+  ],
+  "created": "2026-10-01T08:30:00Z",
+  "modified": "2026-10-02T21:15:30Z"
+}

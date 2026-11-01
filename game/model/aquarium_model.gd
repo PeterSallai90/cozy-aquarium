@@ -231,14 +231,29 @@ func apply_replace_fish(fish: FishInstance) -> bool:
 	return true
 
 
+# --- Save times -----------------------------------------------------------------------------
+
+
+## Sets created and modified. Not a command: the timestamps are not undoable state.
+## Emits no signal and does not validate (the save codec validates). Callers: res://model/ and
+## res://systems/save_store.gd only (enforced by a test scan).
+func set_save_times(created: String, modified: String) -> void:
+	_created = created
+	_modified = modified
+
+
 # --- Reset ----------------------------------------------------------------------------------
 
 
 ## Copies every field of source into this instance and emits model_reset once, nothing else.
 ## Not a command and does not touch any history; the save system calls it.
+## Refilling a model from itself keeps its state and still emits model_reset once.
 func reset_from(source: AquariumModel) -> void:
 	if source == null:
 		push_error("AquariumModel: reset_from() called with a null source")
+		return
+	if source == self:
+		model_reset.emit()
 		return
 	_aquarium_name = source._aquarium_name
 	_tank_id = source._tank_id
