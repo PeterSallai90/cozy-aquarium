@@ -105,6 +105,8 @@ def _read_string(source: str, start: int) -> tuple[str, int, int]:
     while index < len(source):
         char = source[index]
         if char == "\\":
+            if source[index + 1 : index + 2] == "\n":
+                newlines += 1
             index += 2
             continue
         if triple and source.startswith(quote * 3, index):
@@ -233,7 +235,7 @@ def scan_tscn(path: Path, rel: str, entries: Entries, errors: list[str]) -> None
         if quoted is None or key_error(quoted.group(1)):
             errors.append(f"{rel}:{number}: this text property is not a valid translation key")
         else:
-            entries.setdefault(quoted.group(1), None)
+            _add(entries, quoted.group(1), None, errors, f"{rel}:{number}")
 
 
 def scan_tres(path: Path, rel: str, entries: Entries, errors: list[str]) -> None:
@@ -245,7 +247,7 @@ def scan_tres(path: Path, rel: str, entries: Entries, errors: list[str]) -> None
         if quoted is None or key_error(quoted.group(1)):
             errors.append(f"{rel}:{number}: this *_key property is not a valid translation key")
         else:
-            entries.setdefault(quoted.group(1), None)
+            _add(entries, quoted.group(1), None, errors, f"{rel}:{number}")
 
 
 def scan_extra_keys(path: Path, rel: str, entries: Entries, errors: list[str]) -> None:
