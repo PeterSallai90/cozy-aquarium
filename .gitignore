@@ -1,6 +1,9 @@
 # Godot 4 cache (re-created automatically); .import files ARE committed
 .godot/
 
+# GdUnit4 test reports
+game/reports/
+
 # Build output
 build/
 export/

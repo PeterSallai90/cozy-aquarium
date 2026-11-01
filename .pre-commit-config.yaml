@@ -3,7 +3,9 @@ repos:
     rev: 4.5.0          # pinned at repository creation
     hooks:
       - id: gdformat
+        exclude: ^game/addons/gdUnit4/
       - id: gdlint
+        exclude: ^game/addons/gdUnit4/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -11,6 +13,8 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: end-of-file-fixer
+        exclude: ^game/addons/gdUnit4/
       - id: trailing-whitespace
+        exclude: ^game/addons/gdUnit4/
       - id: check-added-large-files
         args: ["--maxkb=500"]   # large files must go through LFS
