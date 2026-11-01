@@ -28,6 +28,7 @@ jobs:
       - run: gdlint game
       - run: python tools/scripts/check_translations.py # every key in en.po and hu.po
       - run: python tools/scripts/check_asset_licenses.py # every asset logged
+      - run: python -m unittest discover -s tools/scripts -p "test_*.py" # license check tests
 
   test:
     runs-on: ubuntu-latest
