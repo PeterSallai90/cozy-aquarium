@@ -408,6 +408,19 @@ func test_save_takes_one_stamp_and_sets_modified_after_write() -> void:
 	assert_str(_model.get_modified()).is_equal("2026-11-01T12:00:02Z")
 
 
+func test_save_refuses_an_oversized_model_and_keeps_the_good_save() -> void:
+	var path: String = _path()
+	var store: SaveStore = _store()
+	assert_int(store.save(_model, path).kind).is_equal(SaveResult.Kind.OK)
+	var before: PackedByteArray = SaveFixtures.read_bytes(path)
+	var modified: String = _model.get_modified()
+	_model.apply_set_name("a".repeat(SaveFixtures.MAX_FILE_BYTES))
+	var result: SaveResult = store.save(_model, path)
+	assert_int(result.kind).is_equal(SaveResult.Kind.INTERNAL)
+	assert_bool(SaveFixtures.read_bytes(path) == before).is_true()
+	assert_str(_model.get_modified()).is_equal(modified)
+
+
 func test_save_then_load_round_trips_through_the_store() -> void:
 	var path: String = _path()
 	var store: SaveStore = _store()

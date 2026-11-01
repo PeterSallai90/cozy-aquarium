@@ -10,6 +10,8 @@ const CODEC_FILES := [
 	"res://model/save_rules.gd",
 	"res://model/save_migrations.gd",
 	"res://model/save_result.gd",
+	"res://model/decimal_double.gd",
+	"res://model/save_json.gd",
 ]
 const CODEC_FORBIDDEN := [
 	"FileAccess",
@@ -21,6 +23,8 @@ const CODEC_FORBIDDEN := [
 const PHOTO_AND_CATALOG_FILES := [
 	"res://model/save_codec.gd",
 	"res://model/save_rules.gd",
+	"res://model/decimal_double.gd",
+	"res://model/save_json.gd",
 	"res://systems/save_store.gd",
 ]
 const PHOTO_AND_CATALOG_FORBIDDEN := ["get_system_dir", "SYSTEM_DIR_PICTURES", "res://catalog"]

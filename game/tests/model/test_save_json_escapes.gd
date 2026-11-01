@@ -3,9 +3,7 @@ extends GdUnitTestSuite
 
 static func _parse(text: String) -> SaveJson:
 	var json: SaveJson = SaveJson.new()
-	var code: Error = json.parse(text)
-	if code == ERR_BUG:
-		return null
+	json.parse(text)
 	return json
 
 

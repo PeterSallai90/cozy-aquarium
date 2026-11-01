@@ -404,6 +404,14 @@ func test_writer_refuses_every_reader_rule() -> void:
 	assert_array(failures).is_empty()
 
 
+func test_writer_refuses_a_model_over_the_reader_file_limit() -> void:
+	var model: AquariumModel = SaveFixtures.populated_model()
+	model.apply_set_name("a".repeat(SaveFixtures.MAX_FILE_BYTES))
+	var result: SaveResult = _encode(model)
+	assert_int(result.kind).is_equal(SaveResult.Kind.INTERNAL)
+	assert_str(result.text).is_empty()
+
+
 func test_writer_refusal_has_a_developer_detail() -> void:
 	var model: AquariumModel = SaveFixtures.populated_model()
 	model.get_item_at(0).scale = INF
