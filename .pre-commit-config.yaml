@@ -13,8 +13,8 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: end-of-file-fixer
-        exclude: ^game/addons/gdUnit4/
+        exclude: ^game/(addons/gdUnit4|assets/fonts)/
       - id: trailing-whitespace
-        exclude: ^game/addons/gdUnit4/
+        exclude: ^game/(addons/gdUnit4|assets/fonts)/
       - id: check-added-large-files
         args: ["--maxkb=500"]   # large files must go through LFS

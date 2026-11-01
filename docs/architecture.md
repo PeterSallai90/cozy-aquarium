@@ -383,7 +383,7 @@ The files named in this section are created with the repository, not before: `.e
 
 | Layer | Purpose | Candidate (license) |
 | --- | --- | --- |
-| 1. Display / UI font | Cozy rounded look for Latin, including Hungarian ő and ű | Nunito (SIL OFL), decided in #19; variable font (weight axis), used at weight 400; must cover all of Latin Extended-A |
+| 1. Display / UI font | Cozy rounded look for Latin, including Hungarian ő and ű | Nunito (SIL OFL), decided in #19; variable font (weight axis), used at weight 400; covers all of Latin Extended-A except U+0133 (ĳ) and U+017F (ſ), which come from layer 2, Noto Sans (owner decision in #19) |
 | 2. Latin, Cyrillic, Greek fallback | Wider European coverage | Noto Sans (SIL OFL), slim variable font (weight axis), used at weight 400 |
 | 3. CJK fallback | **Deferred to #78.** Not in the chain until #78 decides how CJK is covered | Bundled Noto Sans CJK SC, TC, JP and KR (SIL OFL), or an on-demand download; B08 ships no CJK font |
 | 4. Last resort | Anything not covered above, such as CJK (until #78), emoji or rare scripts | Godot `SystemFont`, which uses fonts installed in Windows; `allow_system_fallback` stays on, so Windows fonts also cover CJK and emoji that no layer has |
