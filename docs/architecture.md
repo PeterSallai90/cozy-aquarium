@@ -12,7 +12,7 @@ Cozy Aquarium is a free 3D PC game where players build and rebuild a home aquari
 | D2 | Platform | PC: Windows primary, Linux and macOS builds as a bonus | Decided |
 | D3 | Distribution | itch.io first, free, published only once the product owner is satisfied with the game's quality and experience; Steam optional later | Decided |
 | D4 | Business goal | Free / hobby release | Decided |
-| D5 | Visual style | Stylized low-poly, cozy | Decided |
+| D5 | Visual style | Stylized, cozy, simple shapes with rich lighting | Decided |
 | D6 | Engine and language | Godot 4.7.2 (pinned), statically typed GDScript, Forward+ renderer; environment set up with these tools | Decided |
 | D7 | Camera | Front default view, orbit around and over, limited below the tank; photo mode may enter the tank, including through the glass | Decided |
 | D8 | Text encoding | Unicode (UTF-8) everywhere; fonts must cover CJK and other non-Latin scripts | Decided |
@@ -151,7 +151,7 @@ Godot 4 with statically typed GDScript is the core choice, because every part of
 | Renderer | Forward+ | Best water, glow, volumetric fog and light quality; acceptable because the target is PC only |
 | Tests | GdUnit4 (unit and scene tests) | Runs headless in CI; supports scene runners for input and camera tests |
 | Lint and format | gdtoolkit 4 (`gdlint`, `gdformat`) | Consistent style regardless of which model wrote the code |
-| 3D content | Blender 5.2, driven by Python scripts; CC0 asset packs | Low-poly assets can be generated and versioned as code |
+| 3D content | Blender 5.2, driven by Python scripts; CC0 asset packs | Stylized assets can be generated and versioned as code |
 | Code editor | VS Code with the godot-tools extension | For you to read code and diffs; the AI edits files directly |
 | AI coding agent | Claude Code | Works in the repository, runs Godot, tests and Git itself |
 | Version control | Git with Git LFS, GitHub (personal account) | Issues, board, pull requests and CI in one place |
@@ -159,7 +159,7 @@ Godot 4 with statically typed GDScript is the core choice, because every part of
 | Distribution | itch.io via `butler` | Free hosting, automatic patch uploads, no review process |
 | Translations | gettext `.po` files | Standard format; editable in Poedit by a human translator if ever needed |
 
-Unity with C# was the main alternative. It has more ready-made assets and more C# training data, but much of its work happens in the editor GUI, CI needs license activation, and its licensing terms have changed repeatedly. For a free, AI-built, PC-only, low-poly game, Godot carries less risk.
+Unity with C# was the main alternative. It has more ready-made assets and more C# training data, but much of its work happens in the editor GUI, CI needs license activation, and its licensing terms have changed repeatedly. For a free, AI-built, PC-only, stylized game, Godot carries less risk.
 
 ## Game architecture
 
@@ -186,7 +186,7 @@ extends Resource
 @export var id: StringName                  # "neon_tetra"
 @export var name_key: String                # translation key "FISH_NEON_TETRA_NAME"
 @export var description_key: String
-@export var scene: PackedScene              # low-poly model with swim shader
+@export var scene: PackedScene              # stylized model with swim shader
 @export var colour_variants: Array[Color] = []
 @export var adult_length_cm: float = 3.5
 @export var preferred_zone: Zone = Zone.MIDDLE   # TOP, MIDDLE, BOTTOM
@@ -264,10 +264,11 @@ cozy-aquarium/
 │  ├─ localization/          # messages.pot, en.po, hu.po
 │  └─ tests/                 # GdUnit4 tests mirroring the folders above
 ├─ tools/
-│  ├─ blender/               # Python scripts that generate low-poly assets
+│  ├─ blender/               # Python scripts that generate stylized assets
 │  └─ scripts/               # helper scripts (export, screenshot, pseudo-localization)
 ├─ docs/
 │  ├─ adr/                   # architecture decision records
+│  ├─ art-style.md
 │  ├─ vision.md
 │  ├─ glossary.md
 │  └─ asset-licenses.md
@@ -299,7 +300,7 @@ The build camera behaves like a person walking around a real tank on a cabinet: 
 
 **Controls (mouse and keyboard):** right-drag orbits, mouse wheel zooms, middle-drag pans, `Home` resets to the front view, `Q`/`E` orbit in 45° steps, `R`/`F` raise and lower elevation. Left mouse stays reserved for selecting and placing items. All bindings are remappable.
 
-**The cabinet:** a simple low-poly aquarium cabinet sits under the tank in a cozy room corner. It explains the lower camera limit visually and can become customizable later (wood colours, styles).
+**The cabinet:** a simple stylized aquarium cabinet sits under the tank in a cozy room corner. It explains the lower camera limit visually and can become customizable later (wood colours, styles).
 
 ### Photo mode (may enter the tank)
 
@@ -371,30 +372,20 @@ The fallback chain is set once in the global UI theme, so every label inherits i
 
 ## Art and asset pipeline
 
-Assets are produced mainly as code: Python scripts run Blender in the background to generate low-poly models from parameters, so the AI can create, change and regenerate them, and every asset is versioned and reviewable like source code.
+Assets are produced mainly as code: Python scripts run Blender in the background to generate stylized models from parameters, so the AI can create, change and regenerate them, and every asset is versioned and reviewable like source code.
 
-The `tools/blender/` and `game/assets/` folders and `docs/asset-licenses.md` are created with the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2), and the style rules below go into `CLAUDE.md` in the same step. The first generator script arrives with backlog issue 10.
+The `tools/blender/` and `game/assets/` folders and `docs/asset-licenses.md` are created with the repository skeleton (GitHub repository setup → Create the repository, backlog issue 2), and the art style rules live in `docs/art-style.md` (issue #60). The first generator script arrives with backlog issue 10.
 
 ### Sources, in order of preference
 
 1. **Procedural generation in Blender (primary).** One script per asset family: a parametric fish generator (body length, height, tail and fin shapes, colour pattern), rock and pebble generators, driftwood, and plant generators (stem count, leaf shape, height). Each species or item is a small parameter file, and the script exports a `.glb` file into `game/assets/`.
-2. **CC0 asset packs.** Public-domain low-poly packs, for example from Quaternius or Kenney, for furniture, room props and fallback decorations. CC0 needs no attribution and allows any use.
-3. **AI 3D generators (optional).** For a few unique hero pieces only, such as a sunken ship or treasure chest. Outputs are reduced to the low-poly style in Blender, and each tool's terms are checked before use.
+2. **CC0 asset packs.** Public-domain packs, adapted to `docs/art-style.md` in Blender, for example from Quaternius or Kenney, for furniture, room props and fallback decorations. CC0 needs no attribution and allows any use.
+3. **AI 3D generators (optional).** For a few unique hero pieces only, such as a sunken ship or treasure chest. Outputs are brought within the budgets and style of `docs/art-style.md` in Blender, and each tool's terms are checked before use.
 4. **Hand-made by a human artist (optional).** Possible at any time; the pipeline accepts any `.glb`.
 
-### Style rules (go into `CLAUDE.md`)
+### Style rules
 
-| Asset | Triangle budget | Colouring |
-| --- | --- | --- |
-| Fish | 300–800 | Vertex colours or a shared palette texture; pattern masks for colour variants |
-| Plants | 200–1,500 | Palette texture; sway in a vertex shader |
-| Rocks, wood, decor | 100–600 | Palette texture; colour tint parameter |
-| Tank, cabinet, room | 500–3,000 | Palette texture |
-
-- Flat shading or soft low-poly shading; no photographic textures.
-- One shared palette texture (a small gradient atlas) for most models keeps the look consistent and draw calls low.
-- Colour customization works through shader parameters, never through duplicate models.
-- Fish swim through a vertex shader; no skeletal rigs in the MVP.
+`docs/art-style.md` is the single source of truth for the art style: shading, triangle budgets, colouring, rendering and look, and the quality bar. `CLAUDE.md` points to it and does not repeat the rules. The visual style decision (D5) is recorded in [ADR 0002](adr/0002-visual-style.md).
 
 ### Pipeline commands
 
@@ -822,7 +813,7 @@ never implement it, but keep its catalog fields intact. Read docs/vision.md and 
 - Text files are UTF-8, LF line endings.
 
 ## Assets
-- Low-poly style; triangle budgets and palette rules in docs/art-style.md.
+- Art style rules in docs/art-style.md.
 - Generate assets with tools/blender scripts where possible.
 - Any third-party asset needs a row in docs/asset-licenses.md in the same PR.
 
@@ -1154,9 +1145,11 @@ Apart from the license and the exported architecture document, every repository 
 | `.gitignore` | Files Git ignores | GitHub repository setup | Backlog issue 2 | Claude Code |
 | `.editorconfig` | UTF-8, LF, indentation | GitHub repository setup | Backlog issue 2 | Claude Code |
 | `.pre-commit-config.yaml` | gdformat, gdlint and file checks before each commit | GitHub repository setup | Backlog issue 2 | Claude Code |
-| `CLAUDE.md` | Rules for all AI contributors, including art style rules | GitHub repository setup; Art and asset pipeline | Backlog issue 2 | Claude Code; you approve changes |
+| `CLAUDE.md` | Rules for all AI contributors; points to docs/art-style.md for art style | GitHub repository setup; Art and asset pipeline | Backlog issue 2 | Claude Code; you approve changes |
 | `README.md` | Project overview | GitHub repository setup | Backlog issue 2 | Claude Code |
 | `docs/adr/0001-engine.md` | Engine decision and pinned Godot version | Purpose and decisions; Windows setup Step 5 | Backlog issue 2 | Claude Code, with your version number |
+| `docs/art-style.md` | Art style rules and quality bar | Art and asset pipeline | Issue #60 | Claude Code; you approve changes |
+| `docs/adr/0002-visual-style.md` | Visual style decision (D5) | Purpose and decisions | Issue #60 | Claude Code; you approve changes |
 | `docs/asset-licenses.md` | License log, header only at first | Art and asset pipeline | Backlog issue 2 | Claude Code |
 | `.github/ISSUE_TEMPLATE/feature.yml`, `bug.yml`, `test.yml` | Issue forms | Project board | Backlog issue 2 | Claude Code |
 | `.github/pull_request_template.md` | Pull request checklist | Project board | Backlog issue 2 | Claude Code |
