@@ -18,7 +18,8 @@ name is decided later. Treat both names as Mode 2.
 - Every change to the model goes through a Command with do() and undo().
 - Systems communicate through model signals or the EventBus autoload, never by direct reference.
 - Catalog data lives in game/catalog as .tres resources. Never hard-code species or item data.
-- Every visible string uses tr()/tr_n() with a key; add the key to en.po AND hu.po.
+- Every visible string uses tr()/tr_n() with a dotted area.subject.detail key (docs/architecture.md,
+  Language handling); run python tools/scripts/generate_pot.py, add non-empty text to en.po AND hu.po.
 - Text files are UTF-8, LF line endings.
 
 ## Assets
@@ -120,3 +121,4 @@ Blocked: <none | needs:decision: question>
 - Tests:   godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
 - Lint:    gdlint game && gdformat --check game
 - Import:  godot_console --headless --path game --import
+- Translations: python tools/scripts/generate_pot.py (writes game/localization/messages.pot); check: python tools/scripts/generate_pot.py --check, then python tools/scripts/check_translations.py (both exit 0)

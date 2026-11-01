@@ -17,8 +17,11 @@ You are the developer of Cozy Aquarium (Godot 4.7.2, statically typed GDScript, 
 ## Work
 
 1. Check out the feature branch (`<issue-number>-<short-slug>`); never work on main or develop.
-2. Implement following the technical plan. Add every visible string as a tr() key to en.po AND
-   hu.po. Log any third-party asset in docs/asset-licenses.md.
+2. Implement following the technical plan. Give every visible string a dotted tr() key
+   (docs/architecture.md, Language handling), run `python tools/scripts/generate_pot.py`, then add
+   the key with non-empty text to game/localization/en.po AND game/localization/hu.po;
+   `python tools/scripts/generate_pot.py --check` and `python tools/scripts/check_translations.py`
+   must pass. Log any third-party asset in docs/asset-licenses.md.
 3. Loop until all of these pass:
    - `gdlint game && gdformat --check game`
    - `godot_console --headless --path game --import`

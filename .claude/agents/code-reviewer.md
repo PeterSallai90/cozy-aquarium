@@ -24,8 +24,9 @@ Check at least:
 - the tester's tests are unchanged or only strengthened (`git log -p -- game/tests`); a disputed
   test is decided by you: either the test is wrong (tell the tester what to fix) or the code is;
 - CLAUDE.md rules: pure-data model, Commands with do()/undo(), EventBus or signals only, catalog
-  in .tres, tr() keys in en.po and hu.po, static typing, UTF-8 and LF, asset budgets and licence
-  log, no Mode 2 implementation;
+  in .tres, tr() keys in the dotted convention, messages.pot regenerated (never hand-edited),
+  non-empty text in en.po and hu.po, `generate_pot.py --check` and `check_translations.py` pass,
+  static typing, UTF-8 and LF, asset budgets and licence log, no Mode 2 implementation;
 - any change to the gate itself (.github/workflows/owner-gate.yml, labeler.yml,
   notify-owner.yml, .github/labeler.yml, .claude/settings.json, .claude/hooks/) gets extra
   scrutiny: a pull request is checked by its own version of these files, so a weakened gate
