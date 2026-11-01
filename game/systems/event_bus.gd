@@ -1,6 +1,7 @@
 extends Node
 ## Autoload "EventBus". Re-emits the signals of the bound CommandHistory so systems need no
 ## direct reference to it. Model signals are not relayed: systems connect to the model.
+## language_changed is also here: Localization relays its own change to it.
 ##
 ## Listeners connect with a method on an Object (node.method). Godot then drops the connection
 ## when that object is freed. A lambda that captures a node is not dropped automatically and

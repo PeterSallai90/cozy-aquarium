@@ -15,9 +15,11 @@ var _service: LanguageService
 func _ready() -> void:
 	_service = LanguageService.new(SettingsStore.new(settings_path))
 	_service.language_changed.connect(_on_language_changed)
-	var locale: String = OS.get_locale()
+	var locale: String
 	if os_locale_source.is_valid():
-		locale = os_locale_source.call()
+		locale = os_locale_source.call() as String
+	else:
+		locale = OS.get_locale()
 	_service.start(locale)
 
 
