@@ -1,0 +1,22 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Cozy Aquarium test fixture\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "ui.fixture.title"
+msgstr "English title"
+
+msgid "ui.fixture.apples"
+msgid_plural "ui.fixture.apples.plural"
+msgstr[0] "%d apple"
+msgstr[1] "%d apples"
+
+msgid "ui.fixture.only_en"
+msgstr "Only in English"
+
+msgid "ui.fixture.empty_hu"
+msgstr "English fallback text"

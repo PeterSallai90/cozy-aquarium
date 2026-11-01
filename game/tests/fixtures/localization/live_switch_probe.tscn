@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/fixtures/localization/live_switch_probe.gd" id="1_probe"]
+
+[node name="Probe" type="Control"]
+script = ExtResource("1_probe")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+text = "ui.fixture.title"
+
+[node name="Count" type="Label" parent="."]
+auto_translate_mode = 2
+layout_mode = 0
+offset_top = 30.0
