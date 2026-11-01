@@ -46,3 +46,24 @@ static func snapshot(model: AquariumModel) -> Dictionary:
 		"items": items,
 		"fish": fish,
 	}
+
+
+## Like snapshot(), but every Color becomes [r8, g8, b8, a8] (alpha included). The save file stores
+## hex colours, so colours compare at 8 bits per channel and everything else stays exact.
+## The formula is repeated here on purpose: it must not call production code.
+static func snapshot_8bit(model: AquariumModel) -> Dictionary:
+	var result: Dictionary = snapshot(model)
+	result["substrate_colour"] = _channels(model.get_substrate_colour())
+	var items: Array = result["items"]
+	for item: Dictionary in items:
+		var colour: Color = item["colour"]
+		item["colour"] = _channels(colour)
+	return result
+
+
+static func _channels(colour: Color) -> Array:
+	return [_byte(colour.r), _byte(colour.g), _byte(colour.b), _byte(colour.a)]
+
+
+static func _byte(component: float) -> int:
+	return roundi(clampf(component, 0.0, 1.0) * 255.0)

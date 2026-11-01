@@ -439,3 +439,18 @@ func test_reset_from_null_errors() -> void:
 	await assert_error(func() -> void: model.reset_from(null)).is_push_error(ErrorContains.new(""))
 	assert_dict(ModelState.snapshot(model)).is_equal(before)
 	assert_array(recorder.events).is_empty()
+
+
+func test_reset_from_self_keeps_state_and_emits_once() -> void:
+	var model: AquariumModel = _filled_model()
+	var before: Dictionary = ModelState.snapshot(model)
+	var item: PlacedItem = model.get_item_at(0)
+	var recorder: SignalRecorder = _watched(model)
+	# No error may be logged: GdUnit fails the test on an unexpected push_error.
+	model.reset_from(model)
+	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_array(recorder.events).is_equal([["model_reset", []]])
+	assert_int(model.get_item_count()).is_equal(3)
+	assert_int(model.get_fish_count()).is_equal(2)
+	assert_bool(is_same(model.get_item_at(0), item)).is_true()
+	assert_int(model.get_heightmap().size()).is_equal(4)
