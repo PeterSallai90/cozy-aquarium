@@ -158,28 +158,29 @@ These are tint ranges, not fixed colours; the colour tint parameter picks a valu
 ## Rendering and look
 
 Each effect is stated in a checkable form: a named technique, its parameters exposed by name as
-shader or environment parameters, and a numeric range. The owner fixed the technique but no
+shader, environment or material parameters, and a numeric range. The owner fixed the technique but no
 numbers, so the numeric range is set in that effect's own area:render issue (to be created).
 
-| Effect | Status | Technique | Named parameters (examples) | Range set in |
+| Effect | Status | Technique | Named parameters | Range set in |
 | --- | --- | --- | --- | --- |
 | Caustics | **Rule**: required | Slow animated projected texture, up-facing surfaces first (substrate, low decor, lower back wall); fades with depth and in shade | `caustic_intensity`, `caustic_speed`, `caustic_scale` | its area:render issue |
 | Depth colour tint | **Rule**: required | Slight blue-green shift and loss of contrast and saturation with distance | `depth_tint_color`, `depth_tint_strength` | its area:render issue |
-| In-tank fog | **Rule**: required | Volumetric fog limited to the water volume | `volumetric_fog_density`, `volumetric_fog_albedo` | its area:render issue |
+| In-tank fog | **Rule**: required | Volumetric fog limited to the water volume: a `FogVolume` with a `FogMaterial`, sized to the water (no haze outside the glass or above the water line). It renders only while `Environment.volumetric_fog_enabled` is on; that setting is a prerequisite, not the fog, and its configuration is left to #23 | `FogMaterial.density`, `FogMaterial.albedo` | its area:render issue |
 | Bloom | **Rule**: required | Environment glow | `glow_intensity`, `glow_hdr_threshold` | its area:render issue |
 | AgX tonemapping | **Rule**: required | Environment tonemapper set to AgX | `tonemap_exposure`, `tonemap_white` | its area:render issue |
 | Light transmission through fins and leaves | **Rule**: required | Back-light and transmission in the material, driven by the translucency mask | `transmission_strength`, `transmission_color` | its area:render issue |
 | Bubbles | **Rule**: required | GPU particles that start where bubbles occur in a real tank: an air stone or the filter outflow | `bubble_rate`, `bubble_size`, `bubble_speed` | its area:render issue |
 | Floating particles | **Rule**: required | GPU particles drifting in the water column | `particle_density`, `particle_size`, `particle_drift` | its area:render issue |
 | God rays | **Rule**: optional | Light shafts from the lamp | `godray_intensity` | its area:render issue |
-| Colour-grading LUT | **Rule**: optional | Colour correction through a lookup table | `lut_texture`, `lut_strength` | its area:render issue |
+| Colour-grading LUT | **Rule**: optional | Colour correction through a lookup table | `Environment.adjustment_color_correction` (switched on through `Environment.adjustment_enabled`); no strength parameter | its area:render issue |
 | SSAO | **Rule**: optional | Environment ambient occlusion | `ssao_intensity` | its area:render issue |
 | Soft fresnel edge glow | **Rule**: optional, soft and subtle | Fresnel term in the material | `fresnel_strength` | its area:render issue |
 
-- **Rule:** names of built-in Godot `Environment` properties (for example `glow_intensity`,
-  `glow_hdr_threshold`, `tonemap_exposure`, `tonemap_white`) are the real property names. For
-  custom shader parameters the names in the table are examples, and the effect's own area:render
-  issue fixes the final names.
+- **Rule:** names of built-in Godot properties are exact: `Environment` properties (for example
+  `glow_intensity`, `glow_hdr_threshold`, `tonemap_exposure`, `tonemap_white`, `ssao_intensity`,
+  `adjustment_color_correction`) and `FogMaterial` properties (`density`, `albedo`). For custom
+  shader parameters the names in the table are examples, and the effect's own area:render issue
+  fixes the final names.
 - **Rule:** an optional effect may be added, but is not required. The soft fresnel edge glow, if
   used, stays subtle.
 - **Rule:** bubbles and floating particles appear only where they do in a real tank: bubbles from
@@ -201,8 +202,8 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
   reflections; it belongs to the tank asset.
 - **Guideline:** optional effects sit behind the graphics quality setting, so lower settings drop
   them first.
-- **Rule:** depth tint, fog and fish colour are named shader or environment parameters only. They
-  add no field to the catalog schema.
+- **Rule:** depth tint, fog and fish colour are named shader, environment or material parameters only
+  (the fog uses a `FogMaterial`). They add no field to the catalog schema.
 
 ## Quality bar
 
@@ -223,7 +224,7 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 ## Mode 2
 
 No new catalog field, and no visual rule on Mode 2 attributes. Depth tint, fog and fish colour are
-shader or environment parameters only, so a future story can reuse them.
+shader, environment or material parameters only, so a future story can reuse them.
 
 ## Where the old CLAUDE.md rules went
 
