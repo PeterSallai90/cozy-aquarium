@@ -84,6 +84,7 @@ static func is_save_path_allowed(path: String) -> bool:
 ## Writes the bytes next to the target as <path>.tmp, checks them, then renames over the target.
 ## Creates missing folders. A stale .tmp from an earlier crash is overwritten. On any failure the
 ## .tmp file is removed and the target still holds its old complete content.
+## Callers must check is_save_path_allowed() first; this does not apply the path policy itself.
 static func write_atomic(path: String, bytes: PackedByteArray) -> Error:
 	if DirAccess.dir_exists_absolute(path):
 		return ERR_FILE_CANT_WRITE

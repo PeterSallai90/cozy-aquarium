@@ -48,7 +48,12 @@ func encode(model: AquariumModel, modified_utc: String) -> SaveResult:
 	var text: String = SaveJson.stringify(data)
 	if text.is_empty():
 		return SaveResult.failure(SaveResult.Kind.INTERNAL, "a number cannot be written exactly")
-	return SaveResult.with_text(text + "\n")
+	var file_text: String = text + "\n"
+	if file_text.to_utf8_buffer().size() > MAX_FILE_BYTES:
+		return SaveResult.failure(
+			SaveResult.Kind.INTERNAL, "the file would be larger than the reader limit"
+		)
+	return SaveResult.with_text(file_text)
 
 
 ## Decodes the bytes of a file: size limit, one optional leading BOM, strict UTF-8, then decode().
