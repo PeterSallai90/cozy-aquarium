@@ -170,7 +170,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 1. **Catalog** – read-only definitions of every species, plant, substrate, decoration and tank. Stored as typed Godot resources (`.tres`, plain text).
 2. **Aquarium model** – the current state: chosen tank, substrate and colour, placed items with transforms, fish instances. Pure data, no nodes, serializable to JSON.
 3. **Commands** – every change to the model (place, move, rotate, recolour, delete, add fish) is a command object with `do()` and `undo()`. This gives unlimited undo/redo and a single place to validate changes.
-4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals; they never talk to each other directly.
+4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals; they never talk to each other directly. The model never references `EventBus`.
 5. **Presentation** – scenes, shaders, UI and audio that render the model.
 6. **Game mode** – `CozyMode` now. `SimulationMode` later adds a fixed-rate simulation tick and rules on top of the same model and catalog.
 
@@ -232,6 +232,8 @@ Plants, decorations, substrates and tanks follow the same pattern: presentation 
 
 Rules: `format_version` increases with every breaking change and a migration function upgrades old saves; saves are UTF-8 JSON in the user data folder; the game autosaves every five minutes by default, and the player can save to a named slot at any time; every save stores a thumbnail of the last game screen, which the slot list shows. Saving for Mode 2 is designed later. Photo mode pictures are not part of saves (see Camera specification). The model and serializer are written in backlog issues 5 and 6.
 
+Model conventions (issue #16): positions are metres in tank-local space (+Y up, +X to the right from the front view, +Z toward the front glass, origin at the centre of the inner tank floor); `rotation_y` is in degrees; `scale` is a uniform factor; an item without a colour has `has_colour = false` and is saved as `"colour": null`; uids are 8 lowercase hex characters shared by items and fish; the heightmap is a `PackedFloat32Array` of heights in metres above the tank floor plus its size, empty meaning flat. Commands never change `created` or `modified`; save/load sets them. The undo history is session-only and never saved.
+
 ### Core systems
 
 | System | Responsibility | Key technique |
@@ -255,8 +257,8 @@ This layout does not exist yet. Claude Code creates the folders and configuratio
 cozy-aquarium/
 ├─ game/                     # the Godot project (project.godot lives here)
 │  ├─ catalog/               # .tres definitions: fish/, plants/, decor/, substrates/, tanks/
-│  ├─ model/                 # aquarium model, commands, serializer
-│  ├─ systems/               # placement, fish, camera, photo, save, settings
+│  ├─ model/                 # aquarium model, commands, command history, serializer (no Node scripts)
+│  ├─ systems/               # EventBus autoload, placement, fish, camera, photo, save, settings
 │  ├─ scenes/                # main menu, build scene, tank, furniture
 │  ├─ shaders/               # water, glass, caustics, swim, sway, substrate
 │  ├─ ui/                    # themes, fonts, screens
@@ -1159,7 +1161,8 @@ Apart from the license and the exported architecture document, every repository 
 | `game/export_presets.cfg` | Windows, Linux, macOS export presets | CI/CD pipelines | Backlog issue 3 | Claude Code |
 | `tools/scripts/check_translations.py`, `check_asset_licenses.py` | CI checks for translation keys and asset licenses | CI/CD pipelines | Backlog issue 3 | Claude Code |
 | `game/addons/gdUnit4/`, `game/tests/` | Test framework and first test | Technology stack | Backlog issue 4 | Claude Code |
-| `game/model/` | Aquarium model, commands, EventBus | Game architecture | Backlog issue 5 | Claude Code |
+| `game/model/` | Aquarium model, Command base class, command history, uid generator | Game architecture | Backlog issue 5 | Claude Code |
+| `game/systems/event_bus.gd` and its autoload entry in `game/project.godot` | EventBus autoload | Game architecture | Backlog issue 5 | Claude Code |
 | `game/model/` serializer | Save and load JSON | Game architecture | Backlog issue 6 | Claude Code |
 | `game/localization/messages.pot`, `en.po`, `hu.po` | Translations | Unicode, localization and fonts | Backlog issue 7 | Claude Code; you review Hungarian |
 | `game/ui/` theme and fonts, glyph test scene | Font stack and fallbacks | Unicode, localization and fonts | Backlog issue 8 | Claude Code |
