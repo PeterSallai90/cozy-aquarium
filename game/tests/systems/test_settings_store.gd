@@ -66,6 +66,25 @@ func test_a_missing_section_or_key_reads_the_default() -> void:
 	assert_str(store.read_value("general", "other", "")).is_equal("x")
 
 
+func test_a_missing_key_in_an_existing_file_reads_null_without_an_engine_error() -> void:
+	SaveFixtures.write_text(_path(), "[audio]\nvolume=0.5\n")
+	var store: SettingsStore = SettingsStore.new(_path())
+	var results: Array = []
+	var read: Callable = func() -> void:
+		results.append(store.read_value("general", "language"))
+		results.append(store.read_value("audio", "missing"))
+	await assert_error(read).is_success()
+	assert_array(results).is_equal([null, null])
+
+
+func test_a_missing_key_with_a_default_reads_it_without_an_engine_error() -> void:
+	SaveFixtures.write_text(_path(), "[audio]\nvolume=0.5\n")
+	var store: SettingsStore = SettingsStore.new(_path())
+	var read: Callable = func() -> void: store.read_value("general", "language", "en")
+	await assert_error(read).is_success()
+	assert_str(store.read_value("general", "language", "en")).is_equal("en")
+
+
 func test_values_keep_their_types() -> void:
 	SaveFixtures.write_text(_path(), '[general]\nlanguage="hu"\ncount=42\nratio=0.25\nflag=true\n')
 	var store: SettingsStore = SettingsStore.new(_path())

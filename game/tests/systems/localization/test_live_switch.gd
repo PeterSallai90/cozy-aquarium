@@ -18,6 +18,7 @@ var _saved_locale: String = ""
 var _english: Translation
 var _hungarian: Translation
 var _signals: PackedStringArray = PackedStringArray()
+var _probe_node: Control
 
 
 func before_test() -> void:
@@ -32,6 +33,13 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# Free the probe first: with its labels still in the tree, removing the translations or
+	# the locale change makes them re-translate and log "String formatting error".
+	if is_instance_valid(_probe_node):
+		if _probe_node.get_parent() != null:
+			_probe_node.get_parent().remove_child(_probe_node)
+		_probe_node.free()
+	_probe_node = null
 	TranslationServer.remove_translation(_english)
 	TranslationServer.remove_translation(_hungarian)
 	TranslationServer.set_locale(_saved_locale)
@@ -55,7 +63,7 @@ func _probe() -> Control:
 	var scene: PackedScene = load(PROBE) as PackedScene
 	var probe: Control = scene.instantiate() as Control
 	add_child(probe)
-	auto_free(probe)
+	_probe_node = probe
 	return probe
 
 

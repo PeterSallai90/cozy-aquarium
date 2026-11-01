@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -400,6 +401,45 @@ class TresSourceTest(GeneratePotTestBase):
     def test_tres_outside_the_catalog_folder_is_not_scanned(self) -> None:
         self.write("other/x.tres", '[resource]\nname_key = "menu.not.scanned"\n')
         self.assertEqual(self.keys(), {})
+
+
+class CrossSourceConflictTest(GeneratePotTestBase):
+    """A key may not be plural in one source and plain in another, whatever the folder order."""
+
+    PLURAL_GD = 'func f() -> void:\n\tprint(tr_n("ui.x", "ui.x.plural", 2))\n'
+    TSCN = '[gd_scene format=3]\n\n[node name="L" type="Label"]\ntext = "ui.x"\n'
+    TRES = '[gd_resource type="Resource" format=3]\n\n[resource]\nname_key = "ui.x"\n'
+
+    def reset(self) -> None:
+        shutil.rmtree(self.root / "game")
+        (self.root / "game" / "localization").mkdir(parents=True)
+
+    def test_plural_gd_and_tscn_conflict_in_both_folder_orders(self) -> None:
+        for gd_dir, other_dir in (("a", "b"), ("b", "a")):
+            with self.subTest(gd=gd_dir):
+                self.reset()
+                self.write(f"{gd_dir}/x.gd", self.PLURAL_GD)
+                self.write(f"{other_dir}/x.tscn", self.TSCN)
+                self.errors()
+
+    def test_plural_gd_and_tres_conflict_in_both_folder_orders(self) -> None:
+        # "catalog" sorts after "a" and before "z", so the .gd comes before and after the .tres.
+        for gd_dir in ("a", "z"):
+            with self.subTest(gd=gd_dir):
+                self.reset()
+                self.write(f"{gd_dir}/x.gd", self.PLURAL_GD)
+                self.write("catalog/x.tres", self.TRES)
+                self.errors()
+
+    def test_plural_extra_key_and_tscn_conflict(self) -> None:
+        self.write("localization/extra_keys.txt", "ui.x ui.x.plural\n")
+        self.write("ui/x.tscn", self.TSCN)
+        self.errors()
+
+    def test_plain_gd_and_tscn_of_one_key_are_fine(self) -> None:
+        self.write("a/x.gd", 'func f() -> void:\n\tprint(tr("ui.x"))\n')
+        self.write("b/x.tscn", self.TSCN)
+        self.assertEqual(self.keys(), {"ui.x": None})
 
 
 class ExtraKeysTest(GeneratePotTestBase):
