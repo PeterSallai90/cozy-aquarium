@@ -12,6 +12,7 @@ signal command_executed(command: Command)
 signal command_undone(command: Command)
 signal command_redone(command: Command)
 signal history_changed(can_undo: bool, can_redo: bool)
+signal language_changed(language: String)
 
 var _history: CommandHistory = null
 
