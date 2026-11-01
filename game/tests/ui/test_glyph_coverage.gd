@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 const FontRig := preload("res://tests/helpers/font_rig.gd")
 
 const NO_FONT_CODE_POINT := 0x10FFFD
+const LATIN_EXT_A_EXCEPTIONS: Array[int] = [0x0133, 0x017F]
 const HUNGARIAN_ACCENTS := "áéíóöúüÁÉÍÓÖÚÜ"
 const DOUBLE_ACUTE := "őűŐŰ"
 const REQUIRED_IDS: Array[String] = [
@@ -83,27 +84,51 @@ func _lacking(font: FontFile, text: String) -> PackedStringArray:
 	return missing
 
 
+## Owner rule: Nunito alone covers U+0100-U+017F except exactly the two code points below.
 func test_nunito_alone_covers_all_of_latin_extended_a() -> void:
 	var nunito: FontFile = _nunito()
 	if nunito == null:
 		return
-	var missing: PackedStringArray = PackedStringArray()
+	var missing: Array[int] = []
 	for code_point: int in range(0x0100, 0x0180):
 		if not nunito.has_char(code_point):
-			missing.append("U+%04X" % code_point)
+			missing.append(code_point)
+	var unexpected: PackedStringArray = PackedStringArray()
+	for code_point: int in missing:
+		if not LATIN_EXT_A_EXCEPTIONS.has(code_point):
+			unexpected.append("U+%04X" % code_point)
 	(
-		assert_array(Array(missing))
+		assert_array(Array(unexpected))
 		. override_failure_message(
 			(
-				(
-					"Nunito lacks %s. Post these code points on issue #19 and tell the orchestrator:"
-					+ " the story is blocked (needs:decision), no fallback patch."
-				)
-				% ", ".join(missing)
+				"Nunito unexpectedly lacks %s in U+0100-U+017F (only U+0133 and U+017F may be missing)"
+				% ", ".join(unexpected)
 			)
 		)
 		. is_empty()
 	)
+	missing.sort()
+	(
+		assert_array(missing)
+		. override_failure_message(
+			"The set Nunito lacks in U+0100-U+017F must be exactly U+0133 and U+017F"
+		)
+		. is_equal(LATIN_EXT_A_EXCEPTIONS)
+	)
+
+
+func test_the_nunito_exceptions_resolve_to_noto_sans_layer_2() -> void:
+	var chain: Font = _chain_with_helper()
+	if chain == null:
+		return
+	for code_point: int in LATIN_EXT_A_EXCEPTIONS:
+		(
+			assert_int(FontRig.supplying_layer(chain, code_point))
+			. override_failure_message(
+				"U+%04X must resolve to layer 2 (Noto Sans), not SystemFont or missing" % code_point
+			)
+			. is_equal(2)
+		)
 
 
 func test_nunito_alone_has_the_hungarian_double_acute_letters() -> void:
