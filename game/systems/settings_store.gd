@@ -25,6 +25,8 @@ func read_value(section: String, key: String, default: Variant = null) -> Varian
 	var config: ConfigFile = ConfigFile.new()
 	if config.load(_path) != OK:
 		return default
+	if not config.has_section_key(section, key):
+		return default
 	return config.get_value(section, key, default)
 
 
