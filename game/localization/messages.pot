@@ -11,3 +11,18 @@ msgstr ""
 
 msgid "number.unknown"
 msgstr ""
+
+msgid "settings.close"
+msgstr ""
+
+msgid "settings.error.not_saved"
+msgstr ""
+
+msgid "settings.language.label"
+msgstr ""
+
+msgid "settings.section.language"
+msgstr ""
+
+msgid "settings.title"
+msgstr ""

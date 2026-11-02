@@ -1,7 +1,8 @@
 extends Node
 ## Autoload "EventBus". Re-emits the signals of the bound CommandHistory so systems need no
 ## direct reference to it. Model signals are not relayed: systems connect to the model.
-## language_changed is also here: Localization relays its own change to it.
+## language_changed is also here: Localization relays its own change to it. setting_changed is
+## relayed by the Settings autoload: once per real change, never at startup, never for the language.
 ##
 ## Listeners connect with a method on an Object (node.method). Godot then drops the connection
 ## when that object is freed. A lambda that captures a node is not dropped automatically and
@@ -14,6 +15,7 @@ signal command_undone(command: Command)
 signal command_redone(command: Command)
 signal history_changed(can_undo: bool, can_redo: bool)
 signal language_changed(language: String)
+signal setting_changed(section: String, key: String, value: Variant)
 
 var _history: CommandHistory = null
 

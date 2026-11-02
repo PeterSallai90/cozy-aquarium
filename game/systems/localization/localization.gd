@@ -50,5 +50,9 @@ func set_language(code: String) -> Error:
 	return _service.set_language(code)
 
 
+func get_last_save_error() -> Error:
+	return _service.get_last_save_error()
+
+
 func _on_language_changed(language: String) -> void:
 	EventBus.language_changed.emit(language)

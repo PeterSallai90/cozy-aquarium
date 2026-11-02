@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="SettingsSectionList" format=3]
+
+[ext_resource type="Script" path="res://ui/settings/settings_section_list.gd" id="1_list"]
+[ext_resource type="PackedScene" path="res://ui/settings/language_section.tscn" id="2_language"]
+
+[resource]
+script = ExtResource("1_list")
+sections = Array[PackedScene]([ExtResource("2_language")])

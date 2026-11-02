@@ -8,6 +8,7 @@ signal language_changed(language: String)
 var _store: SettingsStore
 var _apply: Callable
 var _language: String = LanguagePolicy.DEFAULT_LANGUAGE
+var _last_save_error: Error = OK
 
 
 ## Takes the settings store and an optional Callable(code: String) that applies the locale
@@ -41,13 +42,19 @@ func set_language(code: String) -> Error:
 		return OK
 	_language = code
 	_apply_locale(code)
-	var error: Error = _store.write_value(
+	_last_save_error = _store.write_value(
 		SettingsStore.SECTION_GENERAL, SettingsStore.KEY_LANGUAGE, code
 	)
-	if error != OK:
-		push_warning("Language setting not saved: %s" % error_string(error))
+	if _last_save_error != OK:
+		push_warning("Language setting not saved: %s" % error_string(_last_save_error))
 	language_changed.emit(code)
 	return OK
+
+
+## The result of the latest language write; OK when there was none. Set before
+## language_changed is emitted.
+func get_last_save_error() -> Error:
+	return _last_save_error
 
 
 func _apply_locale(code: String) -> void:

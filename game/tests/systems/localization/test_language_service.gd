@@ -303,3 +303,66 @@ func test_a_language_change_leaves_save_files_and_the_model_alone() -> void:
 	assert_dict(ModelState.snapshot(model)).is_equal(before)
 	assert_int(history.get_undo_count()).is_equal(0)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["settings.cfg", "tank.json"])
+
+
+# --- reporting a failed save (B09a, AC 17) -------------------------------------------------
+
+
+func test_the_last_save_error_is_ok_at_first_and_after_start() -> void:
+	var service: LanguageService = _service()
+	assert_int(service.get_last_save_error()).is_equal(OK)
+	service.start("hu_HU")
+	assert_int(service.get_last_save_error()).is_equal(OK)
+
+
+func test_a_good_write_leaves_the_last_save_error_ok() -> void:
+	var service: LanguageService = _service()
+	service.start("en_US")
+	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(service.get_last_save_error()).is_equal(OK)
+
+
+func test_a_failed_write_sets_the_last_save_error_before_the_signal() -> void:
+	DirAccess.make_dir_recursive_absolute(_path())
+	var service: LanguageService = _service()
+	var seen: Array = []
+	service.language_changed.connect(
+		func(_code: String) -> void: seen.append(service.get_last_save_error())
+	)
+	service.start("en_US")
+	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_array(seen).has_size(1)
+	assert_int(seen[0]).is_not_equal(OK)
+	assert_int(service.get_last_save_error()).is_not_equal(OK)
+	assert_array(_timeline).is_equal(["locale:en", "locale:hu", "signal:hu"])
+
+
+func test_a_good_write_after_a_failed_one_clears_the_last_save_error() -> void:
+	DirAccess.make_dir_recursive_absolute(_path())
+	var service: LanguageService = _service()
+	service.start("en_US")
+	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(service.get_last_save_error()).is_not_equal(OK)
+	DirAccess.remove_absolute(_path())
+	assert_int(service.set_language("en")).is_equal(OK)
+	assert_int(service.get_last_save_error()).is_equal(OK)
+
+
+func test_the_same_language_and_an_invalid_code_keep_the_last_save_error() -> void:
+	DirAccess.make_dir_recursive_absolute(_path())
+	var service: LanguageService = _service()
+	service.start("en_US")
+	assert_int(service.set_language("hu")).is_equal(OK)
+	var failed: int = service.get_last_save_error()
+	assert_int(failed).is_not_equal(OK)
+	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(service.get_last_save_error()).is_equal(failed)
+	assert_int(service.set_language("xx")).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(service.get_last_save_error()).is_equal(failed)
+
+
+func test_an_invalid_code_does_not_set_the_last_save_error() -> void:
+	var service: LanguageService = _service()
+	service.start("en_US")
+	assert_int(service.set_language("xx")).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(service.get_last_save_error()).is_equal(OK)
