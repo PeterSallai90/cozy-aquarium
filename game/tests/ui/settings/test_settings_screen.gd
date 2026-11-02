@@ -273,6 +273,36 @@ func test_a_section_added_after_ready_appears_next_to_language() -> void:
 	assert_object(fixture.get("settings")).is_same(_settings)
 
 
+func test_every_label_and_button_of_the_shipped_screen_can_auto_translate() -> void:
+	var screen: Control = await _open()
+	if screen == null:
+		return
+	var offences: PackedStringArray = SettingsRig.untranslatable(screen)
+	assert_array(offences).override_failure_message("raw keys: %s" % [offences]).is_empty()
+	var row_label: Label = SettingsRig.part(screen, "Label") as Label
+	assert_object(row_label).is_not_null()
+	assert_str(SettingsRig.shown(row_label)).is_equal("Language")
+
+
+func test_a_fixture_section_label_and_button_can_auto_translate() -> void:
+	var screen: Control = await _open()
+	var fixture: Control = SettingsRig.make_fixture()
+	assert_object(fixture).override_failure_message("fixture section is missing").is_not_null()
+	if screen == null or fixture == null:
+		return
+	screen.add_section(fixture)
+	await get_tree().process_frame
+	var info: Label = fixture.find_child("Info", true, false) as Label
+	var button: Button = fixture.find_child("FixtureButton", true, false) as Button
+	info.text = "settings.close"
+	button.text = "settings.close"
+	assert_bool(info.can_auto_translate()).is_true()
+	assert_bool(button.can_auto_translate()).is_true()
+	assert_str(SettingsRig.shown(info)).is_equal("Close")
+	assert_str(SettingsRig.shown(button)).is_equal("Close")
+	assert_array(SettingsRig.untranslatable(screen)).is_empty()
+
+
 func test_a_section_added_before_ready_appears_after_the_listed_ones() -> void:
 	_loc = auto_free(SettingsRig.make_localization(self, _path(), "en_US"))
 	_settings = auto_free(SettingsRig.make_settings(self, _path()))

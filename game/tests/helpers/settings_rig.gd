@@ -129,9 +129,33 @@ static func read_config(path: String) -> ConfigFile:
 	return config
 
 
-## The text a control shows now: its own text translated (a key and finished text both work).
+## The text a control shows now. Uses atr(), so it respects the control's auto-translate mode: a
+## control that cannot auto-translate shows its raw key, exactly as the player would see it.
 static func shown(label: Control) -> String:
-	return label.tr(label.get("text"))
+	return label.atr(label.get("text"))
+
+
+## The width in pixels of the text a Label shows now (translated as the player sees it).
+static func shown_width(label: Label) -> float:
+	var font: Font = label.get_theme_font("font")
+	var size: int = label.get_theme_font_size("font_size")
+	return font.get_string_size(shown(label), HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
+
+
+## Names of the visible Labels and Buttons below the node that show a key but cannot auto-translate,
+## so their translation key would reach the player raw. Empty when all is well.
+static func untranslatable(root: Node) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for node: Node in root.find_children("*", "Control", true, false):
+		if not (node is Label or node is Button):
+			continue
+		var control: Control = node as Control
+		var text: String = str(control.get("text"))
+		if not control.is_visible_in_tree() or not _looks_like_key(text):
+			continue
+		if not control.can_auto_translate():
+			result.append("%s (%s)" % [control.name, control.get("text")])
+	return result
 
 
 ## A settings screen with both services injected, not yet in the tree; null while the scene is
@@ -169,3 +193,8 @@ static func focusable(root: Node) -> Array[Control]:
 		if control.focus_mode == Control.FOCUS_ALL and control.is_visible_in_tree():
 			result.append(control)
 	return result
+
+
+## True for a dotted area.subject.detail key; finished text (a language's own name) is not one.
+static func _looks_like_key(text: String) -> bool:
+	return not text.contains(" ") and text.contains(".") and text == text.to_lower()

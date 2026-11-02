@@ -100,11 +100,19 @@ func test_no_label_is_clipped_in_hungarian() -> void:
 		assert_bool(label.clip_text).override_failure_message("%s clips" % label.name).is_false()
 		if label.autowrap_mode == TextServer.AUTOWRAP_OFF:
 			(
-				assert_float(label.get_minimum_size().x)
+				assert_float(maxf(label.get_minimum_size().x, SettingsRig.shown_width(label)))
 				. override_failure_message("%s is wider than it is" % label.name)
 				. is_less_equal(label.size.x + TOLERANCE)
 			)
 	assert_int(labels).is_greater_equal(2)
+
+
+func test_every_label_and_button_text_can_auto_translate_in_hungarian() -> void:
+	var screen: Control = await _screen_in_window()
+	if screen == null:
+		return
+	var offences: PackedStringArray = SettingsRig.untranslatable(screen)
+	assert_array(offences).override_failure_message("raw keys: %s" % [offences]).is_empty()
 
 
 func test_the_close_button_is_inside_the_screen() -> void:
@@ -129,7 +137,7 @@ func test_a_long_message_line_fits_in_hungarian() -> void:
 	assert_bool(_outside(message)).is_false()
 	assert_bool(message.clip_text).is_false()
 	if message.autowrap_mode == TextServer.AUTOWRAP_OFF:
-		assert_float(message.get_minimum_size().x).is_less_equal(message.size.x + TOLERANCE)
+		assert_float(SettingsRig.shown_width(message)).is_less_equal(message.size.x + TOLERANCE)
 	var close: Control = SettingsRig.part(screen, "Close") as Control
 	assert_bool(_outside(close)).is_false()
 	assert_bool(_outside(SettingsRig.part(screen, "Sections") as Control)).is_false()
