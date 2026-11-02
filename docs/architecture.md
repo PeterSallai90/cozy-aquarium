@@ -170,7 +170,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 1. **Catalog** – read-only definitions of every species, plant, substrate, decoration and tank. Stored as typed Godot resources (`.tres`, plain text).
 2. **Aquarium model** – the current state: chosen tank, substrate and colour, placed items with transforms, fish instances. Pure data, no nodes, serializable to JSON.
 3. **Commands** – every change to the model (place, move, rotate, recolour, delete, add fish) is a command object with `do()` and `undo()`. This gives unlimited undo/redo and a single place to validate changes.
-4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals and carries `language_changed(language)` from the `Localization` autoload; they never talk to each other directly. The model never references `EventBus`.
+4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload and `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003); they never talk to each other directly. The model never references `EventBus`.
 5. **Presentation** – scenes, shaders, UI and audio that render the model.
 6. **Game mode** – `CozyMode` now. `SimulationMode` later adds a fixed-rate simulation tick and rules on top of the same model and catalog.
 
@@ -263,7 +263,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification |
 | Water rendering | Cozy, readable water | Glass shader, caustics projected on substrate, volumetric fog tint, bubbles |
 | Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`) |
-| Settings | Language (issue 7); audio, graphics quality, controls (issue 9) | One Godot `ConfigFile`, `user://settings.cfg`, written only through `SettingsStore` (`game/systems/settings_store.gd`): one section per area (`[general]` holds `language`; issue 9 adds `[audio]`, `[graphics]`, `[controls]`), the file is read again right before each write so unknown sections and keys survive, it is replaced safely (`.tmp` plus rename), a file that does not parse is copied to `settings.cfg.bak` on the next write, and the game never writes it at startup |
+| Settings | Language (issue 7); audio, graphics quality, controls (issue 9) | One Godot `ConfigFile`, `user://settings.cfg`, written only through `SettingsStore` (`game/systems/settings_store.gd`): one section per area (`[general]` holds `language`; issue 9 adds `[audio]`, `[graphics]`, `[controls]`), the file is read again right before each write so unknown sections and keys survive, it is replaced safely (`.tmp` plus rename), a file that does not parse is copied to `settings.cfg.bak` on the next write, and the game never writes it at startup. Every setting except the language is a typed `SettingKey` (section, key, type, default, optional range; wrong type gives the default, out of range is clamped) read and written through the `Settings` autoload (`game/systems/settings/`), which emits `EventBus.setting_changed` once per real change and reports a failed write through `get_last_save_error()`. The settings screen (`game/ui/settings/`) builds its sections from `settings_sections.tres`; see ADR 0003 |
 | Localization | All visible text; the current language | gettext `.po`, `tr()`/`tr_n()` keys only; the `Localization` autoload (`game/systems/localization/`, registered after `EventBus`) owns the language API and emits `EventBus.language_changed` |
 
 ### Repository layout
@@ -275,10 +275,10 @@ cozy-aquarium/
 ├─ game/                     # the Godot project (project.godot lives here)
 │  ├─ catalog/               # .tres definitions: fish/, plants/, decor/, substrates/, tanks/
 │  ├─ model/                 # aquarium model, commands, command history, save codec (no Node scripts, no file I/O)
-│  ├─ systems/               # EventBus and Localization autoloads (localization/), save store, settings store, placement, fish, camera, photo
+│  ├─ systems/               # EventBus, Localization (localization/) and Settings (settings/) autoloads, save store, settings store, placement, fish, camera, photo
 │  ├─ scenes/                # main menu, build scene, tank, furniture
 │  ├─ shaders/               # water, glass, caustics, swim, sway, substrate
-│  ├─ ui/                    # themes, screens, font layer helper, glyph test scene (ui/dev/)
+│  ├─ ui/                    # themes, screens (settings screen in ui/settings/), font layer helper, glyph test scene (ui/dev/)
 │  ├─ assets/                # models (.glb), textures, audio, fonts — tracked with Git LFS
 │  ├─ localization/          # messages.pot (generated), en.po, hu.po, extra_keys.txt
 │  └─ tests/                 # GdUnit4 tests mirroring the folders above
@@ -366,7 +366,7 @@ The files named in this section are created with the repository, not before: `.e
 | Selectable at launch | English, Magyar (Hungarian), each shown in its own language in the menu |
 | First start | Use the Windows display language if it is supported, otherwise English. Only the locale that Godot reports is read (`OS.get_locale()`): its language part before the first `_` or `-`, compared case-insensitively, so `hu`, `hu_HU`, `hu-HU` and `hu_Latn_HU` give Magyar and anything else, including an empty value, gives English. No registry, `reg.exe` or other process |
 | Storage | Selected language saved in `user://settings.cfg`, section `[general]`, key `language` (`en` or `hu`), only when the player sets a language; switching applies immediately without restart. A missing, unsupported or damaged value means first start, and it stays on disk until the player next sets a language |
-| Language API | Autoload `Localization`: `get_supported_languages()` (`en`, `hu`), `get_language_display_name(code)`, `get_language()`, `set_language(code)` returning `OK` or `ERR_INVALID_PARAMETER`. A change emits `EventBus.language_changed(language)` once, after the locale switched. UI calls only this API and holds no language logic |
+| Language API | Autoload `Localization`: `get_supported_languages()` (`en`, `hu`), `get_language_display_name(code)`, `get_language()`, `set_language(code)` returning `OK` or `ERR_INVALID_PARAMETER`, and `get_last_save_error()` (the result of the last settings write, `OK` until one fails; set before the signal). A change emits `EventBus.language_changed(language)` once, after the locale switched. UI calls only this API and holds no language logic |
 | Source strings | Never in code or scenes: only translation keys through `tr()` and `tr_n()`. A text that code builds (inserted numbers, plurals) is rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`, and its control, like any control showing player text, has auto-translate turned off |
 | Key convention | Lower case, dot-separated `area.subject.detail`, `_` inside a segment, only `a-z 0-9 _ .`, at least two segments (for example `save.error.not_found`, `menu.main.new_aquarium`, `fish.neon_tetra.name`). No `msgctxt`. Checked by `tools/scripts/check_translations.py` |
 | Key areas | `menu`, `save`, `settings`, `language`, `tank`, `fish`, `item`, `ui`, `photo`, `datetime`, `number`, `unit`. The same list is `ALLOWED_AREAS` in `check_translations.py`; an issue that needs a new area adds it to both in its own pull request |
