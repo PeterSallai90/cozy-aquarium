@@ -8,6 +8,16 @@ static func list_scripts(root: String, excluded: PackedStringArray) -> PackedStr
 	return result
 
 
+## Like list_scripts, but keeps every file whose name ends with one of the suffixes.
+static func list_files(
+	root: String, excluded: PackedStringArray, suffixes: PackedStringArray
+) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	_walk_files(root, excluded, suffixes, result)
+	result.sort()
+	return result
+
+
 static func strip_comments(source: String) -> String:
 	var lines: PackedStringArray = source.split("\n")
 	var kept: PackedStringArray = PackedStringArray()
@@ -61,3 +71,26 @@ static func _is_excluded(path: String, excluded: PackedStringArray) -> bool:
 		if path.begins_with(prefix):
 			return true
 	return false
+
+
+static func _walk_files(
+	dir_path: String,
+	excluded: PackedStringArray,
+	suffixes: PackedStringArray,
+	result: PackedStringArray
+) -> void:
+	var dir: DirAccess = DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub: String in dir.get_directories():
+		var sub_path: String = dir_path.path_join(sub) + "/"
+		if not _is_excluded(sub_path, excluded):
+			_walk_files(sub_path.trim_suffix("/"), excluded, suffixes, result)
+	for file_name: String in dir.get_files():
+		var file_path: String = dir_path.path_join(file_name)
+		if _is_excluded(file_path, excluded):
+			continue
+		for suffix: String in suffixes:
+			if file_name.ends_with(suffix):
+				result.append(file_path)
+				break

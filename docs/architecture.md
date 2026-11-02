@@ -278,8 +278,8 @@ cozy-aquarium/
 │  ├─ systems/               # EventBus and Localization autoloads (localization/), save store, settings store, placement, fish, camera, photo
 │  ├─ scenes/                # main menu, build scene, tank, furniture
 │  ├─ shaders/               # water, glass, caustics, swim, sway, substrate
-│  ├─ ui/                    # themes, fonts, screens
-│  ├─ assets/                # models (.glb), textures, audio — tracked with Git LFS
+│  ├─ ui/                    # themes, screens, font layer helper, glyph test scene (ui/dev/)
+│  ├─ assets/                # models (.glb), textures, audio, fonts — tracked with Git LFS
 │  ├─ localization/          # messages.pot (generated), en.po, hu.po, extra_keys.txt
 │  └─ tests/                 # GdUnit4 tests mirroring the folders above
 ├─ tools/
@@ -383,18 +383,20 @@ The files named in this section are created with the repository, not before: `.e
 
 | Layer | Purpose | Candidate (license) |
 | --- | --- | --- |
-| 1. Display / UI font | Cozy rounded look for Latin, including Hungarian ő and ű | Nunito or a similar rounded font under the SIL Open Font License; verify full Latin Extended-A coverage before choosing |
-| 2. Latin, Cyrillic, Greek fallback | Wider European coverage | Noto Sans (SIL OFL) |
-| 3. CJK fallback | Chinese, Japanese, Korean player text and future translations | Noto Sans CJK: SC, TC, JP and KR variants (SIL OFL) |
-| 4. Last resort | Anything not covered above, such as emoji or rare scripts | Godot `SystemFont`, which uses fonts installed in Windows |
+| 1. Display / UI font | Cozy rounded look for Latin, including Hungarian ő and ű | Nunito (SIL OFL), decided in #19; variable font (weight axis), used at weight 400; covers all of Latin Extended-A except U+0133 (ĳ) and U+017F (ſ), which come from layer 2, Noto Sans (owner decision in #19) |
+| 2. Latin, Cyrillic, Greek fallback | Wider European coverage | Noto Sans (SIL OFL), slim variable font (weight axis), used at weight 400 |
+| 3. CJK fallback | **Deferred to #78.** Not in the chain until #78 decides how CJK is covered | Bundled Noto Sans CJK SC, TC, JP and KR (SIL OFL), or an on-demand download; B08 ships no CJK font |
+| 4. Last resort | Anything not covered above, such as CJK (until #78), emoji or rare scripts | Godot `SystemFont`, which uses fonts installed in Windows; `allow_system_fallback` stays on, so Windows fonts also cover CJK and emoji that no layer has |
 
-The fallback chain is set once in the global UI theme, so every label inherits it. CJK fonts are large, roughly 15–20 MB each, so the build ships them compressed and loads glyphs on demand. This is acceptable for a PC download and can be revisited if download size becomes an issue.
+D8 stays the goal; B08 (#19) is a deliberate partial step: Latin, Cyrillic and Greek bundled, CJK only through `SystemFont` and OS fallback until #78.
+
+The fallback chain is set once in the global UI theme (project setting `gui/theme/custom`), so every control inherits it and no control sets its own font. Font files live in `game/assets/fonts/`, are imported as dynamic fonts (glyphs rasterised on demand) with compression on, and B08 ships about 1 MB of them. The size concern applies to #78: CJK fonts are roughly 15–20 MB each, and #78 decides between shipping them compressed and downloading them on demand. There is no size limit; a pull request that adds fonts reports the font and build size.
 
 ### Quality gates
 
 - **Pseudo-localization:** Godot's built-in pseudo-localization runs in a CI test that lengthens every string by about 40% and adds accented characters, then checks screenshots for overflow and missing glyphs.
 - **Translation check:** CI (`tools/scripts/check_translations.py` in the lint job) fails if `messages.pot` is missing or out of date with the code, a key breaks the key convention or the area list, a key in `messages.pot` is missing, empty or fuzzy in `en.po` or `hu.po`, a `.po` file holds a key that is not in `messages.pot`, or a file has a wrong `Language` or `Plural-Forms` header, a BOM or CRLF line endings.
-- **Glyph test:** a test scene renders a fixed sample (`Árvíztűrő tükörfúrógép`, `熱帯魚`, `열대어`, `Аквариум`) and checks that no glyph falls back to the empty box.
+- **Glyph test:** one shared sample table drives a GdUnit test and a developer glyph test scene. Hungarian, Cyrillic and Greek rows are asserted through the font API to come from a bundled layer, and Hungarian from layer 1 alone. CJK and emoji rows are informational (recorded, never asserted) until #78.
 - **Translation review:** the AI drafts Hungarian translations (Haiku 5.5 for volume, Opus 5.5 for anything tricky); you review them in a pull request before merge.
 
 ## Art and asset pipeline
@@ -1191,7 +1193,7 @@ Apart from the license and the exported architecture document, every repository 
 | `game/model/save_codec.gd`, `save_result.gd`, `save_migrations.gd`, `save_rules.gd`, `save_json.gd`, `decimal_double.gd` | Pure save codec: JSON text to model and back, versions, migrations, validation; own strict JSON reader and writer with exact float conversion | Game architecture | Backlog issue 6 | Claude Code |
 | `game/systems/save_store.gd` | Save file I/O: path policy, safe write, clock, load into the live model | Game architecture | Backlog issue 6 | Claude Code |
 | `game/localization/messages.pot`, `en.po`, `hu.po` | Translations | Unicode, localization and fonts | Backlog issue 7 | Claude Code; you review Hungarian |
-| `game/ui/` theme and fonts, glyph test scene | Font stack and fallbacks | Unicode, localization and fonts | Backlog issue 8 | Claude Code |
+| `game/assets/fonts/` (Nunito, Noto Sans, OFL texts); `game/ui/theme/` theme, `game/ui/fonts/` font layer helper, `game/ui/dev/` glyph sample table and glyph test scene | Font stack and fallbacks | Unicode, localization and fonts | Backlog issue 8 | Claude Code |
 | `tools/blender/generate_fish.py` | First asset generator | Art and asset pipeline | Backlog issue 10 | Claude Code |
 | `game/catalog/` schema scripts and `.tres` data | Species and item definitions | Game architecture | Backlog issue 23 and the content issues | Claude Code |
 | `.github/workflows/release.yml` | itch.io releases | CI/CD pipelines | Backlog issue 40 | Claude Code |
@@ -1263,7 +1265,7 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 5 | Aquarium model, command framework with undo/redo, EventBus | E0 Foundation | M0 | feature | M | P0 |
 | 6 | Save and load model as UTF-8 JSON with format version | E0 Foundation | M0 | feature | M | P0 |
 | 7 | Localization pipeline: keys, en.po, hu.po, language setting, live switch | E0 Foundation | M0 | feature | M | P0 |
-| 8 | Font stack with Noto fallbacks and glyph test scene | E0 Foundation | M0 | feature | S | P0 |
+| 8 | Font stack with Noto fallbacks and glyph test scene (bundled CJK deferred to #78) | E0 Foundation | M0 | feature | S | P0 |
 | 9 | Settings system (language, audio, graphics, controls) | E0 Foundation | M0 | feature | S | P1 |
 | 10 | Blender pipeline proof: one generated fish exported and imported | E0 Foundation | M0 | asset | M | P0 |
 | 11 | Cozy room corner with cabinet and medium tank | E1 Tank and room | M1 | feature | M | P0 |
@@ -1318,7 +1320,7 @@ The biggest risks are visual quality and AI drift, both handled by early proofs 
 | GDScript has less AI training data than C# | Low to medium | Static typing, linting and tests catch mistakes early |
 | Godot updates break the project | Low | Pinned version; upgrades only through an ADR and a full test run |
 | Asset license mistakes | Medium for a public release | License log enforced by CI |
-| CJK fonts make the download large | Low for PC | Compressed fonts; revisit if the size becomes a complaint |
+| CJK fonts make the download large (applies to #78; B08 ships no CJK font) | Low for PC | Decided in #78 (compressed fonts or on-demand download); font pull requests report font and build size |
 
 ### Open questions for the product owner
 

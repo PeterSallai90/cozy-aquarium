@@ -1,0 +1,23 @@
+[gd_resource type="Theme" format=3 uid="uid://bq7w3k2n5vd1h"]
+
+[ext_resource type="FontFile" uid="uid://dj820q2q0x8g" path="res://assets/fonts/nunito/nunito_variable.ttf" id="1_nunito"]
+[ext_resource type="FontFile" uid="uid://spu2b6de30gk" path="res://assets/fonts/noto_sans/noto_sans_variable.ttf" id="2_noto"]
+
+[sub_resource type="FontVariation" id="FontVariation_noto"]
+base_font = ExtResource("2_noto")
+variation_opentype = {
+"wght": 400
+}
+
+[sub_resource type="SystemFont" id="SystemFont_last"]
+font_names = PackedStringArray("sans-serif")
+
+[sub_resource type="FontVariation" id="FontVariation_chain"]
+fallbacks = Array[Font]([SubResource("FontVariation_noto"), SubResource("SystemFont_last")])
+base_font = ExtResource("1_nunito")
+variation_opentype = {
+"wght": 400
+}
+
+[resource]
+default_font = SubResource("FontVariation_chain")
