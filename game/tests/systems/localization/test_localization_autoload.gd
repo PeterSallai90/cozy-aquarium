@@ -188,3 +188,23 @@ func test_local_format_dates_follow_the_language_and_the_real_clock() -> void:
 	assert_str(hungarian).is_equal("2026. 07. 01.")
 	assert_int(node.set_language("en")).is_equal(OK)
 	assert_str(node.local_format().format_date(stamp)).is_equal("2026-07-01")
+
+
+# --- reporting a failed save (B09a, AC 17) -------------------------------------------------
+
+
+func test_the_last_save_error_is_ok_until_a_write_fails() -> void:
+	var node: Node = _make("en_US")
+	assert_int(node.get_last_save_error()).is_equal(OK)
+	assert_int(node.set_language("hu")).is_equal(OK)
+	assert_int(node.get_last_save_error()).is_equal(OK)
+
+
+func test_a_failed_write_is_reported_and_a_good_one_clears_it() -> void:
+	DirAccess.make_dir_recursive_absolute(_path())
+	var node: Node = _make("en_US")
+	assert_int(node.set_language("hu")).is_equal(OK)
+	assert_int(node.get_last_save_error()).is_not_equal(OK)
+	DirAccess.remove_absolute(_path())
+	assert_int(node.set_language("en")).is_equal(OK)
+	assert_int(node.get_last_save_error()).is_equal(OK)

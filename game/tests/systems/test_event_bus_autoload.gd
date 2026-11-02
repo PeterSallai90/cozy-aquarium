@@ -29,3 +29,9 @@ func test_live_event_bus_has_the_history_api() -> void:
 		"command_executed", "command_undone", "command_redone", "history_changed"
 	]:
 		assert_bool(node.has_signal(signal_name)).override_failure_message(signal_name).is_true()
+
+
+func test_the_live_event_bus_has_the_setting_changed_signal() -> void:
+	var node: Node = get_tree().root.get_node_or_null("EventBus")
+	assert_object(node).is_not_null()
+	assert_bool(node.has_signal("setting_changed")).is_true()
