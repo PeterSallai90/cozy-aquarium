@@ -12,3 +12,18 @@ msgstr "Unknown"
 
 msgid "number.unknown"
 msgstr "Unknown"
+
+msgid "settings.close"
+msgstr "Close"
+
+msgid "settings.error.not_saved"
+msgstr "Your settings could not be saved. They still work until you close the game."
+
+msgid "settings.language.label"
+msgstr "Language"
+
+msgid "settings.section.language"
+msgstr "Language"
+
+msgid "settings.title"
+msgstr "Settings"

@@ -12,3 +12,18 @@ msgstr "Ismeretlen"
 
 msgid "number.unknown"
 msgstr "Ismeretlen"
+
+msgid "settings.close"
+msgstr "Bezárás"
+
+msgid "settings.error.not_saved"
+msgstr "A beállításokat nem sikerült elmenteni. A játék bezárásáig továbbra is érvényesek."
+
+msgid "settings.language.label"
+msgstr "Nyelv"
+
+msgid "settings.section.language"
+msgstr "Nyelv"
+
+msgid "settings.title"
+msgstr "Beállítások"
