@@ -25,6 +25,8 @@ func _ready() -> void:
 		localization = get_node("/root/Localization")
 	if settings == null:
 		settings = get_node("/root/Settings")
+	# Tab titles are set from code already translated; sections keep normal auto-translate.
+	_tabs.get_tab_bar().auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_close.pressed.connect(close)
 	EventBus.language_changed.connect(_on_language_changed)
 	EventBus.setting_changed.connect(_on_setting_changed)
