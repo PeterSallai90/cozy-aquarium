@@ -4,6 +4,17 @@ extends GdUnitTestSuite
 
 const TRANSLATIONS := ["res://localization/en.po", "res://localization/hu.po"]
 const AUTOLOAD_VALUE := "*res://systems/localization/localization.gd"
+# These constants mirror REQUIRED_SETTINGS in tools/scripts/check_project_settings.py.
+const FALLBACK_SECTION := "internationalization"
+const FALLBACK_KEY := "locale/fallback"
+const FALLBACK_VALUE := "en"
+
+
+static func missing_line_message(section: String, key: String, value: String) -> String:
+	return (
+		'game/project.godot is missing %s under [%s]; add the line %s="%s" (see docs/dev-setup.md)'
+		% [key, section, key, value]
+	)
 
 
 func _project_file() -> ConfigFile:
@@ -28,8 +39,27 @@ func test_the_fallback_locale_is_en() -> void:
 func test_the_fallback_is_written_explicitly_in_project_godot() -> void:
 	# Godot's own default is also "en", so the runtime setting alone cannot show that it was set.
 	var config: ConfigFile = _project_file()
-	assert_bool(config.has_section_key("internationalization", "locale/fallback")).is_true()
-	assert_str(config.get_value("internationalization", "locale/fallback")).is_equal("en")
+	var message: String = missing_line_message(FALLBACK_SECTION, FALLBACK_KEY, FALLBACK_VALUE)
+	(
+		assert_bool(config.has_section_key(FALLBACK_SECTION, FALLBACK_KEY))
+		. override_failure_message(message)
+		. is_true()
+	)
+	(
+		assert_str(config.get_value(FALLBACK_SECTION, FALLBACK_KEY, ""))
+		. override_failure_message(message)
+		. is_equal(FALLBACK_VALUE)
+	)
+
+
+func test_the_fallback_missing_line_message_wording() -> void:
+	var message: String = missing_line_message(FALLBACK_SECTION, FALLBACK_KEY, FALLBACK_VALUE)
+	assert_str(message).is_equal(
+		(
+			"game/project.godot is missing locale/fallback under [internationalization]; "
+			+ 'add the line locale/fallback="en" (see docs/dev-setup.md)'
+		)
+	)
 
 
 func test_the_translations_are_written_in_project_godot() -> void:
