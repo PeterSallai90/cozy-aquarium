@@ -708,6 +708,8 @@ Move-Item "$HOME\Downloads\<exported file name>.md" docs\architecture.md
 
 > Create the repository skeleton described in docs/architecture.md, sections "Repository layout", "GitHub repository setup" and "Project board": all folders; .gitattributes, .gitignore, .editorconfig, .pre-commit-config.yaml, CLAUDE.md and README.md; docs/adr/0001-engine.md recording Godot version \<your version from Step 5>; docs/asset-licenses.md with only the table header; .github/ISSUE\_TEMPLATE with feature.yml, bug.yml and test.yml; .github/pull\_request\_template.md; and an empty Godot 4 project in /game with the Forward+ renderer. Commit any files already in docs/. Open a pull request.
 
+Note: this skeleton step has already been done once for this repository. The live `.editorconfig` and `.pre-commit-config.yaml` already exist in the repository root and are the source of truth; do not recreate or overwrite them from this document, also not when asked to create the skeleton on a fresh clone. The subsections below quote them only as the initial skeleton templates.
+
 **Using the Claude Desktop app instead of the terminal** (it includes Claude Code, so no separate install is needed):
 
 1. Open the Claude Desktop app and click the **Code** tab at the top center of the window.
@@ -772,6 +774,8 @@ Thumbs.db
 ```
 
 ### .editorconfig
+This block is the initial skeleton template. The live file is `.editorconfig` in the repository root. It has changed since the skeleton and takes precedence over this template; read the live file, not this block.
+
 
 ```
 root = true
@@ -794,6 +798,8 @@ end_of_line = crlf
 ```
 
 ### Pre-commit hooks (.pre-commit-config.yaml)
+This block is the initial skeleton template. The live file is `.pre-commit-config.yaml` in the repository root. It has changed since the skeleton and takes precedence over this template; read the live file, not this block.
+
 
 ```yaml
 repos:
@@ -814,7 +820,7 @@ repos:
         args: ["--maxkb=500"]   # large files must go through LFS
 ```
 
-Run `pre-commit install` once in the repository folder, after the skeleton pull request is merged and pulled (step 4 above); before that, the configuration file does not exist.
+Run `pre-commit install` once per clone, in the repository folder; the live `.pre-commit-config.yaml` already exists in the repository root.
 
 ### Initial CLAUDE.md template (used once for the repository skeleton)
 
