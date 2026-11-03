@@ -268,7 +268,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 
 ### Repository layout
 
-This layout does not exist yet. Claude Code creates the folders and configuration files in GitHub repository setup → Create the repository (backlog issue 2); the folders under `game/` fill with content as the M0 and M1 issues are implemented. Every file, and the step that creates it, is listed in "Repository files and when they are created".
+The repository skeleton has been created (GitHub repository setup → Create the repository, backlog issue 2). The tree below is the target layout written at skeleton time and is not kept in sync with the repository; the folders and files in the repository take precedence over it. Every file, and the step that creates it, is listed in "Repository files and when they are created".
 
 ```
 cozy-aquarium/
@@ -726,6 +726,8 @@ The subsections below (.gitattributes to CLAUDE.md) are the contents Claude Code
 
 ### .gitattributes
 
+This block is the initial skeleton template. The live file is `.gitattributes` in the repository root. It takes precedence over this template and may differ from it if it was changed later; read the live file, not this block.
+
 ```
 * text=auto eol=lf
 
@@ -746,6 +748,8 @@ The subsections below (.gitattributes to CLAUDE.md) are the contents Claude Code
 ```
 
 ### .gitignore
+
+This block is the initial skeleton template. The live file is `.gitignore` in the repository root. It has changed since the skeleton and takes precedence over this template; read the live file, not this block.
 
 ```
 # Godot 4 cache (re-created automatically); .import files ARE committed
@@ -896,7 +900,7 @@ Claude Code can install a GitHub app and workflow in your repository (run `/inst
 
 One GitHub Projects board shows every feature, bug, test task and chore with its status; issues are the work items, epics are parent issues with sub-issues, and pull requests move cards automatically.
 
-Run the commands in this section inside the repository folder, after the skeleton pull request is merged (GitHub repository setup → Create the repository, step 4). The issue and pull request templates shown below are written by Claude Code in that skeleton step; the board, its fields and the labels are created by the commands here.
+For this repository the skeleton pull request (GitHub repository setup → Create the repository, step 4) and the board setup are already done: Claude Code wrote the issue and pull request templates shown below in the skeleton step, and the commands in this section created the board, its fields and the labels. The commands stay here as a record; do not repeat them on a repository that already has the board, fields and labels.
 
 Once the AI team is set up (backlog B43), the board keeper agent maintains the board: statuses, labels, fields and links. You no longer move cards yourself. **Human review** now means "waiting for the product owner": a `needs:decision` issue or a `needs:owner` pull request.
 
@@ -962,6 +966,8 @@ gh label create "owner-approved" --color 0E8A16 --description "Set only by the p
 
 **feature.yml**
 
+This block is the initial skeleton template. The live file is `.github/ISSUE_TEMPLATE/feature.yml`. It takes precedence over this template and may differ from it if it was changed later; read the live file, not this block.
+
 ```yaml
 name: Feature / user story
 description: A player-facing capability
@@ -1005,6 +1011,8 @@ body:
 
 ### Pull request template (.github/pull\_request\_template.md)
 
+This block is the initial skeleton template. The live file is `.github/pull_request_template.md`. It takes precedence over this template and may differ from it if it was changed later; read the live file, not this block.
+
 ```markdown
 Closes #
 
@@ -1046,7 +1054,7 @@ Closes #
 
 Two GitHub Actions workflows do all checking and shipping: `ci.yml` lints, tests and builds every pull request into a downloadable Windows build, and `release.yml` publishes a tagged version to itch.io for Windows, Linux and macOS.
 
-None of these files exist until the repository skeleton is merged. Claude Code then creates `.github/workflows/ci.yml`, `game/export_presets.cfg`, GdUnit4 in `game/addons/` and the two check scripts in `tools/scripts/` in backlog issues 3 and 4; `release.yml` follows in backlog issue 40.
+`.github/workflows/ci.yml`, `game/export_presets.cfg`, GdUnit4 in `game/addons/` and the two check scripts in `tools/scripts/` already exist; Claude Code created them in backlog issues 3 and 4. `release.yml` and `visual.yml` do not exist yet; they follow in backlog issue 40 and backlog issue 42.
 
 | Workflow | Trigger | Jobs | Result |
 | --- | --- | --- | --- |
@@ -1066,6 +1074,8 @@ The AI team setup (backlog B43) adds four small workflows around these two:
 All builds run on Ubuntu runners: Godot exports Windows, Linux and macOS builds from Linux, which is faster and cheaper than Windows runners. The macOS build is unsigned, which itch.io allows; players must right-click → Open the first time.
 
 ### ci.yml
+
+This block is the initial skeleton template. The live file is `.github/workflows/ci.yml`. It has changed since the skeleton and takes precedence over this template; read the live file, not this block.
 
 ```yaml
 name: CI
@@ -1162,6 +1172,8 @@ Apart from the license and the exported architecture document, every repository 
 
 ### The order of creation
 
+This list records the order in which the repository files were first created; it is not a status list. The repository is the source of truth for what exists today.
+
 1. **Windows setup, Steps 0–11:** installs tools on your machine only; no repository files yet.
 2. **GitHub repository setup → Create the repository, steps 1–2:** `gh repo create` makes the empty repository with `LICENSE`; you add `docs/architecture.md` by hand.
 3. **Repository skeleton (backlog issue 2):** Claude Code writes all configuration files, templates, documentation stubs, the folder tree and the empty Godot project in one pull request.
@@ -1170,6 +1182,8 @@ Apart from the license and the exported architecture document, every repository 
 6. **Feature issues (5 onward):** game code, catalog, translations, generators and later workflows, each in its own pull request.
 
 ### Every file and folder
+
+This table records where each file is specified and which step or issue creates it; it is not the list of current files. Check the repository for the files that exist today; the repository is the source of truth.
 
 | Path | Purpose | Specified in section | Created in | By |
 | --- | --- | --- | --- | --- |
