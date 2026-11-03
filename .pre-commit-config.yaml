@@ -18,3 +18,11 @@ repos:
         exclude: ^game/(addons/gdUnit4|assets/fonts)/
       - id: check-added-large-files
         args: ["--maxkb=500"]   # large files must go through LFS
+  - repo: local
+    hooks:
+      - id: check-project-settings
+        name: check that project.godot keeps the required explicit lines
+        entry: python tools/scripts/check_project_settings.py
+        language: python
+        files: ^game/project\.godot$
+        pass_filenames: false
