@@ -2,8 +2,16 @@
 extends GdUnitTestSuite
 ## AC 11, 12, 14, 15, 16, 17 at the service level: fixture keys on a test path.
 
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SettingsRig := preload("res://tests/helpers/settings_rig.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
+
+const NOT_SAVED := "Setting fixture/volume not saved: Can't open file"
+const WRONG_TYPE := "Wrong type for setting fixture/volume"
+const PARSE_ERROR := (
+	"ConfigFile parse error at user://test_saves/settings_service/settings.cfg:1: "
+	+ "Expected value, got ''=''."
+)
 
 var _dir: String = ""
 var _changes: Array = []
@@ -27,6 +35,15 @@ func before_test() -> void:
 func after_test() -> void:
 	SaveFixtures.remove_dir(_dir)
 	SaveFixtures.remove_root_if_empty()
+
+
+## Runs action once, asserts exactly which messages it logged (each text and its count) and
+## returns what the action returned.
+func _logged(action: Callable, warnings: Dictionary = {}, errors: Dictionary = {}) -> Variant:
+	var seen: Dictionary = await EngineOutput.capture_result(action)
+	assert_dict(seen.warnings).is_equal(warnings)
+	assert_dict(seen.errors).is_equal(errors)
+	return seen.result
 
 
 func _path() -> String:
@@ -109,7 +126,10 @@ func test_an_unparsable_file_gives_defaults_and_writes_nothing() -> void:
 	var service: RefCounted = _make()
 	if service == null:
 		return
-	assert_float(service.get_value(SettingsRig.volume_key())).is_equal(0.5)
+	var value: Variant = await _logged(
+		func() -> Variant: return service.get_value(SettingsRig.volume_key()), {}, {PARSE_ERROR: 1}
+	)
+	assert_float(value).is_equal(0.5)
 	assert_str(SaveFixtures.read_text(_path())).is_equal(text)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["settings.cfg"])
 
@@ -120,7 +140,12 @@ func test_the_first_change_after_an_unparsable_file_keeps_a_backup() -> void:
 	var service: RefCounted = _make()
 	if service == null:
 		return
-	assert_int(service.set_value(SettingsRig.volume_key(), 0.8)).is_equal(OK)
+	var result: Variant = await _logged(
+		func() -> Variant: return service.set_value(SettingsRig.volume_key(), 0.8),
+		{},
+		{PARSE_ERROR: 2}
+	)
+	assert_int(result).is_equal(OK)
 	assert_str(SaveFixtures.read_text(_path() + ".bak")).is_equal(text)
 	var config: ConfigFile = SettingsRig.read_config(_path())
 	assert_float(config.get_value("fixture", "volume")).is_equal(0.8)
@@ -195,10 +220,12 @@ func test_a_wrong_type_is_refused_and_nothing_changes() -> void:
 	if service == null:
 		return
 	for bad: Variant in ["loud", true, [0.2]]:
-		(
-			assert_int(service.set_value(SettingsRig.volume_key(), bad))
-			. override_failure_message("for %s" % [bad])
-			. is_equal(ERR_INVALID_PARAMETER)
+		var result: Variant = await _logged(
+			func() -> Variant: return service.set_value(SettingsRig.volume_key(), bad),
+			{WRONG_TYPE: 1}
+		)
+		assert_int(result).override_failure_message("for %s" % [bad]).is_equal(
+			ERR_INVALID_PARAMETER
 		)
 	assert_int(store.writes).is_equal(0)
 	assert_array(_changes).is_empty()
@@ -265,7 +292,10 @@ func test_a_failed_write_keeps_the_value_for_the_session_and_reports_the_error()
 	var service: RefCounted = _make()
 	if service == null:
 		return
-	assert_int(service.set_value(SettingsRig.volume_key(), 0.8)).is_equal(OK)
+	var result: Variant = await _logged(
+		func() -> Variant: return service.set_value(SettingsRig.volume_key(), 0.8), {NOT_SAVED: 1}
+	)
+	assert_int(result).is_equal(OK)
 	assert_float(service.get_value(SettingsRig.volume_key())).is_equal(0.8)
 	assert_int(service.get_last_save_error()).is_not_equal(OK)
 	assert_array(_changes).is_equal([["fixture", "volume", 0.8]])
@@ -276,7 +306,9 @@ func test_a_good_write_after_a_failed_one_clears_the_error() -> void:
 	var service: RefCounted = _make()
 	if service == null:
 		return
-	service.set_value(SettingsRig.volume_key(), 0.8)
+	await _logged(
+		func() -> Variant: return service.set_value(SettingsRig.volume_key(), 0.8), {NOT_SAVED: 1}
+	)
 	assert_int(service.get_last_save_error()).is_not_equal(OK)
 	DirAccess.remove_absolute(_path())
 	assert_int(service.set_value(SettingsRig.volume_key(), 0.3)).is_equal(OK)

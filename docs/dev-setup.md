@@ -66,6 +66,22 @@ service.language_changed.connect(
 
 This is a test-writing rule, not a game-code rule. `CLAUDE.md` is not changed.
 
+### Expected engine messages
+
+GdUnit4 runs with `gdunit4/report/godot/push_error=true` in `game/project.godot`. Any
+`push_error`, `push_warning` or engine error (for example a ConfigFile parse error) that a test
+does not assert fails that test.
+
+- A test that triggers an expected message asserts it where it happens, with
+  `assert_error(...).is_push_error(...)` or `.is_push_warning(...)`.
+- When one call logs several messages, or the same message more than once, use
+  `tests/helpers/engine_output.gd` (`EngineOutput.capture`): assert each text and its exact count.
+  A count alone is not enough.
+- Asserted messages still appear in the console output. That is expected.
+- Never assert with an empty or match-anything text, and never turn reporting off for a test.
+- Output outside test cases (suite hooks, scan, exit) is not seen by GdUnit4; the log gate (#93)
+  handles it. See `docs/adr/0004-engine-output-policy.md`.
+
 ### Run the gate locally
 
 The gate reads the log file after the run. `test.log` is a git-ignored local scratch file.

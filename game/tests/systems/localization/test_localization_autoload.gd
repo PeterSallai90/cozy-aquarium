@@ -3,7 +3,10 @@ extends GdUnitTestSuite
 ## /root/Localization node, because that would write the real user://settings.cfg.
 
 const LocalizationScript := preload("res://systems/localization/localization.gd")
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
+
+const NOT_SAVED := "Language setting not saved: Can't open file"
 
 var _dir: String = ""
 var _saved_locale: String = ""
@@ -30,6 +33,20 @@ func after_test() -> void:
 func _on_language_changed(language: String) -> void:
 	_emitted.append(language)
 	_locale_at_emit.append(TranslationServer.get_locale())
+
+
+## Runs action once, asserts exactly which messages it logged (each text and its count) and
+## returns what the action returned.
+func _logged(action: Callable, warnings: Dictionary = {}, errors: Dictionary = {}) -> Variant:
+	var seen: Dictionary = await EngineOutput.capture_result(action)
+	assert_dict(seen.warnings).is_equal(warnings)
+	assert_dict(seen.errors).is_equal(errors)
+	return seen.result
+
+
+## set_language on a path that cannot be written: asserts the one "not saved" warning.
+func _set_logged(node: Node, code: String) -> Variant:
+	return await _logged(func() -> Variant: return node.set_language(code), {NOT_SAVED: 1})
 
 
 func _path() -> String:
@@ -122,9 +139,11 @@ func test_the_same_language_again_emits_nothing() -> void:
 func test_an_unsupported_code_is_refused() -> void:
 	var node: Node = _make("hu_HU")
 	for code: String in ["xx", "", "HU", "hu_HU"]:
-		assert_int(node.set_language(code)).override_failure_message(code).is_equal(
-			ERR_INVALID_PARAMETER
+		var warning: String = "Unsupported language: %s" % code
+		var result: Variant = await _logged(
+			func() -> Variant: return node.set_language(code), {warning: 1}
 		)
+		assert_int(result).override_failure_message(code).is_equal(ERR_INVALID_PARAMETER)
 	assert_str(node.get_language()).is_equal("hu")
 	assert_array(_emitted).is_empty()
 	assert_bool(FileAccess.file_exists(_path())).is_false()
@@ -145,7 +164,7 @@ func test_the_choice_is_saved_and_a_restart_reads_it_back() -> void:
 func test_a_failed_write_still_switches_the_language() -> void:
 	DirAccess.make_dir_recursive_absolute(_path())
 	var node: Node = _make("en_US")
-	assert_int(node.set_language("hu")).is_equal(OK)
+	assert_int(await _set_logged(node, "hu")).is_equal(OK)
 	assert_str(node.get_language()).is_equal("hu")
 	assert_array(_emitted).is_equal(["hu"])
 	assert_str(TranslationServer.get_locale()).starts_with("hu")
@@ -203,7 +222,7 @@ func test_the_last_save_error_is_ok_until_a_write_fails() -> void:
 func test_a_failed_write_is_reported_and_a_good_one_clears_it() -> void:
 	DirAccess.make_dir_recursive_absolute(_path())
 	var node: Node = _make("en_US")
-	assert_int(node.set_language("hu")).is_equal(OK)
+	assert_int(await _set_logged(node, "hu")).is_equal(OK)
 	assert_int(node.get_last_save_error()).is_not_equal(OK)
 	DirAccess.remove_absolute(_path())
 	assert_int(node.set_language("en")).is_equal(OK)
