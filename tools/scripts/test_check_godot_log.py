@@ -337,7 +337,71 @@ class AllowlistTest(GateTestCase):
             "bare WARNING token": self.entry(substring="WARNING:"),
             "bare SCRIPT ERROR token": self.entry(substring="SCRIPT ERROR:"),
             "part of an engine token": self.entry(substring="ERROR"),
+            "tab newline substring": self.entry(substring="\t\n"),
+            **self.padded_token_entries(),
         }
+
+    # #101: padded engine tokens
+
+    SPACE_PADDED = ("ERROR: ", " WARNING:", " ERROR: ", "SCRIPT ERROR: ", " SCRIPT ERROR: ")
+    WHITESPACE_PADDED = ("\tERROR:\n", "WARNING:\r\n")
+    PADDED_PARTIAL = (" ERROR", "RROR: ")
+
+    def padded_token_entries(self) -> dict[str, object]:
+        substrings = self.SPACE_PADDED + self.WHITESPACE_PADDED + self.PADDED_PARTIAL
+        return {f"padded {s!r}": self.entry(substring=s) for s in substrings}
+
+    def assert_padded_rejected_with_index(self, substrings: tuple[str, ...]) -> None:
+        module = load_script()
+        for substring in substrings:
+            with self.subTest(substring=substring):
+                entries = (self.entry(), self.entry(substring=substring))
+                problems = module.validate_allowlist(entries)
+                self.assertEqual(problems, ["1: substring matches every engine line"])
+
+    def test_ac101_1_space_padded_bare_token_is_rejected_with_its_index(self) -> None:
+        self.assert_padded_rejected_with_index(self.SPACE_PADDED)
+
+    def test_ac101_2_tab_and_newline_padded_token_is_rejected_with_its_index(self) -> None:
+        self.assert_padded_rejected_with_index(self.WHITESPACE_PADDED)
+
+    def test_ac101_3_padded_partial_token_is_rejected_with_its_index(self) -> None:
+        self.assert_padded_rejected_with_index(self.PADDED_PARTIAL)
+
+    def test_ac101_4_empty_or_whitespace_substring_is_reported_as_empty(self) -> None:
+        module = load_script()
+        for substring in ("", "   ", "\t\n"):
+            with self.subTest(substring=substring):
+                problems = module.validate_allowlist((self.entry(substring=substring),))
+                self.assertEqual(problems, ["0: substring is empty"])
+
+    def test_ac101_5_padded_token_fails_every_step_on_a_clean_log(self) -> None:
+        module = load_script()
+        for name, entry in self.padded_token_entries().items():
+            for step in sorted(module.RULES):
+                with self.subTest(entry=name, step=step):
+                    path = self.write(IMPORT_CLEAN)
+                    with mock.patch.object(module, "ALLOWLIST", (entry,)):
+                        code, _, err = self.run_gate(["--step", step, str(path)])
+                    self.assertEqual(code, 2)
+                    self.assertIn("invalid allowlist entry 0", err)
+
+    def test_ac101_6_entry_with_real_text_validates_even_when_padded(self) -> None:
+        module = load_script()
+        for substring in ("ERROR: Cannot open probe", " ERROR: Cannot open probe "):
+            with self.subTest(substring=substring):
+                self.assertEqual(module.validate_allowlist((self.entry(substring=substring),)), [])
+
+    def test_ac101_6_padded_entry_with_text_matches_its_line_as_written(self) -> None:
+        module = load_script()
+        entry = self.entry(substring=" ERROR: Cannot open probe ")
+        matching = IMPORT_CLEAN + "godot_console : ERROR: Cannot open probe file res://x.png\n"
+        no_leading_space = IMPORT_CLEAN + "ERROR: Cannot open probe file res://x.png\n"
+        with mock.patch.object(module, "ALLOWLIST", (entry,)):
+            self.assertEqual(self.run_step("import", matching), (0, "", ""))
+            code, _, err = self.run_step("import", no_leading_space)
+        self.assertEqual(code, 1)
+        self.assertIn("ERROR: Cannot open probe file res://x.png", err)
 
     def test_ac5_validate_allowlist_rejects_every_unexplained_or_match_all_entry(self) -> None:
         module = load_script()
