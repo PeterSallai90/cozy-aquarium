@@ -64,7 +64,12 @@ jobs:
       - name: Import project
         run: godot --headless --path game --import
       - name: Run tests
-        run: godot --headless --path game -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode
+        run: |
+          set -o pipefail
+          godot --headless --path game -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode 2>&1 | tee "$RUNNER_TEMP/godot-tests.log"
+      - name: Check for leaks at exit
+        if: always()
+        run: python3 tools/scripts/check_test_leaks.py "$RUNNER_TEMP/godot-tests.log"
       - name: Check that tests ran
         run: |
           report=$(ls game/reports/*/results.xml 2>/dev/null | head -n 1)
