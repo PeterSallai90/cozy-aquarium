@@ -136,13 +136,17 @@ class LogError(Exception):
 
 
 def validate_allowlist(entries: tuple[AllowEntry, ...]) -> list[str]:
-    """Return the problems of the entries; each is prefixed with the entry index."""
+    """Return the problems of the entries; each is prefixed with the entry index.
+
+    The token check ignores surrounding whitespace; matching in scan uses the substring as written.
+    """
     problems: list[str] = []
     token_texts = [token + ":" for token in ENGINE_TOKENS]
     for index, entry in enumerate(entries):
-        if not entry.substring.strip():
+        core = entry.substring.strip()
+        if not core:
             problems.append(f"{index}: substring is empty")
-        elif any(entry.substring in text for text in token_texts):
+        elif any(core in text for text in token_texts):
             problems.append(f"{index}: substring matches every engine line")
         if not entry.reason.strip():
             problems.append(f"{index}: reason is empty")

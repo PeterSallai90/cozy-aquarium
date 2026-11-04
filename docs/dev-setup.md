@@ -72,15 +72,18 @@ seen. After a `FAILED` test, GdUnit4's report block can add findings; fix the fa
 
 `ALLOWLIST` in the script is empty and stays empty unless the owner agrees. An entry is a literal,
 case-sensitive substring (not a regex) of the line, a reason, and a link to an issue of this
-repository. An empty substring, a bare `ERROR:` or `WARNING:` token, or a missing reason or issue
-link makes every gate step exit 2. A test checks that `len(ALLOWLIST) == 0`.
+repository. An empty or whitespace-only substring, a substring that is an engine token (`ERROR:`,
+`WARNING:`, `SCRIPT ERROR:`) or part of one, with or without surrounding whitespace, or a
+missing reason or issue link makes every gate step exit 2. Matching uses the substring as
+written, including its spaces. A test checks that `len(ALLOWLIST) == 0`.
 
 ### Pinned first-import set
 
 On a fresh checkout the first import prints 10 known error lines (the theme and the fonts are
 imported in the wrong order; the second import is clean). `FIRST_IMPORT_PINNED` lists their
-exact shapes with a maximum count each; only the 32-character hash varies. An extra copy, a
-different line or a missing file is a finding. The set may not grow without an owner OK
+exact shapes with a maximum count each; only the 32-character hash varies. An extra copy beyond a
+line's count or a line for a different font file is a finding; pinned lines that are
+missing from the log pass (there is no minimum count). The set may not grow without an owner OK
 (owner decision on #93). It exists only for the `import-first` step.
 
 ### Rule for test writers
