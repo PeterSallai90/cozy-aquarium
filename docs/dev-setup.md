@@ -33,7 +33,9 @@ both lines are present, and prints one line per problem otherwise.
 - CI does not run pre-commit or the script. CI runs the GdUnit tests `test_project_settings.gd`
   and `test_localization_setup.gd`, which fail with a "restore this line" message.
 - CI runs `tools/scripts/check_godot_log.py` on the output of the two imports, "Run tests" and
-  the export. Locally, run the commands in "Engine output gate (test runs and leaks)".
+  the export, and boots the exported Windows build on a Windows runner (the `smoke-windows` job)
+  and gates its output. Locally, run the commands in "Engine output gate (test runs and leaks)"
+  and "Run the smoke check locally".
 
 ## Engine output gate (test runs and leaks)
 
@@ -50,7 +52,7 @@ step rules and the allowlist.
 | `import` | "Check import output" | A leak line, or any `ERROR:`, `WARNING:` or script error line |
 | `test` | "Check test output" | A leak line anywhere, or an engine line outside a test case (see below) |
 | `export` | "Check export output" | Same as `import` |
-| `smoke` | not wired yet (#94) | Same as `import` |
+| `smoke` | "Check smoke output" | Same as `import` |
 
 CI imports the project twice. The first run of a fresh checkout is gated by `import-first`, the
 second by `import`. A line matches when it contains the token followed by a colon, with any
@@ -194,6 +196,23 @@ case-sensitive and the patterns live in one place, `LEAK_PATTERNS` in the script
 
 GdUnit4's orphan check reports orphan Nodes only, so it does not see RefCounted or script leaks.
 This gate covers those.
+
+## Run the smoke check locally
+
+CI boots the exported Windows build (`build/windows/CozyAquarium.exe`) headless for 120 frames
+and gates its output with the `smoke` step. First make the export: see "Export (CI command, for
+reference)" above (it needs the export templates). Then, in PowerShell:
+
+```powershell
+& build\windows\CozyAquarium.exe --headless --quit-after 120 *>&1 | Tee-Object "$env:TEMP\godot-smoke.log"
+$game = $LASTEXITCODE
+python tools/scripts/check_godot_log.py --step smoke "$env:TEMP\godot-smoke.log"
+```
+
+Read `$game` before the gate runs anything else, because the gate's exit code replaces
+`$LASTEXITCODE`. Exit codes: the game must exit 0; the gate exits 0 (clean), 1 (findings) or 2
+(cannot check). The quit value 120 matches CI. The `smoke` step is import-like: any leak line,
+`ERROR:`, `WARNING:` or script error line is a finding, and the allowlist is empty.
 
 ## Vendored fonts
 
