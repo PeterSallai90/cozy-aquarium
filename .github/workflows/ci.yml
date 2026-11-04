@@ -62,14 +62,23 @@ jobs:
           sudo install -m 755 ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
           godot --headless --version
       - name: Import project
-        run: godot --headless --path game --import
+        run: |
+          godot --headless --path game --import 2>&1 | tee "$RUNNER_TEMP/godot-import-first.log" || true
+          set -o pipefail
+          godot --headless --path game --import 2>&1 | tee "$RUNNER_TEMP/godot-import.log"
+      - name: Check first import output
+        if: always()
+        run: python3 tools/scripts/check_godot_log.py --step import-first "$RUNNER_TEMP/godot-import-first.log"
+      - name: Check import output
+        if: always()
+        run: python3 tools/scripts/check_godot_log.py --step import "$RUNNER_TEMP/godot-import.log"
       - name: Run tests
         run: |
           set -o pipefail
           godot --headless --path game -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode 2>&1 | tee "$RUNNER_TEMP/godot-tests.log"
-      - name: Check for leaks at exit
+      - name: Check test output
         if: always()
-        run: python3 tools/scripts/check_test_leaks.py "$RUNNER_TEMP/godot-tests.log"
+        run: python3 tools/scripts/check_godot_log.py --step test "$RUNNER_TEMP/godot-tests.log"
       - name: Check that tests ran
         run: |
           report=$(ls game/reports/*/results.xml 2>/dev/null | head -n 1)
@@ -119,12 +128,25 @@ jobs:
           cp ~/godot-export/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           godot --headless --version
       - name: Import project
-        run: godot --headless --path game --import
+        run: |
+          godot --headless --path game --import 2>&1 | tee "$RUNNER_TEMP/godot-import-first.log" || true
+          set -o pipefail
+          godot --headless --path game --import 2>&1 | tee "$RUNNER_TEMP/godot-import.log"
+      - name: Check first import output
+        if: always()
+        run: python3 tools/scripts/check_godot_log.py --step import-first "$RUNNER_TEMP/godot-import-first.log"
+      - name: Check import output
+        if: always()
+        run: python3 tools/scripts/check_godot_log.py --step import "$RUNNER_TEMP/godot-import.log"
       - name: Export Windows build
         run: |
+          set -o pipefail
           mkdir -p build/windows
-          godot --headless --path game --export-release "Windows Desktop" ../build/windows/CozyAquarium.exe
+          godot --headless --path game --export-release "Windows Desktop" ../build/windows/CozyAquarium.exe 2>&1 | tee "$RUNNER_TEMP/godot-export.log"
           test -f build/windows/CozyAquarium.exe
+      - name: Check export output
+        if: always()
+        run: python3 tools/scripts/check_godot_log.py --step export "$RUNNER_TEMP/godot-export.log"
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: CozyAquarium-windows-${{ github.sha }}
