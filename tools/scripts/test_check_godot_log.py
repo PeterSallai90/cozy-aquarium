@@ -997,19 +997,20 @@ class CiWiringTest(unittest.TestCase):
         return match.group(0)
 
     def test_ci_calls_the_gate_with_each_step(self) -> None:
-        for step in ("import-first", "import", "test", "export"):
+        for step in ("import-first", "import", "test", "export", "smoke"):
             with self.subTest(step=step):
                 self.assertRegex(
                     self.text,
                     rf"check_godot_log\.py --step {re.escape(step)} \"\$RUNNER_TEMP/godot-[a-z-]+\.log\"",
                 )
 
-    def test_ci_has_the_four_check_steps_each_with_if_always(self) -> None:
+    def test_ci_has_the_five_check_steps_each_with_if_always(self) -> None:
         for name in (
             "Check first import output",
             "Check import output",
             "Check test output",
             "Check export output",
+            "Check smoke output",
         ):
             with self.subTest(step=name):
                 block = self.step_block(name)
@@ -1022,6 +1023,7 @@ class CiWiringTest(unittest.TestCase):
             "Check import output": ("import", "godot-import.log"),
             "Check test output": ("test", "godot-tests.log"),
             "Check export output": ("export", "godot-export.log"),
+            "Check smoke output": ("smoke", "godot-smoke.log"),
         }
         for name, (step, log) in expected.items():
             with self.subTest(step=name):
@@ -1081,6 +1083,201 @@ class CiWiringTest(unittest.TestCase):
     def test_ci_does_not_mention_the_old_script_or_step_name(self) -> None:
         self.assertNotIn(OLD_SCRIPT, self.text)
         self.assertNotIn("Check for leaks at exit", self.text)
+
+    # Issue #94: the smoke-windows job (AC1, AC3, AC7, AC8, AC9, AC10, AC11).
+
+    def job_block(self, job: str) -> str:
+        """The text of the job `job`, up to the next job or the end of the file."""
+        match = re.search(rf"^  {re.escape(job)}:\n(.*?)(?=^  \S|\Z)", self.text, re.M | re.S)
+        self.assertIsNotNone(match, f"job '{job}' not found in ci.yml")
+        assert match is not None
+        return match.group(0)
+
+    def smoke_step(self, name: str) -> str:
+        block = self.step_block(name)
+        self.assertIn(block, self.job_block("smoke-windows"), f"'{name}' is not in smoke-windows")
+        return block
+
+    def test_ac1_smoke_job_header(self) -> None:
+        job = self.job_block("smoke-windows")
+        self.assertIn("    runs-on: windows-latest\n", job)
+        self.assertIn("    needs: build-windows\n", job)
+        self.assertIn("    timeout-minutes: 10\n", job)
+        # the job-level timeout is at job indent (4), the step timeout is deeper
+        self.assertEqual(len(re.findall(r"^    timeout-minutes: ", job, re.M)), 1)
+
+    def test_ac1_every_run_step_of_the_smoke_job_has_shell_bash(self) -> None:
+        job = self.job_block("smoke-windows")
+        runs = len(re.findall(r"^ +run:", job, re.M))
+        shells = len(re.findall(r"^ +shell: bash$", job, re.M))
+        self.assertEqual(runs, 3)
+        self.assertEqual(shells, runs)
+
+    def test_ac1_checkout_comes_before_download_in_the_smoke_job(self) -> None:
+        job = self.job_block("smoke-windows")
+        names = ["actions/checkout@v7.0.1", "- name: Download Windows build"]
+        positions = [job.index(name) for name in names]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_ac1_ac3_ac7_ac8_smoke_job_step_order(self) -> None:
+        job = self.job_block("smoke-windows")
+        names = [
+            "actions/checkout@v7.0.1",
+            "- name: Download Windows build",
+            "- name: Check that the build is there",
+            "- name: Boot exported build",
+            "- name: Check smoke output",
+        ]
+        positions = [job.index(name) for name in names]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_ac1_smoke_gate_step_runs_always_and_reads_its_own_log(self) -> None:
+        block = self.smoke_step("Check smoke output")
+        self.assertIn("if: always()", block)
+        self.assertIn(
+            'python tools/scripts/check_godot_log.py --step smoke "$RUNNER_TEMP/godot-smoke.log"',
+            block,
+        )
+
+    def test_ac3_boot_step_has_pipefail_tee_and_no_or_true(self) -> None:
+        block = self.smoke_step("Boot exported build")
+        boot = "build/windows/CozyAquarium.exe --headless --quit-after 120"
+        self.assertIn("set -o pipefail", block)
+        self.assertIn(boot, block)
+        self.assertLess(block.index("set -o pipefail"), block.index(boot))
+        self.assertIn('2>&1 | tee "$RUNNER_TEMP/godot-smoke.log"', block)
+        self.assertNotIn("|| true", block)
+
+    def test_ac3_boot_step_starts_the_shipped_exe_not_a_console_wrapper(self) -> None:
+        job = self.job_block("smoke-windows")
+        self.assertNotIn(".console.exe", job)
+
+    def test_ac8_boot_step_has_a_two_minute_timeout(self) -> None:
+        block = self.smoke_step("Boot exported build")
+        self.assertRegex(block, r"(?m)^ +timeout-minutes: 2$")
+
+    def test_ac7_guard_step_tests_for_the_exe(self) -> None:
+        block = self.smoke_step("Check that the build is there")
+        self.assertIn("test -f build/windows/CozyAquarium.exe", block)
+        self.assertIn("shell: bash", block)
+
+    def test_ac7_ac9_download_step_gets_the_artifact_of_this_run_into_build_windows(self) -> None:
+        block = self.smoke_step("Download Windows build")
+        self.assertIn("uses: actions/download-artifact@v8.0.2", block)
+        self.assertIn("path: build/windows", block)
+        upload = self.job_block("build-windows")
+        match = re.search(r"uses: actions/upload-artifact@v7\.0\.2\n +with:\n +name: (.+)\n", upload)
+        self.assertIsNotNone(match, "upload step not found in build-windows")
+        assert match is not None
+        self.assertEqual(match.group(1), "CozyAquarium-windows-${{ github.sha }}")
+        self.assertIn(f"name: {match.group(1)}", block)
+
+    def test_ac9_the_smoke_job_does_not_rebuild(self) -> None:
+        job = self.job_block("smoke-windows")
+        for forbidden in (
+            "--export-release",
+            "--export-debug",
+            "export_templates",
+            "export-templates",
+            "setup-python",
+            "godot --headless --path game",
+            "actions/cache",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, job)
+
+    def test_ac10_the_only_actions_are_the_known_pinned_ones(self) -> None:
+        uses = re.findall(r"^\s*(?:- )?uses: (\S+)", self.text, re.M)
+        self.assertEqual(
+            set(uses),
+            {
+                "actions/checkout@v7.0.1",
+                "actions/setup-python@v7.1.0",
+                "actions/cache@v6.1.0",
+                "actions/upload-artifact@v7.0.2",
+                "actions/download-artifact@v8.0.2",
+            },
+        )
+        self.assertEqual(uses.count("actions/download-artifact@v8.0.2"), 1)
+
+    def test_ac10_the_smoke_job_adds_no_or_true_and_the_old_counts_hold(self) -> None:
+        self.assertNotIn("|| true", self.job_block("smoke-windows"))
+        self.assertEqual(self.text.count("|| true"), 2)
+        self.assertEqual(self.text.count("--headless --path game --import"), 4)
+
+    def test_ac10_the_smoke_job_is_the_last_job_and_the_others_stay(self) -> None:
+        jobs = re.findall(r"^  ([a-z-]+):$", self.text[self.text.index("\njobs:") :], re.M)
+        self.assertEqual(jobs, ["lint", "test", "build-windows", "smoke-windows"])
+
+    def test_ac11_no_job_needs_the_smoke_job(self) -> None:
+        needs = re.findall(r"^ +needs:.*$", self.text, re.M)
+        self.assertEqual(len(needs), 3)  # test, build-windows, smoke-windows
+        for line in needs:
+            self.assertNotIn("smoke-windows", line)
+
+
+# Provenance (AC4, issue #94): REAL, not assumed. Produced on 2026-11-04 with Godot 4.7.2 from a
+# scratch worktree of origin/develop 2af0909: `assets/fonts/*` added to the exclude_filter of the
+# Windows preset (not committed), two imports, `--export-release "Windows Desktop"`, then
+# `CozyAquarium.exe --headless --quit-after 120 2>&1 | tee neg-boot.log` in Git Bash. Verbatim
+# engine output, written back with its CRLF line endings. The game exit code of this boot was 0:
+# only the gate catches the failure.
+REAL_NEGATIVE_BOOT_LOG_LINES = [
+    "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+    "",
+    "WARNING: 'res://ui/theme/cozy_theme.tres': In external resource #0, invalid UID: 'uid://spu2b6de30gk' - using text path instead: 'res://assets/fonts/noto_sans/noto_sans_variable.ttf'.",
+    "   at: open (core/io/resource_format_binary.cpp:1028)",
+    "WARNING: 'res://ui/theme/cozy_theme.tres': In external resource #1, invalid UID: 'uid://dj820q2q0x8g' - using text path instead: 'res://assets/fonts/nunito/nunito_variable.ttf'.",
+    "   at: open (core/io/resource_format_binary.cpp:1028)",
+    "ERROR: No loader found for resource: res://assets/fonts/noto_sans/noto_sans_variable.ttf (expected type: FontFile)",
+    "   at: _load (core/io/resource_loader.cpp:332)",
+    "ERROR: No loader found for resource: res://assets/fonts/nunito/nunito_variable.ttf (expected type: FontFile)",
+    "   at: _load (core/io/resource_loader.cpp:332)",
+    "ERROR: Can't load dependency: 'res://assets/fonts/noto_sans/noto_sans_variable.ttf'.",
+    "   at: parse_variant (core/io/resource_format_binary.cpp:444)",
+    "ERROR: Failed loading resource: res://.godot/exported/133200997/export-7a13ba9beba20a60ec1347a4c2389955-cozy_theme.res.",
+    "   at: _load (core/io/resource_loader.cpp:317)",
+    "ERROR: Error loading custom project theme 'res://ui/theme/cozy_theme.tres'",
+    "   at: initialize_theme (scene/theme/theme_db.cpp:74)",
+]
+REAL_NEGATIVE_BOOT_LOG = "\r\n".join(REAL_NEGATIVE_BOOT_LOG_LINES) + "\r\n"
+
+
+class SmokeBootFixtureTest(GateTestCase):
+    # AC4 (issue #94): a packed theme or font that fails to load in the exported build.
+    # The gate already handles this: these tests pass before the job exists.
+
+    def test_ac4_real_boot_log_with_missing_fonts_fails_the_smoke_gate(self) -> None:
+        code, out, err = self.run_step("smoke", REAL_NEGATIVE_BOOT_LOG)
+        self.assertEqual(code, 1, err)
+        self.assertEqual(out, "")
+        self.assertIn(
+            "Engine log gate [smoke]: ERROR: Error loading custom project theme "
+            "'res://ui/theme/cozy_theme.tres'",
+            err,
+        )
+        self.assertRegex(
+            err,
+            r"Engine log gate \[smoke\]: ERROR: No loader found for resource: "
+            r"res://assets/fonts/",
+        )
+
+    def test_ac4_every_engine_line_is_a_finding_and_no_at_line_is(self) -> None:
+        _, _, err = self.run_step("smoke", REAL_NEGATIVE_BOOT_LOG)
+        engine = [
+            line for line in REAL_NEGATIVE_BOOT_LOG_LINES if line.startswith(("WARNING:", "ERROR:"))
+        ]
+        self.assertEqual(len(engine), 7)
+        self.assertIn("7 finding(s)", err)
+        for line in engine:
+            self.assertIn(f"Engine log gate [smoke]: {line}", err)
+        self.assertNotIn("Engine log gate [smoke]:    at:", err)
+        self.assertNotIn("Godot Engine v4.7.2", err)
+
+    def test_ac4_the_banner_alone_is_a_clean_smoke_boot(self) -> None:
+        banner = "\r\n".join(REAL_NEGATIVE_BOOT_LOG_LINES[:2]) + "\r\n"
+        self.assertTrue(banner.startswith("Godot Engine v"))
+        self.assert_clean("smoke", banner)
 
 
 class EncodingSafetyTest(GateTestCase):
