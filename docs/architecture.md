@@ -284,7 +284,7 @@ cozy-aquarium/
 │  └─ tests/                 # GdUnit4 tests mirroring the folders above
 ├─ tools/
 │  ├─ blender/               # Python scripts that generate stylized assets
-│  └─ scripts/               # helper scripts (pot generator, translation and license checks, export, screenshot, pseudo-localization)
+│  └─ scripts/               # helper scripts; the table in "Every file and folder" lists them
 ├─ docs/
 │  ├─ adr/                   # architecture decision records
 │  ├─ art-style.md
@@ -1097,8 +1097,7 @@ jobs:
       - run: pip install "gdtoolkit==4.5.0"
       - run: gdformat --check game
       - run: gdlint game
-      - run: python tools/scripts/check_translations.py     # every key in en.po and hu.po
-      - run: python tools/scripts/check_asset_licenses.py   # every asset and addon logged
+      # further steps: see the live .github/workflows/ci.yml
 
   test:
     runs-on: ubuntu-latest
