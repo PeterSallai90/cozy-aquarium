@@ -20,6 +20,10 @@ EventBus="*res://systems/event_bus.gd"
 Localization="*res://systems/localization/localization.gd"
 Settings="*res://systems/settings/settings.gd"
 
+[gdunit4]
+
+report/godot/push_error=true
+
 [gui]
 
 theme/custom="res://ui/theme/cozy_theme.tres"

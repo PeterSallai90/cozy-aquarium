@@ -4,7 +4,6 @@ extends GdUnitTestSuite
 const Factory := preload("res://tests/helpers/factory.gd")
 const ModelState := preload("res://tests/helpers/model_state.gd")
 const SignalRecorder := preload("res://tests/helpers/signal_recorder.gd")
-const ErrorContains := preload("res://tests/helpers/error_contains.gd")
 const SetTankCommand := preload("res://tests/helpers/commands/set_tank_command.gd")
 
 const FIXED_CLOCK := "2026-10-27T18:00:00Z"
@@ -435,8 +434,11 @@ func test_reset_from_null_errors() -> void:
 	var model: AquariumModel = _filled_model()
 	var before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
-	# The plan fixes no message for this error, so any push_error counts.
-	await assert_error(func() -> void: model.reset_from(null)).is_push_error(ErrorContains.new(""))
+	# The message is fixed text at aquarium_model.gd:253.
+	await (
+		assert_error(func() -> void: model.reset_from(null))
+		. is_push_error("AquariumModel: reset_from() called with a null source")
+	)
 	assert_dict(ModelState.snapshot(model)).is_equal(before)
 	assert_array(recorder.events).is_empty()
 
@@ -446,7 +448,7 @@ func test_reset_from_self_keeps_state_and_emits_once() -> void:
 	var before: Dictionary = ModelState.snapshot(model)
 	var item: PlacedItem = model.get_item_at(0)
 	var recorder: SignalRecorder = _watched(model)
-	# No error may be logged: GdUnit fails the test on an unexpected push_error.
+	# No message may be logged: GdUnit fails the test on any unasserted push_error or push_warning.
 	model.reset_from(model)
 	assert_dict(ModelState.snapshot(model)).is_equal(before)
 	assert_array(recorder.events).is_equal([["model_reset", []]])
