@@ -4,6 +4,9 @@
 # GdUnit4 test reports
 game/reports/
 
+# Local test log written by the documented test commands (docs/dev-setup.md)
+/test.log
+
 # Build output
 build/
 export/
