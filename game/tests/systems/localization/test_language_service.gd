@@ -325,9 +325,12 @@ func test_a_good_write_leaves_the_last_save_error_ok() -> void:
 func test_a_failed_write_sets_the_last_save_error_before_the_signal() -> void:
 	DirAccess.make_dir_recursive_absolute(_path())
 	var service: LanguageService = _service()
+	# A weak reference, not `service` itself: capturing it would form a cycle that leaks.
+	var service_ref: WeakRef = weakref(service)
 	var seen: Array = []
 	service.language_changed.connect(
-		func(_code: String) -> void: seen.append(service.get_last_save_error())
+		func(_code: String) -> void:
+			seen.append((service_ref.get_ref() as LanguageService).get_last_save_error())
 	)
 	service.start("en_US")
 	assert_int(service.set_language("hu")).is_equal(OK)
