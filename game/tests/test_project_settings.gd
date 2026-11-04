@@ -8,6 +8,15 @@ const RENDERER_VALUE := "forward_plus"
 const GDUNIT_SECTION := "gdunit4"
 const PUSH_ERROR_KEY := "report/godot/push_error"
 const SCRIPT_ERROR_KEY := "report/godot/script_error"
+const DEBUG_SECTION := "debug"
+const WARNING_PREFIX := "gdscript/warnings/"
+const ERROR_LEVEL := 2
+const ANALYZER_KEYS: PackedStringArray = [
+	"gdscript/warnings/shadowed_variable",
+	"gdscript/warnings/untyped_declaration",
+	"gdscript/warnings/unused_parameter",
+	"gdscript/warnings/unused_variable",
+]
 
 
 static func missing_line_message(section: String, key: String, value: String) -> String:
@@ -96,3 +105,61 @@ func test_gdunit_section_holds_exactly_the_push_error_key() -> void:
 	if config.has_section(GDUNIT_SECTION):
 		keys = config.get_section_keys(GDUNIT_SECTION)
 	assert_array(Array(keys)).is_equal([PUSH_ERROR_KEY])
+
+
+# --- Analyzer warnings as errors (#92, AC1) -----------------------------------------------------
+
+
+func test_analyzer_debug_section_holds_exactly_the_four_warning_keys() -> void:
+	var config: ConfigFile = _project_file()
+	var keys: PackedStringArray = PackedStringArray()
+	if config.has_section(DEBUG_SECTION):
+		keys = config.get_section_keys(DEBUG_SECTION)
+	var found: Array = Array(keys)
+	found.sort()
+	var expected: Array = Array(ANALYZER_KEYS)
+	expected.sort()
+	assert_array(found).is_equal(expected)
+
+
+func test_analyzer_warning_keys_are_each_written_as_error() -> void:
+	var config: ConfigFile = _project_file()
+	for key: String in ANALYZER_KEYS:
+		(
+			assert_bool(config.has_section_key(DEBUG_SECTION, key))
+			. override_failure_message(
+				"[%s] %s is missing in game/project.godot" % [DEBUG_SECTION, key]
+			)
+			. is_true()
+		)
+		assert_int(int(config.get_value(DEBUG_SECTION, key, -1))).is_equal(ERROR_LEVEL)
+
+
+func test_no_other_analyzer_warning_key_is_written_in_any_section() -> void:
+	# Covers unused_signal, shadowed_variable_base_class and directory_rules.
+	var config: ConfigFile = _project_file()
+	var stray: PackedStringArray = PackedStringArray()
+	for section: String in config.get_sections():
+		for key: String in config.get_section_keys(section):
+			if key.begins_with(WARNING_PREFIX) and not ANALYZER_KEYS.has(key):
+				stray.append("[%s] %s" % [section, key])
+			elif key.contains("warnings/") and section != DEBUG_SECTION:
+				stray.append("[%s] %s" % [section, key])
+	(
+		assert_bool(stray.is_empty())
+		. override_failure_message("unexpected analyzer keys: %s" % ", ".join(stray))
+		. is_true()
+	)
+
+
+func test_analyzer_warning_settings_are_active_at_runtime() -> void:
+	for key: String in ANALYZER_KEYS:
+		var setting: String = "debug/" + key
+		assert_int(int(ProjectSettings.get_setting(setting, -1))).is_equal(ERROR_LEVEL)
+
+
+func test_default_directory_rules_still_exclude_the_addons() -> void:
+	var rules: Variant = ProjectSettings.get_setting("debug/gdscript/warnings/directory_rules", {})
+	assert_bool(rules is Dictionary).is_true()
+	var rule_map: Dictionary = rules
+	assert_int(int(rule_map.get("res://addons", -1))).is_equal(0)

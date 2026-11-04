@@ -345,6 +345,7 @@ func test_write_atomic_fails_while_the_target_is_open_for_reading_and_keeps_it()
 	var path: String = _path("data.bin")
 	assert_int(SaveStore.write_atomic(path, "old".to_utf8_buffer())).is_equal(OK)
 	var reader: FileAccess = FileAccess.open(path, FileAccess.READ)
+	assert_object(reader).is_not_null()
 	var error: int = SaveStore.write_atomic(path, "new".to_utf8_buffer())
 	reader = null
 	var text: String = SaveFixtures.read_text(path)

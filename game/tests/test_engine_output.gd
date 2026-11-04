@@ -5,6 +5,8 @@ extends GdUnitTestSuite
 
 const ErrorContains := preload("res://tests/helpers/error_contains.gd")
 const HELPER_PATH := "res://tests/helpers/engine_output.gd"
+const TEMP_DIR := "user://tests/engine_output"
+const BROKEN_PATH := "user://tests/engine_output/broken.gd"
 const PARSE_ERROR := (
 	"ConfigFile parse error at <string>:0: " + "Unexpected EOF while parsing simple tag."
 )
@@ -132,3 +134,81 @@ func test_capture_can_run_twice_in_one_test_and_each_call_reports_only_its_own()
 	var second: Dictionary = await _capture(func() -> void: push_warning("two"))
 	assert_dict(first.get("warnings", {})).is_equal({"one": 1})
 	assert_dict(second.get("warnings", {})).is_equal({"two": 1})
+
+
+# --- EngineOutput.capture_all (#92) ------------------------------------------------------------
+
+
+func after_test() -> void:
+	if FileAccess.file_exists(BROKEN_PATH):
+		DirAccess.remove_absolute(BROKEN_PATH)
+	if DirAccess.dir_exists_absolute(TEMP_DIR):
+		DirAccess.remove_absolute(TEMP_DIR)
+
+
+func _capture_all(action: Callable) -> Dictionary:
+	var script: GDScript = null
+	if ResourceLoader.exists(HELPER_PATH):
+		script = load(HELPER_PATH) as GDScript
+	var has_function: bool = script != null and script.has_script_method("capture_all")
+	(
+		assert_bool(has_function)
+		. override_failure_message("%s has no capture_all yet" % HELPER_PATH)
+		. is_true()
+	)
+	if not has_function:
+		return {
+			"errors": {"missing": 1}, "warnings": {"missing": 1}, "script_errors": {"missing": 1}
+		}
+	var seen: Dictionary = await script.call("capture_all", action)
+	return seen
+
+
+func _load_broken_script() -> void:
+	DirAccess.make_dir_recursive_absolute(TEMP_DIR)
+	var file: FileAccess = FileAccess.open(BROKEN_PATH, FileAccess.WRITE)
+	assert(file != null, "cannot write %s" % BROKEN_PATH)
+	file.store_string("extends RefCounted\n\n\nfunc f( -> void:\n\tpass\n")
+	file.close()
+	ResourceLoader.load(BROKEN_PATH, "", ResourceLoader.CACHE_MODE_IGNORE)
+
+
+func test_capture_all_of_a_silent_action_returns_three_empty_maps() -> void:
+	var seen: Dictionary = await _capture_all(func() -> void: pass)
+	assert_array(seen.keys()).contains_exactly_in_any_order(["errors", "warnings", "script_errors"])
+	assert_dict(seen.get("errors", {"unset": 1})).is_empty()
+	assert_dict(seen.get("warnings", {"unset": 1})).is_empty()
+	assert_dict(seen.get("script_errors", {"unset": 1})).is_empty()
+
+
+func test_capture_all_files_a_script_error_under_script_errors_and_consumes_it() -> void:
+	# GdUnit4 fails the test at its end for an unconsumed script error, so passing proves consumption.
+	var seen: Dictionary = await _capture_all(_load_broken_script)
+	assert_dict(seen.get("script_errors", {"unset": 1})).is_equal(
+		{"Parse Error: Expected parameter name.": 1}
+	)
+	assert_dict(seen.get("errors", {"unset": 1})).is_equal(
+		{'Failed to load script "%s" with error "Parse error".' % BROKEN_PATH: 1}
+	)
+	assert_dict(seen.get("warnings", {"unset": 1})).is_empty()
+
+
+func test_capture_all_still_files_push_error_and_push_warning_in_their_own_buckets() -> void:
+	var seen: Dictionary = await _capture_all(
+		func() -> void:
+			push_error("e")
+			push_warning("w")
+			push_warning("w")
+	)
+	assert_dict(seen.get("errors", {"unset": 1})).is_equal({"e": 1})
+	assert_dict(seen.get("warnings", {"unset": 1})).is_equal({"w": 2})
+	assert_dict(seen.get("script_errors", {"unset": 1})).is_empty()
+
+
+func test_capture_still_returns_exactly_two_keys_when_the_action_logs() -> void:
+	var seen: Dictionary = await _capture(
+		func() -> void:
+			push_error("e")
+			push_warning("w")
+	)
+	assert_array(seen.keys()).contains_exactly_in_any_order(["errors", "warnings"])

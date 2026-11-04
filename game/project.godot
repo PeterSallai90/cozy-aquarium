@@ -20,6 +20,13 @@ EventBus="*res://systems/event_bus.gd"
 Localization="*res://systems/localization/localization.gd"
 Settings="*res://systems/settings/settings.gd"
 
+[debug]
+
+gdscript/warnings/shadowed_variable=2
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unused_parameter=2
+gdscript/warnings/unused_variable=2
+
 [gdunit4]
 
 report/godot/push_error=true
