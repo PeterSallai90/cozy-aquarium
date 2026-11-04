@@ -68,7 +68,7 @@ This is a test-writing rule, not a game-code rule. `CLAUDE.md` is not changed.
 
 ### Run the gate locally
 
-The gate reads the log file after the run. `test.log` is a scratch file: do not commit it.
+The gate reads the log file after the run. `test.log` is a git-ignored local scratch file.
 
 PowerShell:
 
