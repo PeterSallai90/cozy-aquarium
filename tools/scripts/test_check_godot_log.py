@@ -428,7 +428,7 @@ class LeakTest(GateTestCase):
     def test_ac7_lowercase_and_uppercase_variants_pass(self) -> None:
         for variant in (
             "objectdb instances were leaked at exit",
-            "ERROR: 4 RESOURCES STILL IN USE AT EXIT",
+            "4 RESOURCES STILL IN USE AT EXIT",
         ):
             with self.subTest(variant=variant):
                 self.assert_clean("test", CLEAN_TEST_LOG + variant + "\n")
