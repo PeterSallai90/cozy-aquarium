@@ -88,6 +88,10 @@ Lines GdUnit4 cannot assert, for #93 (test, source, count): none. The tester con
 GdUnit4 captures `push_warning` and ConfigFile parse errors with their full visible text, and on
 develop 0a81a4b every one of the 113 lines was printed inside a test body.
 
+### Analyzer settings (#92)
+
+`game/project.godot` `[debug]` sets `gdscript/warnings/untyped_declaration`, `unused_variable`, `unused_parameter` and `shadowed_variable` to 2 (Error). The first enforces static typing; the others catch dead code and hidden shadowing bugs. A finding is a parse error, so the script does not load and the test run or import reports it. `unused_signal` stays at its default (Warn) and is not written. The analyzer only checks the declaring class, so EventBus relay signals emitted from other scripts (`event_bus.gd` `language_changed`, `setting_changed`) are false positives. At Error, the EventBus autoload would not compile. These two warnings are editor-only, never reach headless logs and are not allowlist entries; the allowlist target stays an empty list. `directory_rules` is not written: its default `{"res://addons": 0}` keeps addon code out of analysis (`exclude_addons` does not exist in 4.7.2). `tests/test_script_analysis.gd` loads every script outside `res://addons` with `CACHE_MODE_IGNORE`. `@warning_ignore` in non-addon code needs a same-line or previous-line reason: a named analyzer false positive, or a signal or field kept for a named later milestone or Mode 2 field.
+
 ## Alternatives considered
 
 - **A log gate alone for the test run:** the log cannot show which test caused a line or whether
