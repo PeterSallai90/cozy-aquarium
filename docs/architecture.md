@@ -1208,7 +1208,7 @@ This table records where each file is specified and which step or issue creates 
 | `tools/scripts/check_translations.py`, `check_asset_licenses.py` | CI checks for translation keys and asset licenses | CI/CD pipelines | Backlog issue 3 | Claude Code |
 | `tools/scripts/generate_pot.py` | Generates `game/localization/messages.pot` from the translation keys in scripts, scenes and catalog | Unicode, localization and fonts | Backlog issue 7 (#18, PR #73) | Claude Code |
 | `tools/scripts/check_project_settings.py` | Pre-commit check that `game/project.godot` keeps the settings the editor would drop | GitHub repository setup | Issue #80 (PR #83) | Claude Code |
-| `tools/scripts/check_test_leaks.py` | CI gate that fails a test run that leaked objects or resources at exit | CI/CD pipelines | Issue #88 (PR #89) | Claude Code |
+| `tools/scripts/check_godot_log.py` | CI gate that fails an import, test or export step on unexplained engine output (leaks, engine errors and warnings, output outside a test case) | CI/CD pipelines | Issues #88 (PR #89) and #93 | Claude Code |
 | `game/addons/gdUnit4/`, `game/tests/` | Test framework and first test | Technology stack | Backlog issue 4 | Claude Code |
 | `game/model/` | Aquarium model, Command base class, command history, uid generator | Game architecture | Backlog issue 5 | Claude Code |
 | `game/systems/event_bus.gd` and its autoload entry in `game/project.godot` | EventBus autoload | Game architecture | Backlog issue 5 | Claude Code |

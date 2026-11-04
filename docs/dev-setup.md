@@ -32,13 +32,56 @@ both lines are present, and prints one line per problem otherwise.
   behind pre-commit changes, run `pre-commit clean`.
 - CI does not run pre-commit or the script. CI runs the GdUnit tests `test_project_settings.gd`
   and `test_localization_setup.gd`, which fail with a "restore this line" message.
-- CI runs `tools/scripts/check_test_leaks.py` on the output of "Run tests". Locally, run the
-  commands in "Test runs and leaks".
+- CI runs `tools/scripts/check_godot_log.py` on the output of the two imports, "Run tests" and
+  the export. Locally, run the commands in "Engine output gate (test runs and leaks)".
 
-## Test runs and leaks
+## Engine output gate (test runs and leaks)
 
-A headless test run must end with no leaked objects and no leaked resources. CI fails the test
-job when the output of "Run tests" contains a leak line.
+A headless Godot run must end with no leaked objects, no leaked resources and no engine errors or
+warnings nobody explained. CI runs `tools/scripts/check_godot_log.py --step <step> <log>` on the
+output of each Godot step and fails the job on a finding. The script holds every pattern, the
+step rules and the allowlist.
+
+### What each step fails on
+
+| Step | CI step | Fails on |
+| --- | --- | --- |
+| `import-first` | "Check first import output" | A leak line, or any `ERROR:`, `WARNING:` or script error line, except the pinned first-import set |
+| `import` | "Check import output" | A leak line, or any `ERROR:`, `WARNING:` or script error line |
+| `test` | "Check test output" | A leak line anywhere, or an engine line outside a test case (see below) |
+| `export` | "Check export output" | Same as `import` |
+| `smoke` | not wired yet (#94) | Same as `import` |
+
+CI imports the project twice. The first run of a fresh checkout is gated by `import-first`, the
+second by `import`. A line matches when it contains the token followed by a colon, with any
+prefix (for example the `godot_console : ` that PowerShell adds). A bare `Unicode parsing error`
+line is not an engine line.
+
+### Test step: test case windows
+
+GdUnit4 already fails a test for an engine error it did not expect, and prints the asserted ones.
+So in the `test` step, engine lines between the `STARTED` line of a test and its end line
+(`PASSED`, `FAILED`, ...) are not flagged. Every engine line outside such a window is a finding,
+and so is a window that never ends (crashed or truncated run, or a different test ending first).
+An unterminated window excuses nothing. Leak lines are findings also inside a window.
+
+Known limits: output of `before_test()` and `after_test()` that lands inside a window is not
+seen. After a `FAILED` test, GdUnit4's report block can add findings; fix the failing test first.
+
+### Allowlist
+
+`ALLOWLIST` in the script is empty and stays empty unless the owner agrees. An entry is a literal,
+case-sensitive substring (not a regex) of the line, a reason, and a link to an issue of this
+repository. An empty substring, a bare `ERROR:` or `WARNING:` token, or a missing reason or issue
+link makes every gate step exit 2. A test checks that `len(ALLOWLIST) == 0`.
+
+### Pinned first-import set
+
+On a fresh checkout the first import prints 10 known error lines (the theme and the fonts are
+imported in the wrong order; the second import is clean). `FIRST_IMPORT_PINNED` lists their
+exact shapes with a maximum count each; only the 32-character hash varies. An extra copy, a
+different line or a missing file is a finding. The set may not grow without an owner OK
+(owner decision on #93). It exists only for the `import-first` step.
 
 ### Rule for test writers
 
@@ -79,17 +122,32 @@ does not assert fails that test.
   A count alone is not enough.
 - Asserted messages still appear in the console output. That is expected.
 - Never assert with an empty or match-anything text, and never turn reporting off for a test.
-- Output outside test cases (suite hooks, scan, exit) is not seen by GdUnit4; the log gate (#93)
+- Output outside test cases (suite hooks, scan, exit) is not seen by GdUnit4; the test step of the gate
   handles it. See `docs/adr/0004-engine-output-policy.md`.
 
 ### Run the gate locally
 
 The gate reads the log file after the run. `test.log` is a git-ignored local scratch file.
+The import logs go to the temp folder.
+
+Import (a fresh checkout needs the project imported twice; gate both logs):
+
+```powershell
+godot_console --headless --path game --import *>&1 | Tee-Object "$env:TEMP\godot-import-first.log"; python tools/scripts/check_godot_log.py --step import-first "$env:TEMP\godot-import-first.log"
+godot_console --headless --path game --import *>&1 | Tee-Object "$env:TEMP\godot-import.log"; python tools/scripts/check_godot_log.py --step import "$env:TEMP\godot-import.log"
+```
+
+```bash
+godot_console --headless --path game --import 2>&1 | tee "${TMPDIR:-/tmp}/godot-import-first.log"; python tools/scripts/check_godot_log.py --step import-first "${TMPDIR:-/tmp}/godot-import-first.log"
+godot_console --headless --path game --import 2>&1 | tee "${TMPDIR:-/tmp}/godot-import.log"; python tools/scripts/check_godot_log.py --step import "${TMPDIR:-/tmp}/godot-import.log"
+```
+
+Tests:
 
 PowerShell:
 
 ```powershell
-godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode *>&1 | Tee-Object test.log; python tools/scripts/check_test_leaks.py test.log
+godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode *>&1 | Tee-Object test.log; python tools/scripts/check_godot_log.py --step test test.log
 ```
 
 In PowerShell the gate's exit code replaces `$LASTEXITCODE`, so read the test result from the
@@ -99,11 +157,18 @@ If a long line is ever wrapped and missed, use PowerShell 7 (`pwsh`).
 Git Bash / Linux (on Linux the binary may be `godot`):
 
 ```bash
-set -o pipefail; godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode 2>&1 | tee test.log; python tools/scripts/check_test_leaks.py test.log
+set -o pipefail; godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode 2>&1 | tee test.log; python tools/scripts/check_godot_log.py --step test test.log
 ```
 
-Gate exit codes: 0 clean, 1 leak line found (printed to stderr), 2 log missing, empty or
-unreadable.
+Export (CI command, for reference; it needs the export templates):
+
+```bash
+set -o pipefail; godot --headless --path game --export-release "Windows Desktop" ../build/windows/CozyAquarium.exe 2>&1 | tee "$RUNNER_TEMP/godot-export.log"; python3 tools/scripts/check_godot_log.py --step export "$RUNNER_TEMP/godot-export.log"
+```
+
+Gate exit codes: 0 clean (prints nothing), 1 findings (one stderr line each, then a summary),
+2 cannot check (log missing, empty or unreadable, or an invalid allowlist entry). When several
+CI steps are red, read the first failed one.
 
 ### The two leak lines
 
