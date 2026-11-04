@@ -1,6 +1,6 @@
 # ADR 0004: Engine output policy – no unexplained engine output
 
-- Status: Proposed (accepted when the #91 pull request merges)
+- Status: Accepted (2026-11-04, PR [#98](https://github.com/PeterSallai90/cozy-aquarium/pull/98))
 - Date: 2026-11-04
 - Decision log reference: none (no row in the decisions table changes); refines the quality gates
   in docs/architecture.md
@@ -37,7 +37,7 @@ Owner decisions of 2026-11-04 (quoted in #91):
    | GDScript analyzer warnings in game code and tests | Analyzer settings in `game/project.godot` | #92 |
    | Test run, inside a test case | GdUnit4 (`gdunit4/report/godot/push_error=true`, `script_error` at its default `true`) | #91 |
    | Test run, everything GdUnit4 cannot see (leaks, script and parse errors, output outside a test case, the handover list below) | Test-step log gate | #93 |
-   | Import | Log gate (`--import` twice, only the second run gated) | #93 |
+   | Import | Log gate (`--import` twice; first run `--step import-first` with the pinned set of 10 known font/theme lines excused, second run `--step import`; [owner decision](https://github.com/PeterSallai90/cozy-aquarium/issues/93#issuecomment-6637569076)) | #93 |
    | Export | Log gate | #93 |
    | Boot of the exported Windows build | Log gate (smoke step) | #94 |
 
@@ -55,7 +55,13 @@ Owner decisions of 2026-11-04 (quoted in #91):
    assertion never needs a game-code change; if one would, it is a separate issue.
 6. **Allowlist rule.** A log gate may have a small, reviewed allowlist. Each entry has a reason
    and an issue link; the target is an empty list. #91 creates no allowlist entry.
-7. **Fresh-checkout import rule.** CI runs `--import` twice and gates only the second run; how the
+7. **Fresh-checkout import rule.** CI runs `--import` twice and gates both runs. The first run is
+   gated with `--step import-first`: the pinned set of 10 known font/theme lines
+   (`FIRST_IMPORT_PINNED` in `tools/scripts/check_godot_log.py`) is excused up to its counts, and
+   any other `ERROR`, `WARNING` or `SCRIPT ERROR` line fails. The second run is gated with
+   `--step import`, where every engine line is a finding. The pinned set may not grow without an
+   owner OK. Owner decision:
+   https://github.com/PeterSallai90/cozy-aquarium/issues/93#issuecomment-6637569076. How the
    theme is applied does not change (#93).
 
 ## What GdUnit4 6.2.2 captures (AC5 of #91)
