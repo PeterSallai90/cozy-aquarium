@@ -5,6 +5,9 @@ const PROJECT_FILE := "res://project.godot"
 const RENDERER_SECTION := "rendering"
 const RENDERER_KEY := "renderer/rendering_method"
 const RENDERER_VALUE := "forward_plus"
+const GDUNIT_SECTION := "gdunit4"
+const PUSH_ERROR_KEY := "report/godot/push_error"
+const SCRIPT_ERROR_KEY := "report/godot/script_error"
 
 
 static func missing_line_message(section: String, key: String, value: String) -> String:
@@ -50,3 +53,46 @@ func test_missing_line_message_wording() -> void:
 			+ 'add the line renderer/rendering_method="forward_plus" (see docs/dev-setup.md)'
 		)
 	)
+
+
+# --- GdUnit4 reporting (#91, AC1) -----------------------------------------------------------
+
+
+func test_gdunit_push_error_reporting_is_written_as_true_in_project_godot() -> void:
+	var config: ConfigFile = _project_file()
+	var message: String = (
+		(
+			"game/project.godot must contain [%s] %s=true so that an unasserted push_error, "
+			+ "push_warning or engine error fails the test (see docs/adr/0004-engine-output-policy.md)"
+		)
+		% [GDUNIT_SECTION, PUSH_ERROR_KEY]
+	)
+	(
+		assert_bool(config.has_section_key(GDUNIT_SECTION, PUSH_ERROR_KEY))
+		. override_failure_message(message)
+		. is_true()
+	)
+	(
+		assert_bool(config.get_value(GDUNIT_SECTION, PUSH_ERROR_KEY, false) == true)
+		. override_failure_message(message)
+		. is_true()
+	)
+
+
+func test_gdunit_push_error_reporting_is_active_in_the_running_session() -> void:
+	assert_bool(GdUnitSettings.is_report_push_errors()).is_true()
+
+
+func test_gdunit_script_error_reporting_stays_at_its_default() -> void:
+	assert_bool(GdUnitSettings.is_report_script_errors()).is_true()
+	var config: ConfigFile = _project_file()
+	assert_bool(config.has_section_key(GDUNIT_SECTION, SCRIPT_ERROR_KEY)).is_false()
+
+
+func test_gdunit_section_holds_exactly_the_push_error_key() -> void:
+	# The diff for AC1 adds one key; opening the editor must not write other gdunit4 defaults.
+	var config: ConfigFile = _project_file()
+	var keys: PackedStringArray = PackedStringArray()
+	if config.has_section(GDUNIT_SECTION):
+		keys = config.get_section_keys(GDUNIT_SECTION)
+	assert_array(Array(keys)).is_equal([PUSH_ERROR_KEY])
