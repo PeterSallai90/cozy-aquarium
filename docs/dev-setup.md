@@ -199,9 +199,9 @@ This gate covers those.
 
 ## Run the smoke check locally
 
-CI boots the exported Windows build (`build/windows/CozyAquarium.exe`) headless for 120 frames
-and gates its output with the `smoke` step. First make the export: see "Export (CI command, for
-reference)" above (it needs the export templates). Then, in PowerShell:
+CI boots the exported Windows build (`build/windows/CozyAquarium.exe`) headless for 120
+main-loop iterations and gates its output with the `smoke` step. First make the export: see
+"Export (CI command, for reference)" above (it needs the export templates). Then, in PowerShell:
 
 ```powershell
 & build\windows\CozyAquarium.exe --headless --quit-after 120 *>&1 | Tee-Object "$env:TEMP\godot-smoke.log"
@@ -213,6 +213,58 @@ Read `$game` before the gate runs anything else, because the gate's exit code re
 `$LASTEXITCODE`. Exit codes: the game must exit 0; the gate exits 0 (clean), 1 (findings) or 2
 (cannot check). The quit value 120 matches CI. The `smoke` step is import-like: any leak line,
 `ERROR:`, `WARNING:` or script error line is a finding, and the allowlist is empty.
+
+Git Bash, from the repo root (equivalent to the PowerShell form):
+
+```bash
+(
+  set -o pipefail
+  build/windows/CozyAquarium.exe --headless --quit-after 120 2>&1 | tee "$TEMP/godot-smoke.log"
+  game=${PIPESTATUS[0]}
+  python tools/scripts/check_godot_log.py --step smoke "$TEMP/godot-smoke.log"
+  gate=$?
+  echo "game=$game gate=$gate"
+)
+```
+
+The block runs in a subshell, so `set -o pipefail` and `$game` do not leak into your interactive
+shell. `${PIPESTATUS[0]}` is read on the very next command because it is the game's own exit
+code; a failing `tee` cannot mask it. The game must exit 0, and the gate exits 0, 1 or 2 as above.
+A non-zero game code means the exe failed to start or crashed. CI does not read the game code
+separately: the "Boot exported build" step fails on a non-zero game exit through `pipefail`.
+
+### Why CozyAquarium.exe and where the log lands
+
+You will not find a `CozyAquarium.console.exe`. The console wrapper is switched on by
+`debug/export_console_wrapper=1` (Debug Only) in `game/export_presets.cfg`, and CI exports with
+`--export-release`, so the release export has no console exe. The check boots `CozyAquarium.exe`,
+and its output still reaches the pipe (basis: the #94 architect plan and the merged CI run of
+PR #106, where `smoke-windows` passed).
+
+The log lands in `$RUNNER_TEMP/godot-smoke.log` in CI, `$env:TEMP\godot-smoke.log` in PowerShell
+and `$TEMP/godot-smoke.log` in Git Bash. The last two are the same folder.
+
+### What a green smoke run proves
+
+The smoke check boots the exported game once, headless, for 120 main-loop iterations. It covers
+the main scene, its autoloads, the project theme and fonts, and fails on any unexpected engine
+WARNING or ERROR in the boot log. It does not cover rendering (headless uses a dummy renderer, so
+shaders and GPU paths are not exercised), gameplay, other scenes, catalog contents or Mode 2
+fields, and this list is not exhaustive. A green smoke job says the build starts, not that the
+game or its data is correct.
+
+### A red smoke-windows job
+
+No other job depends on it (`needs`). Whether a red result blocks a merge is set by the owner in
+the repository ruleset. On a red job:
+
+1. Read the findings in the "Check smoke output" step.
+2. Reproduce locally with this section.
+3. Fix the cause in the game or the export.
+4. Never add an allowlist entry without the owner.
+5. Retry only when a setup step failed (artifact download or the build guard) and no engine line
+   was reported.
+6. If the cause is unclear, comment on the PR.
 
 ## Vendored fonts
 
