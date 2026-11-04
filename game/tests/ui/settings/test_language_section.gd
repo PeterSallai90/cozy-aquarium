@@ -2,8 +2,12 @@ extends GdUnitTestSuite
 ## The Language section inside the screen: AC 6 to 10, and its part in AC 8, 12, 13 and 14.
 ## Fresh Localization and Settings instances on a test path; the live ones are never written.
 
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SettingsRig := preload("res://tests/helpers/settings_rig.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
+
+const SETTING_NOT_SAVED := "Setting fixture/volume not saved: Can't open file"
+const LANGUAGE_NOT_SAVED := "Language setting not saved: Can't open file"
 
 var _dir: String = ""
 var _saved_locale: String = ""
@@ -29,6 +33,15 @@ func after_test() -> void:
 
 func _on_language_changed(language: String) -> void:
 	_languages.append(language)
+
+
+## Runs action once, asserts exactly which messages it logged (each text and its count) and
+## returns what the action returned.
+func _logged(action: Callable, warnings: Dictionary = {}, errors: Dictionary = {}) -> Variant:
+	var seen: Dictionary = await EngineOutput.capture_result(action)
+	assert_dict(seen.warnings).is_equal(warnings)
+	assert_dict(seen.errors).is_equal(errors)
+	return seen.result
 
 
 func _path() -> String:
@@ -221,9 +234,11 @@ func test_an_unsupported_code_keeps_the_active_language_without_a_dialog() -> vo
 	if section == null:
 		return
 	for code: String in ["xx", "", "HU", "hu_HU"]:
-		assert_int(section.choose_language(code)).override_failure_message(code).is_equal(
-			ERR_INVALID_PARAMETER
+		var result: Variant = await _logged(
+			func() -> Variant: return section.choose_language(code),
+			{"Unsupported language: %s" % code: 1}
 		)
+		assert_int(result).override_failure_message(code).is_equal(ERR_INVALID_PARAMETER)
 	assert_str(_selected_code(_option(screen))).is_equal("hu")
 	assert_str(_loc.get_language()).is_equal("hu")
 	assert_array(_languages).is_empty()
@@ -251,7 +266,10 @@ func test_a_change_from_outside_updates_the_selector_and_every_text() -> void:
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
-	_settings.set_value(SettingsRig.volume_key(), 0.8)
+	await _logged(
+		func() -> Variant: return _settings.set_value(SettingsRig.volume_key(), 0.8),
+		{SETTING_NOT_SAVED: 1}
+	)
 	var sections: TabContainer = SettingsRig.part(screen, "Sections") as TabContainer
 	var title: Label = SettingsRig.part(screen, "Title") as Label
 	var close: Button = SettingsRig.part(screen, "Close") as Button
@@ -265,7 +283,10 @@ func test_a_change_from_outside_updates_the_selector_and_every_text() -> void:
 		"row": SettingsRig.shown(row_label),
 		"tab": sections.get_tab_title(0),
 	}
-	assert_int(_loc.set_language("hu")).is_equal(OK)
+	var result: Variant = await _logged(
+		func() -> Variant: return _loc.set_language("hu"), {LANGUAGE_NOT_SAVED: 1}
+	)
+	assert_int(result).is_equal(OK)
 	await get_tree().process_frame
 	assert_str(_selected_code(_option(screen))).is_equal("hu")
 	assert_str(SettingsRig.shown(title)).is_equal(screen.tr("settings.title"))

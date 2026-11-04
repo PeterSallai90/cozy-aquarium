@@ -2,7 +2,14 @@
 extends GdUnitTestSuite
 
 const ModelState := preload("res://tests/helpers/model_state.gd")
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
+
+const NOT_SAVED := "Language setting not saved: Can't open file"
+const PARSE_EOF := (
+	"ConfigFile parse error at user://test_saves/language_service/settings.cfg:0: "
+	+ "Unexpected EOF while parsing simple tag."
+)
 
 var _dir: String = ""
 var _locale_calls: PackedStringArray = PackedStringArray()
@@ -45,6 +52,26 @@ func _service(path: String = "") -> LanguageService:
 	var service: LanguageService = LanguageService.new(store, _record_locale)
 	service.language_changed.connect(_record_signal)
 	return service
+
+
+## Calls set_language once and asserts exactly which messages it logged (text and count).
+func _set_language(
+	service: LanguageService, code: String, warnings: Dictionary = {}, errors: Dictionary = {}
+) -> int:
+	var result: Array[int] = []
+	var seen: Dictionary = await EngineOutput.capture(
+		func() -> void: result.append(service.set_language(code))
+	)
+	assert_dict(seen.warnings).is_equal(warnings)
+	assert_dict(seen.errors).is_equal(errors)
+	return result[0]
+
+
+## Calls start once and asserts exactly which messages it logged (text and count).
+func _start_service(service: LanguageService, locale: String, errors: Dictionary = {}) -> void:
+	var seen: Dictionary = await EngineOutput.capture(func() -> void: service.start(locale))
+	assert_dict(seen.warnings).is_empty()
+	assert_dict(seen.errors).is_equal(errors)
 
 
 func _stored_language(path: String = "") -> Variant:
@@ -108,10 +135,10 @@ func test_a_damaged_file_behaves_like_a_first_start_and_is_left_alone() -> void:
 	var text: String = '[general\nlanguage="en"\n'
 	SaveFixtures.write_text(_path(), text)
 	var hungarian: LanguageService = _service()
-	hungarian.start("hu_HU")
+	await _start_service(hungarian, "hu_HU", {PARSE_EOF: 1})
 	assert_str(hungarian.get_language()).is_equal("hu")
 	var other: LanguageService = _service()
-	other.start("de_DE")
+	await _start_service(other, "de_DE", {PARSE_EOF: 1})
 	assert_str(other.get_language()).is_equal("en")
 	assert_str(SaveFixtures.read_text(_path())).is_equal(text)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["settings.cfg"])
@@ -218,8 +245,9 @@ func test_an_unsupported_code_is_refused_and_changes_nothing() -> void:
 	service.start("hu_HU")
 	_locale_calls = PackedStringArray()
 	for code: String in ["xx", "", "HU", "EN", "hu_HU", " hu", "magyar"]:
+		var warning: String = "Unsupported language: %s" % code
 		(
-			assert_int(service.set_language(code))
+			assert_int(await _set_language(service, code, {warning: 1}))
 			. override_failure_message("set_language(%s)" % code)
 			. is_equal(ERR_INVALID_PARAMETER)
 		)
@@ -234,7 +262,9 @@ func test_an_unsupported_code_does_not_touch_an_existing_file() -> void:
 	SaveFixtures.write_text(_path(), text)
 	var service: LanguageService = _service()
 	service.start("de_DE")
-	assert_int(service.set_language("xx")).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(await _set_language(service, "xx", {"Unsupported language: xx": 1})).is_equal(
+		ERR_INVALID_PARAMETER
+	)
 	assert_str(SaveFixtures.read_text(_path())).is_equal(text)
 
 
@@ -253,8 +283,8 @@ func test_a_damaged_file_is_backed_up_when_the_player_sets_a_language() -> void:
 	var text: String = '[general\nlanguage="en"\n'
 	SaveFixtures.write_text(_path(), text)
 	var service: LanguageService = _service()
-	service.start("de_DE")
-	assert_int(service.set_language("hu")).is_equal(OK)
+	await _start_service(service, "de_DE", {PARSE_EOF: 1})
+	assert_int(await _set_language(service, "hu", {}, {PARSE_EOF: 1})).is_equal(OK)
 	assert_str(SaveFixtures.read_text(_path() + ".bak")).is_equal(text)
 	assert_str(_stored_language()).is_equal("hu")
 
@@ -267,7 +297,7 @@ func test_a_failed_write_still_switches_returns_ok_and_emits() -> void:
 	var service: LanguageService = _service()
 	service.start("en_US")
 	_timeline = PackedStringArray()
-	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(await _set_language(service, "hu", {NOT_SAVED: 1})).is_equal(OK)
 	assert_str(service.get_language()).is_equal("hu")
 	assert_array(_timeline).is_equal(["locale:hu", "signal:hu"])
 	assert_bool(DirAccess.dir_exists_absolute(_path())).is_true()
@@ -277,8 +307,8 @@ func test_a_failed_write_does_not_stop_later_changes() -> void:
 	DirAccess.make_dir_recursive_absolute(_path())
 	var service: LanguageService = _service()
 	service.start("en_US")
-	assert_int(service.set_language("hu")).is_equal(OK)
-	assert_int(service.set_language("en")).is_equal(OK)
+	assert_int(await _set_language(service, "hu", {NOT_SAVED: 1})).is_equal(OK)
+	assert_int(await _set_language(service, "en", {NOT_SAVED: 1})).is_equal(OK)
 	assert_str(service.get_language()).is_equal("en")
 	assert_array(_signals).is_equal(["hu", "en"])
 
@@ -333,7 +363,7 @@ func test_a_failed_write_sets_the_last_save_error_before_the_signal() -> void:
 			seen.append((service_ref.get_ref() as LanguageService).get_last_save_error())
 	)
 	service.start("en_US")
-	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(await _set_language(service, "hu", {NOT_SAVED: 1})).is_equal(OK)
 	assert_array(seen).has_size(1)
 	assert_int(seen[0]).is_not_equal(OK)
 	assert_int(service.get_last_save_error()).is_not_equal(OK)
@@ -344,7 +374,7 @@ func test_a_good_write_after_a_failed_one_clears_the_last_save_error() -> void:
 	DirAccess.make_dir_recursive_absolute(_path())
 	var service: LanguageService = _service()
 	service.start("en_US")
-	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(await _set_language(service, "hu", {NOT_SAVED: 1})).is_equal(OK)
 	assert_int(service.get_last_save_error()).is_not_equal(OK)
 	DirAccess.remove_absolute(_path())
 	assert_int(service.set_language("en")).is_equal(OK)
@@ -355,17 +385,21 @@ func test_the_same_language_and_an_invalid_code_keep_the_last_save_error() -> vo
 	DirAccess.make_dir_recursive_absolute(_path())
 	var service: LanguageService = _service()
 	service.start("en_US")
-	assert_int(service.set_language("hu")).is_equal(OK)
+	assert_int(await _set_language(service, "hu", {NOT_SAVED: 1})).is_equal(OK)
 	var failed: int = service.get_last_save_error()
 	assert_int(failed).is_not_equal(OK)
 	assert_int(service.set_language("hu")).is_equal(OK)
 	assert_int(service.get_last_save_error()).is_equal(failed)
-	assert_int(service.set_language("xx")).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(await _set_language(service, "xx", {"Unsupported language: xx": 1})).is_equal(
+		ERR_INVALID_PARAMETER
+	)
 	assert_int(service.get_last_save_error()).is_equal(failed)
 
 
 func test_an_invalid_code_does_not_set_the_last_save_error() -> void:
 	var service: LanguageService = _service()
 	service.start("en_US")
-	assert_int(service.set_language("xx")).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(await _set_language(service, "xx", {"Unsupported language: xx": 1})).is_equal(
+		ERR_INVALID_PARAMETER
+	)
 	assert_int(service.get_last_save_error()).is_equal(OK)

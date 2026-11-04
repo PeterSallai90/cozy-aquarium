@@ -1,7 +1,12 @@
 # gdlint: disable=max-public-methods
 extends GdUnitTestSuite
 
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
+
+const PARSE_PREFIX := "ConfigFile parse error at user://test_saves/settings_store/settings.cfg:"
+const PARSE_EOF := PARSE_PREFIX + "0: Unexpected EOF while parsing simple tag."
+const PARSE_IDENTIFIER := PARSE_PREFIX + "1: Unexpected identifier 'hu'."
 
 var _dir: String = ""
 
@@ -13,6 +18,18 @@ func before_test() -> void:
 func after_test() -> void:
 	SaveFixtures.remove_dir(_dir)
 	SaveFixtures.remove_root_if_empty()
+
+
+## Runs action once and asserts that it logged exactly the given parse errors and no warning.
+func _expect_parse_errors(action: Callable, errors: Dictionary) -> void:
+	var seen: Dictionary = await EngineOutput.capture(action)
+	assert_dict(seen.errors).is_equal(errors)
+	assert_dict(seen.warnings).is_empty()
+
+
+## The parse error each damaged text in the loops below produces.
+func _parse_error_for(text: String) -> String:
+	return PARSE_EOF if text.begins_with("[general\n") else PARSE_IDENTIFIER
 
 
 func _path(file_name: String = "settings.cfg") -> String:
@@ -107,7 +124,12 @@ func test_a_damaged_file_reads_the_default_and_stays_as_it_is() -> void:
 	for text: String in ['[general\nlanguage="hu"\n', "[general]\nlanguage=hu\n"]:
 		SaveFixtures.write_text(_path(), text)
 		var store: SettingsStore = SettingsStore.new(_path())
-		assert_str(store.read_value("general", "language", "en")).is_equal("en")
+		var read: Array[String] = []
+		await _expect_parse_errors(
+			func() -> void: read.append(store.read_value("general", "language", "en")),
+			{_parse_error_for(text): 1}
+		)
+		assert_str(read[0]).is_equal("en")
 		assert_str(SaveFixtures.read_text(_path())).is_equal(text)
 		assert_bool(FileAccess.file_exists(_path() + ".bak")).is_false()
 
@@ -216,7 +238,12 @@ func test_writing_over_a_damaged_file_keeps_a_backup_and_writes_a_fresh_file() -
 	for text: String in ['[general\nlanguage="hu"\n', "[general]\nlanguage=hu\n"]:
 		SaveFixtures.write_text(_path(), text)
 		var store: SettingsStore = SettingsStore.new(_path())
-		assert_int(store.write_value("general", "language", "en")).is_equal(OK)
+		var written: Array[int] = []
+		await _expect_parse_errors(
+			func() -> void: written.append(store.write_value("general", "language", "en")),
+			{_parse_error_for(text): 1}
+		)
+		assert_int(written[0]).is_equal(OK)
 		assert_str(SaveFixtures.read_text(_path() + ".bak")).is_equal(text)
 		var config: ConfigFile = _config(_path())
 		assert_array(config.get_sections()).is_equal(["general"])
@@ -230,9 +257,15 @@ func test_writing_over_a_damaged_file_keeps_a_backup_and_writes_a_fresh_file() -
 func test_a_newer_damaged_file_replaces_an_older_backup() -> void:
 	var store: SettingsStore = SettingsStore.new(_path())
 	SaveFixtures.write_text(_path(), "[general\nfirst=1\n")
-	assert_int(store.write_value("general", "language", "hu")).is_equal(OK)
+	await _expect_parse_errors(
+		func() -> void: assert_int(store.write_value("general", "language", "hu")).is_equal(OK),
+		{PARSE_EOF: 1}
+	)
 	SaveFixtures.write_text(_path(), "[general\nsecond=2\n")
-	assert_int(store.write_value("general", "language", "en")).is_equal(OK)
+	await _expect_parse_errors(
+		func() -> void: assert_int(store.write_value("general", "language", "en")).is_equal(OK),
+		{PARSE_EOF: 1}
+	)
 	assert_str(SaveFixtures.read_text(_path() + ".bak")).is_equal("[general\nsecond=2\n")
 	assert_str(_config(_path()).get_value("general", "language")).is_equal("en")
 

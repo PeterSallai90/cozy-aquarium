@@ -3,9 +3,17 @@ extends GdUnitTestSuite
 ## The settings screen shell: AC 1 to 4, and its part in AC 11, 15, 17 and 18. Every screen gets
 ## fresh Localization and Settings instances on a test path; nothing writes the real file.
 
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SettingsRig := preload("res://tests/helpers/settings_rig.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 const ModelState := preload("res://tests/helpers/model_state.gd")
+
+const SETTING_NOT_SAVED := "Setting fixture/volume not saved: Can't open file"
+const LANGUAGE_NOT_SAVED := "Language setting not saved: Can't open file"
+const PARSE_ERROR := (
+	"ConfigFile parse error at user://test_saves/settings_screen/settings.cfg:1: "
+	+ "Expected value, got ''=''."
+)
 
 var _dir: String = ""
 var _saved_locale: String = ""
@@ -26,6 +34,36 @@ func after_test() -> void:
 	SaveFixtures.remove_root_if_empty()
 
 
+## Runs action once, asserts exactly which messages it logged (each text and its count) and
+## returns what the action returned.
+func _logged(action: Callable, warnings: Dictionary = {}, errors: Dictionary = {}) -> Variant:
+	var seen: Dictionary = await EngineOutput.capture_result(action)
+	assert_dict(seen.warnings).is_equal(warnings)
+	assert_dict(seen.errors).is_equal(errors)
+	return seen.result
+
+
+## Picks a language entry once and asserts exactly which messages that logged.
+func _select(
+	option: OptionButton, index: int, warnings: Dictionary = {}, errors: Dictionary = {}
+) -> void:
+	await _logged(
+		func() -> Variant:
+			option.item_selected.emit(index)
+			return null,
+		warnings,
+		errors
+	)
+
+
+## A volume write that cannot be saved: asserts the one "not saved" warning.
+func _set_unsaved(value: float) -> Variant:
+	return await _logged(
+		func() -> Variant: return _settings.set_value(SettingsRig.volume_key(), value),
+		{SETTING_NOT_SAVED: 1}
+	)
+
+
 func _path() -> String:
 	return _dir.path_join("settings.cfg")
 
@@ -35,7 +73,14 @@ func _on_closed() -> void:
 
 
 ## Creates both services and the screen and waits one frame; null while the scene is missing.
-func _open(os_locale: String = "en_US", list: Resource = null) -> Control:
+func _open(os_locale: String = "en_US", list: Resource = null, errors: Dictionary = {}) -> Control:
+	var screen: Variant = await _logged(
+		func() -> Variant: return await _build_screen(os_locale, list), {}, errors
+	)
+	return screen as Control
+
+
+func _build_screen(os_locale: String, list: Resource) -> Control:
 	_loc = auto_free(SettingsRig.make_localization(self, _path(), os_locale))
 	_settings = auto_free(SettingsRig.make_settings(self, _path()))
 	var screen: Control = SettingsRig.new_screen(_settings, _loc, list)
@@ -366,12 +411,17 @@ func test_opening_and_closing_without_a_change_creates_no_file() -> void:
 func test_an_unparsable_file_gives_defaults_and_is_not_touched_by_opening() -> void:
 	var text: String = "this is [not valid\n=="
 	SaveFixtures.write_text(_path(), text)
-	var screen: Control = await _open("en_US")
+	var screen: Control = await _open("en_US", null, {PARSE_ERROR: 1})
 	if screen == null:
 		return
 	var option: OptionButton = SettingsRig.part(screen, "LanguageOption") as OptionButton
 	assert_str(option.get_item_metadata(option.selected)).is_equal("en")
-	assert_float(_settings.get_value(SettingsRig.volume_key())).is_equal(0.5)
+	var volume: Variant = await _logged(
+		func() -> Variant: return _settings.get_value(SettingsRig.volume_key()),
+		{},
+		{PARSE_ERROR: 1}
+	)
+	assert_float(volume).is_equal(0.5)
 	screen.close()
 	assert_str(SaveFixtures.read_text(_path())).is_equal(text)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["settings.cfg"])
@@ -380,11 +430,11 @@ func test_an_unparsable_file_gives_defaults_and_is_not_touched_by_opening() -> v
 func test_the_first_change_after_an_unparsable_file_keeps_a_backup() -> void:
 	var text: String = "this is [not valid\n=="
 	SaveFixtures.write_text(_path(), text)
-	var screen: Control = await _open("en_US")
+	var screen: Control = await _open("en_US", null, {PARSE_ERROR: 1})
 	if screen == null:
 		return
 	var option: OptionButton = SettingsRig.part(screen, "LanguageOption") as OptionButton
-	option.item_selected.emit(1)
+	await _select(option, 1, {}, {PARSE_ERROR: 1})
 	assert_str(SaveFixtures.read_text(_path() + ".bak")).is_equal(text)
 	var config: ConfigFile = SettingsRig.read_config(_path())
 	assert_str(config.get_value("general", "language")).is_equal("hu")
@@ -408,7 +458,7 @@ func test_a_failed_language_save_shows_the_message_and_still_switches() -> void:
 	if screen == null:
 		return
 	var option: OptionButton = SettingsRig.part(screen, "LanguageOption") as OptionButton
-	option.item_selected.emit(1)
+	await _select(option, 1, {LANGUAGE_NOT_SAVED: 1})
 	assert_str(_loc.get_language()).is_equal("hu")
 	assert_int(_loc.get_last_save_error()).is_not_equal(OK)
 	assert_bool(_message_shown(screen)).is_true()
@@ -422,7 +472,7 @@ func test_a_failed_setting_save_shows_the_message_and_keeps_the_value() -> void:
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
-	assert_int(_settings.set_value(SettingsRig.volume_key(), 0.8)).is_equal(OK)
+	assert_int(await _set_unsaved(0.8)).is_equal(OK)
 	assert_float(_settings.get_value(SettingsRig.volume_key())).is_equal(0.8)
 	assert_bool(_message_shown(screen)).is_true()
 	assert_str(SettingsRig.shown(_message(screen))).is_equal(
@@ -435,7 +485,7 @@ func test_the_message_disappears_after_the_next_successful_write() -> void:
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
-	_settings.set_value(SettingsRig.volume_key(), 0.8)
+	await _set_unsaved(0.8)
 	assert_bool(_message_shown(screen)).is_true()
 	DirAccess.remove_absolute(_path())
 	_settings.set_value(SettingsRig.volume_key(), 0.3)
@@ -448,7 +498,7 @@ func test_a_good_language_write_after_a_failed_setting_write_clears_the_message(
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
-	_settings.set_value(SettingsRig.volume_key(), 0.8)
+	await _set_unsaved(0.8)
 	assert_bool(_message_shown(screen)).is_true()
 	DirAccess.remove_absolute(_path())
 	assert_int(_loc.set_language("hu")).is_equal(OK)
@@ -460,7 +510,7 @@ func test_a_reopened_screen_shows_no_stale_message() -> void:
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
-	_settings.set_value(SettingsRig.volume_key(), 0.8)
+	await _set_unsaved(0.8)
 	assert_bool(_message_shown(screen)).is_true()
 	screen.close()
 	screen.open()
@@ -472,9 +522,12 @@ func test_the_message_text_follows_a_language_change() -> void:
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
-	_settings.set_value(SettingsRig.volume_key(), 0.8)
+	await _set_unsaved(0.8)
 	var english: String = SettingsRig.shown(_message(screen))
-	assert_int(_loc.set_language("hu")).is_equal(OK)
+	var result: Variant = await _logged(
+		func() -> Variant: return _loc.set_language("hu"), {LANGUAGE_NOT_SAVED: 1}
+	)
+	assert_int(result).is_equal(OK)
 	await get_tree().process_frame
 	assert_bool(_message_shown(screen)).is_true()
 	assert_str(SettingsRig.shown(_message(screen))).is_equal(screen.tr("settings.error.not_saved"))

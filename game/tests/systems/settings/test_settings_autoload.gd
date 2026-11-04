@@ -2,10 +2,14 @@ extends GdUnitTestSuite
 ## The Settings autoload: project wiring, the API, and the EventBus relay (AC 16). Writes only
 ## through fresh instances on a test path, never through the live /root/Settings.
 
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SettingsRig := preload("res://tests/helpers/settings_rig.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 
 const AUTOLOAD_VALUE := "*res://systems/settings/settings.gd"
+
+const NOT_SAVED := "Setting fixture/volume not saved: Can't open file"
+const WRONG_TYPE := "Wrong type for setting fixture/volume"
 
 var _dir: String = ""
 var _saved_locale: String = ""
@@ -30,6 +34,15 @@ func after_test() -> void:
 	TranslationServer.set_locale(_saved_locale)
 	SaveFixtures.remove_dir(_dir)
 	SaveFixtures.remove_root_if_empty()
+
+
+## Runs action once, asserts exactly which messages it logged (each text and its count) and
+## returns what the action returned.
+func _logged(action: Callable, warnings: Dictionary = {}, errors: Dictionary = {}) -> Variant:
+	var seen: Dictionary = await EngineOutput.capture_result(action)
+	assert_dict(seen.warnings).is_equal(warnings)
+	assert_dict(seen.errors).is_equal(errors)
+	return seen.result
 
 
 func _path() -> String:
@@ -181,7 +194,10 @@ func test_a_refused_value_is_not_relayed() -> void:
 	var node: Node = _make()
 	if node == null:
 		return
-	assert_int(node.set_value(SettingsRig.volume_key(), "loud")).is_equal(ERR_INVALID_PARAMETER)
+	var result: Variant = await _logged(
+		func() -> Variant: return node.set_value(SettingsRig.volume_key(), "loud"), {WRONG_TYPE: 1}
+	)
+	assert_int(result).is_equal(ERR_INVALID_PARAMETER)
 	assert_array(_relayed).is_empty()
 
 
@@ -211,7 +227,10 @@ func test_a_failed_write_still_applies_and_reports() -> void:
 	var node: Node = _make()
 	if node == null:
 		return
-	assert_int(node.set_value(SettingsRig.volume_key(), 0.8)).is_equal(OK)
+	var result: Variant = await _logged(
+		func() -> Variant: return node.set_value(SettingsRig.volume_key(), 0.8), {NOT_SAVED: 1}
+	)
+	assert_int(result).is_equal(OK)
 	assert_float(node.get_value(SettingsRig.volume_key())).is_equal(0.8)
 	assert_int(node.get_last_save_error()).is_not_equal(OK)
 	assert_array(_relayed).is_equal([["fixture", "volume", 0.8]])

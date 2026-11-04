@@ -3,11 +3,14 @@ extends GdUnitTestSuite
 ## clipped, the section area scrolls when the content grows, and Close stays visible. The screen
 ## is rendered into a SubViewport so the check works headless.
 
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const SettingsRig := preload("res://tests/helpers/settings_rig.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 
 const WINDOW := Vector2i(1280, 720)
 const TOLERANCE := 0.5
+
+const SETTING_NOT_SAVED := "Setting fixture/volume not saved: Can't open file"
 
 var _dir: String = ""
 var _saved_locale: String = ""
@@ -129,7 +132,11 @@ func test_a_long_message_line_fits_in_hungarian() -> void:
 	var screen: Control = await _screen_in_window()
 	if screen == null:
 		return
-	_settings.set_value(SettingsRig.volume_key(), 0.8)
+	var seen: Dictionary = await EngineOutput.capture(
+		func() -> void: _settings.set_value(SettingsRig.volume_key(), 0.8)
+	)
+	assert_dict(seen.warnings).is_equal({SETTING_NOT_SAVED: 1})
+	assert_dict(seen.errors).is_empty()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var message: Label = SettingsRig.part(screen, "Message") as Label
