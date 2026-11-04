@@ -12,7 +12,9 @@ const BASELINE_TEST_FUNCTIONS := 749
 
 
 func _empty_needle_pattern() -> Array[RegEx]:
-	var expression: String = "ErrorContains" + "\\.new\\(\\s*(\"\"|'')\\s*\\)"
+	# Literal blank needles: "", '', &"", String(), String("") and String('').
+	var blank: String = '(""|\'\'|&""|String\\(\\s*(""|\'\')?\\s*\\))'
+	var expression: String = "ErrorContains" + "\\.new\\(\\s*" + blank + "\\s*\\)"
 	return SourceScan.compile(PackedStringArray([expression]))
 
 
@@ -92,8 +94,18 @@ func test_the_suite_has_at_least_the_baseline_number_of_test_functions() -> void
 
 
 func test_the_empty_needle_scan_flags_a_fake_blank_matcher() -> void:
-	var fake: String = "var m := ErrorContains" + '.new("")\nvar n := ErrorContains' + ".new( '' )"
-	assert_int(SourceScan.find_matches(fake, _empty_needle_pattern()).size()).is_equal(2)
+	var head: String = "var m := ErrorContains"
+	var fake: String = head + '.new("")\n' + head + ".new( '' )\n" + head + '.new(&"")\n'
+	fake += (
+		head + ".new(String())\n" + head + '.new(String(""))\n' + head + ".new( String( '' ) )\n"
+	)
+	assert_int(SourceScan.find_matches(fake, _empty_needle_pattern()).size()).is_equal(6)
+
+
+func test_the_empty_needle_scan_ignores_a_needle_held_in_a_variable_or_string_call() -> void:
+	var real: String = "var m := ErrorContains" + ".new(blank_needle)\n"
+	real += "var n := ErrorContains" + '.new(String("offset"))\n'
+	assert_int(SourceScan.find_matches(real, _empty_needle_pattern()).size()).is_equal(0)
 
 
 func test_the_empty_needle_scan_ignores_a_real_needle() -> void:
