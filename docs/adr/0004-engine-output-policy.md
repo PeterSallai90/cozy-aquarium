@@ -79,14 +79,14 @@ Source finding (game/addons/gdUnit4, 6.2.2):
   asserted `WARNING:` or `ERROR:` line from an unasserted one, so #93's test step fails on such
   lines only for entries on the handover list.
 
-Experimental confirmation: recorded by the tester on #91 (comment link added in the pull
-request).
+Experimental confirmation: recorded by the tester on #91:
+https://github.com/PeterSallai90/cozy-aquarium/issues/91#issuecomment-6631564082
 
 ### Handover list
 
-Lines GdUnit4 cannot assert, for #93 (test, source, count): none expected from the source
-finding; on develop 0a81a4b every one of the 113 lines was printed inside a test body. If the
-tester's experiment shows otherwise, the pull request lists each line here and on #91.
+Lines GdUnit4 cannot assert, for #93 (test, source, count): none. The tester confirmed that
+GdUnit4 captures `push_warning` and ConfigFile parse errors with their full visible text, and on
+develop 0a81a4b every one of the 113 lines was printed inside a test body.
 
 ## Alternatives considered
 
