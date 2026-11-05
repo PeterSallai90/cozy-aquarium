@@ -1198,6 +1198,7 @@ This table records where each file is specified and which step or issue creates 
 | `docs/adr/0001-engine.md` | Engine decision and pinned Godot version | Purpose and decisions; Windows setup Step 5 | Backlog issue 2 | Claude Code, with your version number |
 | `docs/art-style.md` | Art style rules and quality bar | Art and asset pipeline | Issue #60 | Claude Code; you approve changes |
 | `docs/adr/0002-visual-style.md` | Visual style decision (D5) | Purpose and decisions | Issue #60 | Claude Code; you approve changes |
+| `docs/mood-board.md` | Reference mood board: mood and polish only, links only, no rules | Art and asset pipeline | Issue #61 | Claude Code; you pick the direction |
 | `docs/asset-licenses.md` | License log, header only at first | Art and asset pipeline | Backlog issue 2 | Claude Code |
 | `.github/ISSUE_TEMPLATE/feature.yml`, `bug.yml`, `test.yml` | Issue forms | Project board | Backlog issue 2 | Claude Code |
 | `.github/pull_request_template.md` | Pull request checklist | Project board | Backlog issue 2 | Claude Code |

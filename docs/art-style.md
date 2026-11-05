@@ -210,8 +210,8 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 - **Rule:** references (Sea of Thieves, Abzû and others) are mood and polish references only. The
   mood board lists its sources and contains no copied assets. No rule in this guide asks to
   imitate a specific game's look.
-- **Rule:** the reference mood board (#61) and the golden scene (#62) are follow-up issues. No art
-  PR is blocked while they do not exist.
+- **Rule:** the reference mood board is [docs/mood-board.md](mood-board.md) (#61). The golden
+  scene (#62) is a follow-up issue. No art PR is blocked while it does not exist.
 - **Rule:** once the golden scene exists, art changes are compared against it. The code-reviewer
   compares first and escalates to the owner (`needs:owner`) only when necessary.
 
