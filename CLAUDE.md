@@ -67,6 +67,7 @@ itself.
 | Technical plan, ADRs, architecture drift check | architect |
 | Tests before implementation, test runs, playtest, test report, bug issues | tester |
 | Implementation and fixes | developer |
+| Blender assets, shaders, materials, lighting | technical-artist |
 | Independent review and approval before any PR | code-reviewer |
 | Issues, labels, fields, statuses, links | board-keeper |
 
@@ -97,15 +98,24 @@ Also escalate after three rejected code review rounds on one issue.
 2. architect posts the technical plan as an issue comment.
 3. tester writes the tests from the acceptance criteria and commits them, failing, on the feature
    branch.
-4. developer implements until the tests pass, lint is clean and the build works.
-5. code-reviewer reviews. A rejection goes back to developer; a disputed test goes to
+4. Routing: an issue labelled type:asset or area:render, or whose technical plan lists Blender,
+   import, shader, material or lighting work, goes to technical-artist; everything else goes to
+   developer. The implementer works until the tests pass, lint is clean and the build works. A
+   mixed issue stays one branch and one pull request: technical-artist does the art files first,
+   then developer does the scripts, one after another. A failing test is fixed by the owner of the
+   file group it exercises, a test spanning both by whoever runs second. Edge case: when an art
+   change breaks a developer test (or the reverse), the finder reports the test and the file group
+   at fault to the orchestrator and does not edit the other group's files. The architect splits
+   the issue when the groups can ship independently.
+5. code-reviewer reviews. A rejection goes back to the implementer (developer or technical-artist); a disputed test goes to
    code-reviewer to decide.
 6. After approval: tester runs the suite and posts the test report; open the pull request into
    develop (`gh pr create --base develop`, body with "Closes #N" and the test report), then
-   `gh pr merge --auto --squash`. Add `needs:owner` when developer or code-reviewer reports a
-   visible look-and-feel change.
+   `gh pr merge --auto --squash`. Add `needs:owner` when developer, technical-artist or code-reviewer
+   reports a visible look-and-feel change. For asset issues the PR body includes the preview image
+   paths from the report.
 7. CI and the owner gate run; GitHub merges when both are green. Fix CI failures through
-   developer and a new review.
+   the implementer (developer or technical-artist) and a new review.
 8. board-keeper updates the issue and the board.
 
 ### Digest format for BA decisions
