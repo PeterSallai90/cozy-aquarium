@@ -49,6 +49,7 @@ The team is built for the Claude Pro plan: Sonnet 5.5 by default, Opus only wher
 | Architect | `.claude/agents/architect.md` | Opus 5.5 if available in Claude Code on the plan, otherwise Sonnet 5.5 | Technical plan per issue, ADRs, architecture drift checks |
 | Tester | `.claude/agents/tester.md` | Sonnet 5.5 | Writes test cases from the acceptance criteria before coding starts, runs the suite, playtests through the Godot MCP server, writes the test report |
 | Developer | `.claude/agents/developer.md` | Sonnet 5.5 | Implements the issue on a feature branch until all tests pass |
+| Technical artist | `.claude/agents/technical-artist.md` | Opus 5.5 if available, otherwise Sonnet 5.5 | Blender assets, shaders, materials and lighting on a feature branch; renders previews and checks them against `docs/art-style.md` |
 | Code reviewer | `.claude/agents/code-reviewer.md` | Opus 5.5 if available, otherwise Sonnet 5.5 | Independent review against the issue and `CLAUDE.md`; only its approval allows a pull request |
 | Board keeper | `.claude/agents/board-keeper.md` | Haiku 5.5 | Issues, labels, fields, statuses, links between issues and pull requests |
 
@@ -81,8 +82,8 @@ The BAs decide on their own unless a question hits one of these escalation trigg
 
 1. **Architect** writes the technical plan as an issue comment.
 2. **Tester** writes the test cases from the acceptance criteria and commits them, failing, on the feature branch. Tests written before and apart from the code catch more mistakes.
-3. **Developer** implements until the tests pass, lint is clean and the build works.
-4. **Code reviewer** reviews the change. A rejection goes back to the developer; after three rejected rounds the orchestrator escalates to you.
+3. **Developer** (or the **technical artist** for asset and render issues, first on mixed issues) implements until the tests pass, lint is clean and the build works.
+4. **Code reviewer** reviews the change. A rejection goes back to the implementer (developer or technical artist); after three rejected rounds the orchestrator escalates to you.
 5. **Pull request into `develop`**, only after approval, with the test report attached. A hook enforces this: `gh pr create` is blocked unless the reviewer's approval record names the branch's current commit, so any change after the review needs a new review.
 6. **CI and the owner gate** run; GitHub merges automatically when both are green.
 7. **Board keeper** updates the issue and the board.
@@ -102,7 +103,7 @@ feature/<issue> ──PR──▶ develop ──release PR──▶ main
 **Owner gate:** a required check that fails while a pull request has the `needs:owner` label without the `owner-approved` label. `needs:owner` is set in two ways:
 
 - automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `.github/labeler.yml` (the path rules themselves), `game/project.godot`, `docs/adr/` (Godot version) and `docs/asset-licenses.md` (new third-party assets);
-- by the developer or code reviewer for visible look-and-feel changes, which paths alone cannot detect.
+- by the developer, technical artist or code reviewer for visible look-and-feel changes, which paths alone cannot detect.
 
 Known limit: the labeler and the owner gate run on the `pull_request` event, so a pull request is checked by its own version of `owner-gate.yml`, `labeler.yml` and `.github/labeler.yml`. Those paths are gated themselves, and the code reviewer checks any change to them with extra care; review such pull requests closely before adding `owner-approved`.
 
@@ -118,7 +119,7 @@ To let a gated pull request through, add the `owner-approved` label (GitHub does
 ### Usage on the Pro plan
 
 - Usage limits are shared between Claude chat and Claude Code; every agent and every chat draws from the same allowance.
-- Sonnet 5.5 is the default. Opus 5.5 runs only for the architect and the code reviewer, and only if `/model` in Claude Code lists it.
+- Sonnet 5.5 is the default. Opus 5.5 runs only for the architect, the technical artist and the code reviewer, and only if `/model` in Claude Code lists it.
 - One issue at a time; no parallel development.
 - The BA discussion runs as subagents in rounds, not as an agent team: agent teams run every teammate as a full session and are still experimental.
 - If limits slow the team down too much, the Max plan is the lever: Opus by default for planning and review, and the BA group as a real agent team whose members message each other directly.
@@ -129,7 +130,7 @@ All created by backlog item B43 in one pull request, which is gated (`needs:owne
 
 | File | Purpose |
 | --- | --- |
-| `.claude/agents/*.md` (8 files) | One file per agent: role, instructions, allowed tools, model alias |
+| `.claude/agents/*.md` (9 files) | One file per agent: role, instructions, allowed tools, model alias |
 | `.claude/settings.json` | Default model for the main session, permission allow and deny rules, hook registration |
 | `.claude/hooks/require_review.py` | Blocks `gh pr create` without a current review approval |
 | `CLAUDE.md`, Orchestrator section | Flows, escalation triggers, digest format, one-issue-at-a-time rule |

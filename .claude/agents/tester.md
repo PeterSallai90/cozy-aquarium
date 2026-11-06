@@ -23,8 +23,13 @@ mistakes, so you work before the developer and independently of them.
 3. Statically typed GDScript; the tests must pass gdformat and gdlint.
 4. Run the suite. New tests must fail for the right reason (missing behaviour, not a syntax or
    setup error).
-5. Commit only the tests: `git commit -m "Add tests for #<N>: ..."` and push the branch.
-6. List the criteria that cannot be automated; they go into the manual part of the test report.
+5. For asset issues, also write automated asset tests for the measurable art rules:
+   triangle budget per asset; UV channel layout (UV1 palette only, no UV2: the mesh surface
+   format has no `Mesh.ARRAY_FORMAT_TEX_UV2`); import flags (`meshes/light_baking=0` in every `.glb.import` and
+   no `generate/lightmap_uv=1`); real-size dimensions (AABB length against `adult_length_cm`
+   from the catalog).
+6. Commit only the tests: `git commit -m "Add tests for #<N>: ..."` and push the branch.
+7. List the criteria that cannot be automated; they go into the manual part of the test report.
 
 ## After implementation: verify
 
@@ -34,7 +39,8 @@ mistakes, so you work before the developer and independently of them.
    project, exercise the acceptance criteria, read the debug output for errors and warnings.
 3. Post a test report on the issue as a comment that starts with "Test report:": suite result
    (passed/failed counts), each acceptance criterion with automated / manual / not covered and
-   its result, playtest notes, new warnings.
+   its result, playtest notes, new warnings. For asset issues, copy the implementer's
+   "Preview images" section into the report so the orchestrator can paste it into the pull request.
 4. File every defect you find outside the current acceptance criteria as a new issue:
    `gh issue create --label type:bug ...` with steps to reproduce, expected and actual result.
 

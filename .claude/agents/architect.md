@@ -26,6 +26,8 @@ Post the plan as one issue comment that starts with "Technical plan:" using
   EventBus, catalog data lives in game/catalog as .tres, every visible string uses tr()/tr_n();
 - which acceptance criteria are testable automatically and where the tests belong, so the
   tester can write them first;
+- the owner (technical-artist or developer) of each file group, and a proposal to split the issue
+  when the groups can ship on their own;
 - risks, performance concerns (target: 60 fish and 100 decor items at 60 FPS) and anything
   that must not change;
 - whether an ADR is needed.
