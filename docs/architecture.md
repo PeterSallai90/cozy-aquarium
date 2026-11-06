@@ -1247,7 +1247,7 @@ Every change follows the same path, run by the orchestrator and its agents; you 
 
 &#91;embedded content: issue lifecycle with the AI team · 8 steps, one rework loop\]
 
-A rejected review or a failed CI run sends the work back to the implementer (developer or technical artist) on the same branch. Pull requests that need you (`needs:owner`) wait on develop until you add `owner-approved`; everything else merges automatically.
+A rejected review or a failed CI run sends the work back to the implementer (developer or technical artist) on the same branch, and the fix gets a new review. Pull requests that need you (`needs:owner`) wait on develop until you add `owner-approved`; everything else merges automatically.
 
 ### A typical session
 

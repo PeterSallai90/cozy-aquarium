@@ -49,13 +49,14 @@ Measurable rules: a violation is a rejection.
   `generate/lightmap_uv=1`;
 - scale is real-size: fish from `adult_length_cm`, decor against the 3 to 5 cm reference;
 - the preview images (front, side, fish beside the reference) are present and openable.
-  For engine-only changes (shader, material, lighting, environment) with no new or changed
-  Blender-made asset (`.glb`), in-engine screenshots taken with the `mcp__godot__*` tools are
-  required whenever the change is shown in the engine, and they replace the Blender front and
-  side views only, not the scale rule. If the issue also adds or changes a Blender-made asset
-  (a mixed issue), the Blender front and side views are still required. When fish are visible
-  in an in-engine screenshot, keep a 3 to 5 cm reference in frame; with no fish visible the
-  fish beside the reference view is not required.
+  In-engine screenshots taken with the `mcp__godot__*` tools are required whenever the change
+  is shown in the engine. For an engine-only change (shader, material, lighting, environment,
+  with no new or changed Blender-made asset: no `.blend`, `.glb` or `tools/blender` script
+  output), those screenshots replace only the Blender front and side views, not the scale rule.
+  For a mixed issue (it also adds or changes a Blender-made asset), the Blender front and side
+  views are still required for that asset and the in-engine screenshots cover the engine part.
+  When fish are visible, a 3 to 5 cm reference is in frame (fish beside the reference stays
+  required); when no fish are visible it is not required.
 
 Non-measurable rules: they pass with `needs:owner`, they do not reject.
 
