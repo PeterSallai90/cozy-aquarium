@@ -72,7 +72,8 @@ Follow docs/art-style.md, sections "Species and item readability", "Fish", "Plan
    - `gdlint game && gdformat --check game`
    - `godot_console --headless --path game --import`
    - `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`
-4. Render the previews, run the bad-render check and write the self-check (below).
+4. Render the previews, run the bad-render check, compare the previews with docs/mood-board.md
+   and write the self-check (below).
 5. Commit in small steps with clear messages that reference the issue; push the branch.
 
 ## Preview renders
@@ -84,6 +85,10 @@ Follow docs/art-style.md, sections "Species and item readability", "Fish", "Plan
 - Animated or time-based effects (sway, caustics, swim bend): stills at two or more phases, plus
   the parameter values used. Motion itself is judged by the owner.
 - In-engine screenshots use the `mcp__godot__*` tools, never `godot --headless`.
+- An in-engine screenshot via `mcp__godot__*` is required whenever the change is shown in the
+  engine. For engine-only changes (shader, material, lighting, environment) it replaces the
+  Blender front and side views. If it cannot be taken, the failure rules in the Bad-render check
+  apply: report it, do not claim done.
 
 ## Bad-render check
 
@@ -122,6 +127,7 @@ Finish with a short summary for the orchestrator under these headings:
 - Commands run and results;
 - Preview images: absolute paths, one line each with the view name;
 - Self-check: one line per art-style.md rule checked: pass, fail or not performed;
+- Mood board: a short note on how the previews compare with docs/mood-board.md;
 - Must-stay-recognisable list used: quoted from the issue, each feature mapped to a parameter
   name or a preview still;
 - Disputed tests;

@@ -83,7 +83,7 @@ The BAs decide on their own unless a question hits one of these escalation trigg
 1. **Architect** writes the technical plan as an issue comment.
 2. **Tester** writes the test cases from the acceptance criteria and commits them, failing, on the feature branch. Tests written before and apart from the code catch more mistakes.
 3. **Developer** (or the **technical artist** for asset and render issues, first on mixed issues) implements until the tests pass, lint is clean and the build works.
-4. **Code reviewer** reviews the change. A rejection goes back to the developer; after three rejected rounds the orchestrator escalates to you.
+4. **Code reviewer** reviews the change. A rejection goes back to the implementer (developer or technical artist); after three rejected rounds the orchestrator escalates to you.
 5. **Pull request into `develop`**, only after approval, with the test report attached. A hook enforces this: `gh pr create` is blocked unless the reviewer's approval record names the branch's current commit, so any change after the review needs a new review.
 6. **CI and the owner gate** run; GitHub merges automatically when both are green.
 7. **Board keeper** updates the issue and the board.

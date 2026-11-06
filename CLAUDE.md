@@ -105,10 +105,11 @@ Also escalate after three rejected code review rounds on one issue.
    then developer does the scripts, one after another. A failing test is fixed by the owner of the
    file group it exercises, a test spanning both by whoever runs second. Edge case: when an art
    change breaks a developer test (or the reverse), the finder reports the test and the file group
-   at fault to the orchestrator and does not edit the other group's files. The architect splits
-   the issue when the groups can ship independently.
-5. code-reviewer reviews. A rejection goes back to the implementer (developer or technical-artist); a disputed test goes to
-   code-reviewer to decide.
+   at fault to the orchestrator and does not edit the other group's files. The architect proposes
+   a split when the groups can ship independently.
+5. code-reviewer reviews. A rejection goes back to the implementer (developer or technical-artist;
+   on a mixed issue, the owner of the file group at fault); a disputed test goes to code-reviewer
+   to decide.
 6. After approval: tester runs the suite and posts the test report; open the pull request into
    develop (`gh pr create --base develop`, body with "Closes #N" and the test report), then
    `gh pr merge --auto --squash`. Add `needs:owner` when developer, technical-artist or code-reviewer

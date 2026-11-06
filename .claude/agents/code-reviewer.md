@@ -52,12 +52,14 @@ Measurable rules: a violation is a rejection.
 
 Non-measurable rules: they pass with `needs:owner`, they do not reject.
 
-- silhouette readability, judged on the preview shrunk to about 256 px;
+- silhouette readability: the species or plant type is identifiable in the side-view still at
+  about 256 px;
 - shading consistency across assets;
 - the match with the mood board (docs/mood-board.md); the golden scene (#62) once it exists.
   Until #62 exists, compare to the mood board only.
 
-A "clear mismatch" means a written docs/art-style.md rule is visibly broken in a still: reject and
+A "clear mismatch" means a written docs/art-style.md rule is visibly broken in a still (for example a flat unlit look, a wrong palette or a hard-edged
+glow): reject and
 quote the rule. If you are unsure, or it is taste, pass with `needs:owner`; never reject on taste.
 
 Animation: check the phase stills and the parameter values only, and pass with `needs:owner` for
