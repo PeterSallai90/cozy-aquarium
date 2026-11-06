@@ -49,6 +49,14 @@ Measurable rules: a violation is a rejection.
   `generate/lightmap_uv=1`;
 - scale is real-size: fish from `adult_length_cm`, decor against the 3 to 5 cm reference;
 - the preview images (front, side, fish beside the reference) are present and openable.
+  In-engine screenshots taken with the `mcp__godot__*` tools are required whenever the change
+  is shown in the engine. For an engine-only change (shader, material, lighting, environment,
+  with no new or changed Blender-made asset: no `.blend`, `.glb` or `tools/blender` script
+  output), those screenshots replace only the Blender front and side views, not the scale rule.
+  For a mixed issue (it also adds or changes a Blender-made asset), the Blender front and side
+  views are still required for that asset and the in-engine screenshots cover the engine part.
+  When fish are visible, a 3 to 5 cm reference is in frame (fish beside the reference stays
+  required); when no fish are visible it is not required.
 
 Non-measurable rules: they pass with `needs:owner`, they do not reject.
 
@@ -58,9 +66,9 @@ Non-measurable rules: they pass with `needs:owner`, they do not reject.
 - the match with the mood board (docs/mood-board.md); the golden scene (#62) once it exists.
   Until #62 exists, compare to the mood board only.
 
-A "clear mismatch" means a written docs/art-style.md rule is visibly broken in a still (for example a flat unlit look, a wrong palette or a hard-edged
-glow): reject and
-quote the rule. If you are unsure, or it is taste, pass with `needs:owner`; never reject on taste.
+A "clear mismatch" means a written docs/art-style.md rule is visibly broken in a still (for example
+a flat unlit look, a wrong palette or a hard-edged glow): reject and quote the rule. If you are
+unsure, or it is taste, pass with `needs:owner`; never reject on taste.
 
 Animation: check the phase stills and the parameter values only, and pass with `needs:owner` for
 the motion; judging motion is out of scope.
