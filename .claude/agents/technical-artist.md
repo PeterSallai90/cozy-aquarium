@@ -38,8 +38,11 @@ issue stays one branch and one pull request (see "Mixed issues").
   (Disabled). Godot imports with the default `1`, so after the first import set it to `0` and
   import again.
 - No `_subresources` mesh entry may set `generate/lightmap_uv=1`.
-- UV1 is reserved for the palette atlas. Generators create exactly one UV layer and never a
-  second UV layer (UV2), so the exported glTF has no `TEXCOORD_1`.
+- UV1 is reserved for the palette atlas. Generators create exactly two named UV layers per
+  docs/art-style.md ("Generator conventions"): `UV0` (the unwrap; glTF `TEXCOORD_0`, Godot `UV`)
+  and `UV1` (the palette atlas lookup; glTF `TEXCOORD_1`, Godot `UV2`). They never run the lightmap
+  pack operator and never add a lightmap UV layer, because a lightmap UV2 would overwrite the atlas
+  lookup.
 
 ## Realism and the Mode 2 guard
 

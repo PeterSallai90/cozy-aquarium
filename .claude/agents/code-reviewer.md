@@ -44,7 +44,8 @@ Check at least:
 Measurable rules: a violation is a rejection.
 
 - triangle budgets from docs/art-style.md are met;
-- UV1 holds the palette atlas layout and there is no second UV layer;
+- generators create two UV layers, UV0 (unwrap) and UV1 (glTF `TEXCOORD_1`, Godot `UV2`) holding
+  the palette atlas layout, per docs/art-style.md; no lightmap UV replaces UV1;
 - every `*.glb.import` has `meshes/light_baking=0` and no `_subresources` entry sets
   `generate/lightmap_uv=1`;
 - scale is real-size: fish from `adult_length_cm`, decor against the 3 to 5 cm reference;

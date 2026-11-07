@@ -1,0 +1,13 @@
+{
+  "body_height_sl": 0.25,
+  "body_width_sl": 0.14,
+  "head_length_sl": 0.28,
+  "eye_diameter_sl": 0.11,
+  "caudal_length_sl": 0.22,
+  "caudal_fork_depth_sl": 0.08,
+  "dorsal_base_sl": 0.2,
+  "dorsal_height_sl": 0.15,
+  "pectoral_length_sl": 0.13,
+  "body_ring_count": 23,
+  "body_ring_segments": 20
+}
