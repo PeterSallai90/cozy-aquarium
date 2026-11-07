@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 import unittest
+from collections.abc import Callable
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -26,7 +27,7 @@ NEW_ATLAS = b"new atlas"
 BACKUP_NAME = ".proof_fish.bak.glb"
 
 
-def failing_rename(*blocked: Path):
+def failing_rename(*blocked: Path) -> Callable[[Path, Path], None]:
     """A rename that raises OSError when the destination is one of ``blocked``."""
     blocked_names = {path.name for path in blocked}
 
@@ -54,7 +55,7 @@ class SwapInPairTest(unittest.TestCase):
         self.glb.write_bytes(OLD_GLB)
         self.atlas.write_bytes(OLD_ATLAS)
 
-    def _swap(self, rename) -> None:
+    def _swap(self, rename: Callable[[Path, Path], None]) -> None:
         generate_fish.swap_in_pair(
             self.new_glb, self.glb, self.new_atlas, self.atlas, rename=rename
         )
@@ -123,6 +124,18 @@ class SwapInPairTest(unittest.TestCase):
         backup = self.folder / BACKUP_NAME
         self.assertTrue(backup.is_file())
         self.assertEqual(backup.read_bytes(), OLD_GLB)
+
+    def test_criterion_05_existing_backup_blocks_the_swap_and_is_untouched(self) -> None:
+        self._write_old_pair()
+        backup = self.folder / BACKUP_NAME
+        backup.write_bytes(b"earlier backup")
+        with self.assertRaises(generate_fish.GeneratorError) as raised:
+            self._swap(os.replace)
+        self.assertIn(BACKUP_NAME, str(raised.exception))
+        self.assertEqual(backup.read_bytes(), b"earlier backup")
+        self.assertEqual(self.glb.read_bytes(), OLD_GLB)
+        self.assertEqual(self.atlas.read_bytes(), OLD_ATLAS)
+        self.assertEqual(self._leftovers(), [BACKUP_NAME])
 
 
 if __name__ == "__main__":
