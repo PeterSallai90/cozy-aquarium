@@ -77,7 +77,10 @@ func _fish(body_count: int, fin_count: int) -> ArrayMesh:
 
 
 ## A hand-built tetra: body box 1.0 long, caudal behind it, dorsal, pectoral pair.
-func _tetra(caudal_z: float, right_pectoral_x: float) -> ArrayMesh:
+## extra_fins: more fin vertices (three per triangle) appended after the pectorals.
+func _tetra(
+	caudal_z: float, right_pectoral_x: float, extra_fins: PackedVector3Array = PackedVector3Array()
+) -> ArrayMesh:
 	var body: PackedVector3Array = PackedVector3Array()
 	for x: float in [-0.07, 0.07]:
 		for y: float in [-0.125, 0.125]:
@@ -100,6 +103,7 @@ func _tetra(caudal_z: float, right_pectoral_x: float) -> ArrayMesh:
 			Vector3(-0.07, -0.05, 0.1),
 		]
 	)
+	fins.append_array(extra_fins)
 	return _mesh([{"name": "body", "vertices": body}, {"name": "fin", "vertices": fins}])
 
 
@@ -241,6 +245,44 @@ func test_criterion_17_betta_style_trailing_tail_fails_the_ceiling() -> void:
 func test_criterion_17_unmirrored_pectoral_pair_fails() -> void:
 	var text: String = _joined(Checks.size_failures(_tetra(-0.72, 0.09)))
 	assert_str(text).contains("mirrored")
+
+
+# --- #115 criteria 5 and 6: only the caudal may lie behind the tail end ---
+
+
+func test_criterion_05_dorsal_behind_the_tail_fails_as_non_caudal() -> void:
+	# Second dorsal triangle shares two positions with the dorsal, its tip is behind the tail.
+	var extra: PackedVector3Array = PackedVector3Array(
+		[Vector3(0, 0.30, 0.1), Vector3(0, 0.125, 0.0), Vector3(0, 0.20, -0.6)]
+	)
+	var text: String = _joined(Checks.size_failures(_tetra(-0.72, 0.07, extra)))
+	assert_str(text).contains("fins extend Z: ")
+	assert_str(text).contains("non-caudal centre-plane fin lies behind the tail")
+
+
+func test_criterion_05_dorsal_tail_piece_is_caught_through_its_connection() -> void:
+	# The last triangle alone starts within 0.10 of the tail end, but it is chained to the dorsal
+	# (front at z 0.2), so the component is not a caudal. The rule works per component.
+	var extra: PackedVector3Array = PackedVector3Array(
+		[
+			Vector3(0, 0.125, 0.0),
+			Vector3(0, 0.30, 0.1),
+			Vector3(0, 0.15, -0.45),
+			Vector3(0, 0.15, -0.45),
+			Vector3(0, 0.13, -0.42),
+			Vector3(0, 0.20, -0.6),
+		]
+	)
+	var text: String = _joined(Checks.size_failures(_tetra(-0.72, 0.07, extra)))
+	assert_str(text).contains("fins extend Z: ")
+	assert_str(text).contains("non-caudal centre-plane fin lies behind the tail")
+
+
+## Guard against a too strict rule: green before and after the fix.
+func test_criterion_06_caudal_behind_the_tail_with_dorsal_inside_the_body_passes() -> void:
+	for caudal_z: float in [-0.72, -0.66]:
+		var text: String = _joined(Checks.size_failures(_tetra(caudal_z, 0.07)))
+		assert_str(text).not_contains("fins extend Z")
 
 
 # --- criterion 23: LFS pointer ---

@@ -22,6 +22,7 @@ const TOTAL_MAX_UNITS := 1.40
 const CEILING_UNITS := 2.29
 const CENTRE_PLANE_X := 0.01
 const EPS := 1e-4
+const CAUDAL_ROOT_ZONE := 0.10
 
 
 static func column_int(arrays: Array, slot: int) -> PackedInt32Array:
@@ -458,11 +459,32 @@ static func size_failures(mesh: Mesh) -> PackedStringArray:
 	var body_cm: float = body_box.size.z * FISH_SCALE * 100.0
 	if body_cm < 3.465 or body_cm > 3.535:
 		failures.append("real size: body length %.3f cm, need 3.465 to 3.535" % body_cm)
-	failures.append_array(_fin_failures(fins, body_box))
+	var fin_surface: int = surface_by_name(mesh, FIN)
+	var triangles: PackedInt32Array = surface_triangles(mesh.surface_get_arrays(fin_surface))
+	failures.append_array(_fin_failures(fins, triangles, body_box))
 	return failures
 
 
-static func _fin_failures(fins: PackedVector3Array, body_box: AABB) -> PackedStringArray:
+## Fin rules: front, tail, dorsal, pectorals. Fins are identified by position and connectivity
+## only: centre plane |x| <= CENTRE_PLANE_X, grouped into components joined through shared triangle
+## positions (vertices at the same position are welded). The mesh has no fin name or tag. Y is not
+## used to tell fins apart because the proof caudal's upper lobe tip rises above the body top.
+## A centre-plane component may extend behind the tail end only if it starts within
+## CAUDAL_ROOT_ZONE of the tail end (the caudal); any other one fails as non-caudal.
+## Welded keys only join vertices; every measurement uses the original vertex positions. Only
+## triangles with all three corners on the centre plane join a component, so a fin with a slightly
+## off-plane vertex can split into pieces, and a rear piece could pass as caudal.
+## Known limits for #40:
+## 1. A non-caudal fin welded to the caudal, or starting within CAUDAL_ROOT_ZONE of the tail end
+##    (for example an adipose fin trailing behind the tail), counts as caudal and is not caught.
+## 2. The strict rule fits the proof fish and short-finned tetras (neon, cardinal, rasbora, danio,
+##    corydoras). Long-finned species (long-fin betta, fancy guppy, veil-tail, angelfish) have
+##    dorsal and anal tips trailing past the tail base and need a per-species rule. The rule's shape
+##    (domain-ba, #115): the fin base stays inside the body Z range and only the free tip may trail
+##    behind the tail, up to a stated per-species allowance.
+static func _fin_failures(
+	fins: PackedVector3Array, triangles: PackedInt32Array, body_box: AABB
+) -> PackedStringArray:
 	var failures: PackedStringArray = PackedStringArray()
 	var body_low: float = body_box.position.z
 	var body_high: float = body_box.end.z
@@ -476,7 +498,6 @@ static func _fin_failures(fins: PackedVector3Array, body_box: AABB) -> PackedStr
 		if point.z > body_high + EPS:
 			in_front += 1
 		if absf(point.x) <= CENTRE_PLANE_X:
-			caudal_low = minf(caudal_low, point.z)
 			dorsal_top = maxf(dorsal_top, point.y)
 			continue
 		if point.x > 0.0:
@@ -489,6 +510,29 @@ static func _fin_failures(fins: PackedVector3Array, body_box: AABB) -> PackedStr
 		failures.append("fins extend Z: %d fin vertices are in front of the snout" % in_front)
 	if behind_tail > 0:
 		failures.append("fins extend Z: %d non-caudal vertices lie behind the tail" % behind_tail)
+	var caudal_zone: float = body_low + CAUDAL_ROOT_ZONE
+	for component: PackedVector3Array in _centre_components(fins, triangles):
+		var span: Vector2 = z_extent(component)
+		if span.y <= caudal_zone:
+			caudal_low = minf(caudal_low, span.x)
+			continue
+		var behind: int = 0
+		for point: Vector3 in component:
+			if point.z < body_low - EPS:
+				behind += 1
+		if behind > 0:
+			(
+				failures
+				. append(
+					(
+						"fins extend Z: non-caudal centre-plane fin lies behind the tail "
+						+ (
+							"(%d vertices, front at z %.3f, a caudal starts within %.2f of the tail end)"
+							% [behind, span.y, CAUDAL_ROOT_ZONE]
+						)
+					)
+				)
+			)
 	if caudal_low > body_low - 0.15:
 		failures.append("caudal: reaches %.3f beyond the tail, need 0.15" % (body_low - caudal_low))
 	if dorsal_top < body_box.end.y + 0.08:
@@ -509,6 +553,55 @@ static func _fin_failures(fins: PackedVector3Array, body_box: AABB) -> PackedStr
 			failures.append("pectoral: side %d is not inside the body Z range" % side)
 	failures.append_array(_mirror_failures(right, left))
 	return failures
+
+
+## Connected components of the centre-plane fin triangles, vertices welded by position.
+static func _centre_components(
+	fins: PackedVector3Array, triangles: PackedInt32Array
+) -> Array[PackedVector3Array]:
+	var parent: Dictionary = {}
+	var keys: Dictionary = {}
+	for i: int in fins.size():
+		var point: Vector3 = fins[i]
+		if absf(point.x) > CENTRE_PLANE_X:
+			continue
+		var key: Vector3i = Vector3i((point / POSITION_SNAP).round())
+		keys[i] = key
+		if not parent.has(key):
+			parent[key] = key
+	for t: int in range(0, triangles.size() - 2, 3):
+		var corners: Array[Vector3i] = []
+		for c: int in 3:
+			var index: int = triangles[t + c]
+			if keys.has(index):
+				corners.append(keys[index] as Vector3i)
+		if corners.size() == 3:
+			_union(parent, corners[0], corners[1])
+			_union(parent, corners[0], corners[2])
+	var groups: Dictionary = {}
+	for index: int in keys:
+		var root: Vector3i = _find(parent, keys[index] as Vector3i)
+		var members: PackedVector3Array = groups.get(root, PackedVector3Array())
+		members.append(fins[index])
+		groups[root] = members
+	var result: Array[PackedVector3Array] = []
+	for group: Variant in groups.values():
+		result.append(group as PackedVector3Array)
+	return result
+
+
+static func _find(parent: Dictionary, key: Vector3i) -> Vector3i:
+	var root: Vector3i = key
+	while (parent[root] as Vector3i) != root:
+		root = parent[root] as Vector3i
+	return root
+
+
+static func _union(parent: Dictionary, a: Vector3i, b: Vector3i) -> void:
+	var root_a: Vector3i = _find(parent, a)
+	var root_b: Vector3i = _find(parent, b)
+	if root_a != root_b:
+		parent[root_a] = root_b
 
 
 static func _mirror_failures(
