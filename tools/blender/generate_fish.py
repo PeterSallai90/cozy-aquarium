@@ -42,7 +42,10 @@ or counts). Values outside the range are rejected with a message that names the 
 
 Exit code 0 on success, 1 on any error (background Blender would otherwise exit 0 on an uncaught
 exception). Outputs are written to temporary files in the target folder and renamed only after
-the export succeeded, so a failed run never leaves a half-written file or touches an existing one.
+the export succeeded, so a failed run never leaves a half-written file. The ``.glb`` and the atlas
+are replaced as a pair (``swap_in_pair``): the old ``.glb`` is backed up first, and when a rename
+fails the earlier state is restored, so the folder holds the old pair or the new pair, never a mix.
+A process kill or power loss between the two renames is not covered (#115).
 """
 
 from __future__ import annotations
@@ -51,9 +54,11 @@ import argparse
 import json
 import math
 import os
+import shutil
 import struct
 import sys
 import zlib
+from collections.abc import Callable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -734,6 +739,70 @@ def _remove(path: Path) -> None:
         path.unlink()
 
 
+def swap_in_pair(
+    new_glb: Path,
+    glb: Path,
+    new_atlas: Path,
+    atlas: Path,
+    rename: Callable[[Path, Path], None] = os.replace,
+) -> None:
+    """Move ``new_glb`` to ``glb`` and ``new_atlas`` to ``atlas`` as a pair.
+
+    The old ``.glb`` is copied to a hidden backup first. If the ``.glb`` rename fails, nothing has
+    changed. If the atlas rename fails, the old ``.glb`` is restored from the backup, or on a first
+    run the new ``.glb`` is deleted, so the folder never holds a new ``.glb`` beside an old atlas.
+    If that rollback fails too, the backup is kept on disk and the error names it.
+
+    ``rename`` exists for the local unittest only; ``run()`` never passes it, so normal runs always
+    use ``os.replace``. Raises ``GeneratorError`` with a message that names the failed file.
+    """
+    backup = glb.with_name(f".{glb.stem}.bak.glb")
+    if backup.exists():
+        raise GeneratorError(
+            f"a backup from an earlier failed run exists: {backup}; "
+            f"restore it to {glb.name} or delete it, then run again"
+        )
+    had_old = glb.is_file()
+    keep_backup = False
+    try:
+        if had_old:
+            try:
+                # copyfile, not copy2: a read-only .glb must not give a read-only backup.
+                shutil.copyfile(glb, backup)
+            except OSError as error:
+                raise GeneratorError(f"could not back up {glb}: {error}") from error
+        try:
+            rename(new_glb, glb)
+        except OSError as error:
+            raise GeneratorError(
+                f"could not replace {glb}: {error}; the old pair is unchanged"
+            ) from error
+        try:
+            rename(new_atlas, atlas)
+        except OSError as error:
+            try:
+                if had_old:
+                    rename(backup, glb)
+                    undone = f"restored the old {glb.name}"
+                else:
+                    glb.unlink()
+                    undone = f"removed the new {glb.name}"
+            except OSError as rollback_error:
+                keep_backup = had_old
+                if had_old:
+                    kept = f"the old {glb.name} is kept as {backup}"
+                else:
+                    kept = f"the new {glb.name} is left without its atlas"
+                raise GeneratorError(
+                    f"could not replace {atlas}: {error}; the rollback of {glb} failed too: "
+                    f"{rollback_error}; {kept}"
+                ) from error
+            raise GeneratorError(f"could not replace {atlas}: {error}; {undone}") from error
+    finally:
+        if not keep_backup and backup.is_file():
+            backup.unlink()
+
+
 def run(argv: list[str]) -> None:
     args = parse_args(argv)
     params = load_params(args.params.resolve())
@@ -769,8 +838,7 @@ def run(argv: list[str]) -> None:
             with written.open("rb") as handle:
                 if handle.read(4) != magic:
                     raise GeneratorError(f"export wrote a broken file: {written}")
-        os.replace(tmp_glb, out)
-        os.replace(tmp_atlas, atlas_final)
+        swap_in_pair(tmp_glb, out, tmp_atlas, atlas_final)
     finally:
         _remove(tmp_glb)
         _remove(tmp_atlas)
