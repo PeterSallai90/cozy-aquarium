@@ -471,12 +471,17 @@ static func size_failures(mesh: Mesh) -> PackedStringArray:
 ## used to tell fins apart because the proof caudal's upper lobe tip rises above the body top.
 ## A centre-plane component may extend behind the tail end only if it starts within
 ## CAUDAL_ROOT_ZONE of the tail end (the caudal); any other one fails as non-caudal.
+## Welded keys only join vertices; every measurement uses the original vertex positions. Only
+## triangles with all three corners on the centre plane join a component, so a fin with a slightly
+## off-plane vertex can split into pieces, and a rear piece could pass as caudal.
 ## Known limits for #40:
 ## 1. A non-caudal fin welded to the caudal, or starting within CAUDAL_ROOT_ZONE of the tail end
 ##    (for example an adipose fin trailing behind the tail), counts as caudal and is not caught.
 ## 2. The strict rule fits the proof fish and short-finned tetras (neon, cardinal, rasbora, danio,
 ##    corydoras). Long-finned species (long-fin betta, fancy guppy, veil-tail, angelfish) have
-##    dorsal and anal tips trailing past the tail base and need a per-species rule.
+##    dorsal and anal tips trailing past the tail base and need a per-species rule. The rule's shape
+##    (domain-ba, #115): the fin base stays inside the body Z range and only the free tip may trail
+##    behind the tail, up to a stated per-species allowance.
 static func _fin_failures(
 	fins: PackedVector3Array, triangles: PackedInt32Array, body_box: AABB
 ) -> PackedStringArray:
@@ -560,7 +565,7 @@ static func _centre_components(
 		var point: Vector3 = fins[i]
 		if absf(point.x) > CENTRE_PLANE_X:
 			continue
-		var key: Vector3i = Vector3i(point / POSITION_SNAP + Vector3.ONE * 0.5)
+		var key: Vector3i = Vector3i((point / POSITION_SNAP).round())
 		keys[i] = key
 		if not parent.has(key):
 			parent[key] = key
@@ -574,10 +579,10 @@ static func _centre_components(
 			_union(parent, corners[0], corners[1])
 			_union(parent, corners[0], corners[2])
 	var groups: Dictionary = {}
-	for key: Vector3i in parent:
-		var root: Vector3i = _find(parent, key)
+	for index: int in keys:
+		var root: Vector3i = _find(parent, keys[index] as Vector3i)
 		var members: PackedVector3Array = groups.get(root, PackedVector3Array())
-		members.append(Vector3(key) * POSITION_SNAP)
+		members.append(fins[index])
 		groups[root] = members
 	var result: Array[PackedVector3Array] = []
 	for group: Variant in groups.values():
