@@ -72,7 +72,12 @@ TRES_FORBIDDEN = ("script", "shader", '.gd"', ".gdshader")
 KEY_VALUE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_/]* = .+")
 RES_REF_RE = re.compile(r"res://[^\"'\s,\]\)]+")
 SAFE_REF_RE = re.compile(r"[A-Za-z0-9_./-]+")
-OTHER_RESOURCE_EXTENSIONS = (".res", ".material", ".tscn", ".scn")
+TEXTURE_EXT_RE = re.compile(
+    r'\[ext_resource type="(Texture2D|CompressedTexture2D)"( uid="uid://[a-z0-9]+")?'
+    r' path="res://assets/[A-Za-z0-9_./-]+\.png"( id="[A-Za-z0-9_]+")?\]'
+)
+SECTION_RE = re.compile(r"\[[a-z_]+\]")
+SIDECAR_LINE_RE = re.compile(r"([A-Za-z0-9_./-]+)=(.*)")
 
 Reader = Callable[[str], bytes | None]
 
@@ -176,26 +181,57 @@ def plain_material_problem(data: bytes | None) -> str | None:
         return "material file is empty"
     if not any(lines[0].startswith(f'[gd_resource type="{t}"') for t in MATERIAL_TYPES):
         return "material file is not a StandardMaterial3D or ORMMaterial3D"
-    for line in lines:
-        if re.match(r"next_pass\s*=.*(ExtResource|SubResource)", line):
-            return "material file chains a next_pass resource"
+    for number, line in enumerate(lines):
+        if "next_pass" in line and re.fullmatch(r"next_pass = null", line) is None:
+            return "material file sets next_pass"
         if line.startswith("["):
             if line.startswith("[ext_resource "):
-                type_ok = any(f'type="{t}"' in line for t in TEXTURE_TYPES)
-                path_ok = re.search(r'path="res://assets/[^"]+\.png"', line) is not None
-                if not (type_ok and path_ok):
+                if TEXTURE_EXT_RE.fullmatch(line) is None:
                     return "material file has an ext_resource that is not a texture png"
-            elif not (line.startswith("[gd_resource ") or line == "[resource]"):
+                continue
+            if number == 0 and line.startswith("[gd_resource "):
+                pass
+            elif line != "[resource]":
                 return "material file has an unexpected section"
         elif KEY_VALUE_RE.fullmatch(line) is None:
             return "material file has a line that is not a section or key = value"
+        if "res://" in line or "uid://" in line:
+            return "material file references a resource outside its ext_resource lines"
     return None
 
 
 # --- R7: import sidecar ----------------------------------------------------------------------
 
 
+def bracket_depth(fragment: str) -> int:
+    """Net count of opening minus closing brackets outside double-quoted strings."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in fragment:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "{[(":
+            depth += 1
+        elif char in "}])":
+            depth -= 1
+    return depth
+
+
 def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
+    """None when the .import sidecar binds no script, shader or non-plain material.
+
+    The sidecar is parsed strictly: only the exact format Godot writes is accepted (sections,
+    unquoted keys without spaces, single-line values, no repeated keys). Anything else gates,
+    because Godot's parser accepts many more spellings than it writes.
+    """
     data = read_new(game_path + ".import")
     if data is None:
         return None
@@ -205,33 +241,65 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         return "import sidecar is not valid UTF-8"
-    for match in re.finditer(r"(?m)^import_script/path=(.*)$", text):
-        if match.group(1) != '""':
-            return "import sidecar sets import_script/path"
-    if game_path.endswith(".glb") and not re.search(r'(?m)^import_script/path=""$', text):
+    values: dict[tuple[str, str], str] = {}
+    section = ""
+    depth = 0
+    for line in text.split("\n"):
+        if depth > 0:
+            depth += bracket_depth(line)
+            if depth < 0:
+                return "import sidecar has unbalanced brackets"
+            continue
+        if not line:
+            continue
+        if SECTION_RE.fullmatch(line):
+            section = line
+            continue
+        match = SIDECAR_LINE_RE.fullmatch(line)
+        if match is None:
+            return "import sidecar has a line in an unexpected format"
+        key = (section, match.group(1))
+        if key in values:
+            return f"import sidecar repeats the key {match.group(1)}"
+        values[key] = match.group(2)
+        depth = bracket_depth(match.group(2))
+        if depth < 0:
+            return "import sidecar has unbalanced brackets"
+    if depth != 0:
+        return "import sidecar has unbalanced brackets"
+    exact = {"nodes/root_type": '""', "nodes/root_script": "null", "import_script/path": '""'}
+    for (_, name), value in values.items():
+        if name in exact and value != exact[name]:
+            return f"import sidecar sets {name}"
+    if game_path.endswith(".glb") and ("[params]", "import_script/path") not in values:
         return "import sidecar has no empty import_script/path"
-    for match in re.finditer(r"(?m)^nodes/root_script=(.*)$", text):
-        if match.group(1) != "null":
-            return "import sidecar sets nodes/root_script"
+    rest = text
+    for name, value in exact.items():
+        rest = re.sub(rf"(?m)^{re.escape(name)}={re.escape(value)}$", "", rest)
+    for word in ("root_type", "root_script", "import_script"):
+        if word in rest:
+            return f"import sidecar mentions {word} outside its exact line"
     if '.gd"' in text or ".gdshader" in text:
         return "import sidecar references a script or shader"
-    for match in re.finditer(r"(?m)^nodes/root_type=(.*)$", text):
-        if match.group(1) != '""':
-            return "import sidecar sets nodes/root_type"
-    if "uid://" in re.sub(r'(?m)^uid="uid://[^"\n]*"$', "", text):
+    rest = re.sub(r'(?m)^uid="uid://[^"\n]*"$', "", text)
+    if "uid://" in rest:
         return "import sidecar references a resource by uid"
+    own_source = "res://" + game_path[len("game/") :]
     for ref in RES_REF_RE.findall(text):
-        rel = ref[len("res://") :]
-        if rel.startswith(".godot/imported/"):
+        if ".." in ref:
+            return f"import sidecar has an unusual reference {ref}"
+        if ref.startswith("res://.godot/imported/") or ref == own_source:
             continue
-        if rel.endswith(OTHER_RESOURCE_EXTENSIONS):
-            return f"import sidecar references {ref}"
-        if rel.endswith(".tres"):
-            if SAFE_REF_RE.fullmatch(rel) is None or ".." in rel:
-                return f"import sidecar has an unusual reference {ref}"
+        rel = ref[len("res://") :]
+        if rel.endswith(".tres") and SAFE_REF_RE.fullmatch(rel) is not None:
             problem = plain_material_problem(read_new("game/" + rel))
             if problem is not None:
                 return f"import sidecar binds {ref}: {problem}"
+            continue
+        return f"import sidecar references {ref}"
+    leftovers = re.sub(RES_REF_RE, "", rest)
+    if "://" in leftovers:
+        return "import sidecar uses another resource scheme"
     return None
 
 
