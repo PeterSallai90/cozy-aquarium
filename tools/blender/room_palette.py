@@ -45,7 +45,7 @@ PALETTE: tuple[tuple[int, ...], ...] = (
     # row 0: warm brown woods, dark to light (cells 4 to 7 are a spare lighter ramp)
     (0x2E1C14, 0x5E3A28, 0x6E4430, 0x7C4D34, 0x93603F, 0xA8744E, 0xBE8C63, 0xD3A87F),
     # row 1: room (wall, floor, skirting, slab edge), then a spare dusk ramp
-    (0x463A5C, 0x33262C, 0x6A5D7E, 0x241A20, 0x2E2640, 0x3A3150, 0x584C70, 0x7A6E92),
+    (0x5A4A78, 0x3E2E36, 0x7A6C90, 0x2A1E26, 0x2E2640, 0x3A3150, 0x584C70, 0x7A6E92),
     # row 2: tank trim, lamp, brass knob, glass, then spare neutrals
     (0x18181D, 0x26262C, 0x34343C, 0xB8875C, 0xBFDCD2, 0x4A4A52, 0x6E6E76, 0x9A9AA2),
     # rows 3 to 6: spare ramps (unused in #22, kept so a new cell needs no new atlas size)
