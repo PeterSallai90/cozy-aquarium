@@ -1,5 +1,6 @@
 extends GdUnitTestSuite
 
+const Api := preload("res://tests/helpers/late_api.gd")
 const Factory := preload("res://tests/helpers/factory.gd")
 const ModelState := preload("res://tests/helpers/model_state.gd")
 const SignalRecorder := preload("res://tests/helpers/signal_recorder.gd")
@@ -171,7 +172,7 @@ func test_reentrant_execute_from_model_signal_handler_during_undo_rejected() -> 
 	assert_array(_inner_results).is_equal([false])
 	assert_int(_history.get_undo_count()).is_equal(0)
 	assert_int(_history.get_redo_count()).is_equal(1)
-	assert_that(_model.get_tank_id()).is_equal(&"")
+	assert_that(_model.get_tank_id()).is_equal(Api.default_tank_id())
 
 
 func test_reentrant_undo_during_undo_rejected() -> void:

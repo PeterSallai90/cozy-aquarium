@@ -1,6 +1,7 @@
 # gdlint: disable=max-public-methods
 extends GdUnitTestSuite
 
+const Api := preload("res://tests/helpers/late_api.gd")
 const Factory := preload("res://tests/helpers/factory.gd")
 const ModelState := preload("res://tests/helpers/model_state.gd")
 const SignalRecorder := preload("res://tests/helpers/signal_recorder.gd")
@@ -96,13 +97,24 @@ func test_fish_instance_copy_copies_every_field() -> void:
 func test_new_model_defaults() -> void:
 	var model: AquariumModel = _model()
 	assert_str(model.get_aquarium_name()).is_equal("")
-	assert_that(model.get_tank_id()).is_equal(&"")
+	assert_that(model.get_tank_id()).is_equal(Api.default_tank_id())
 	assert_that(model.get_substrate_id()).is_equal(&"")
 	assert_that(model.get_substrate_colour()).is_equal(Color.WHITE)
 	assert_int(model.get_heightmap().size()).is_equal(0)
 	assert_that(model.get_heightmap_size()).is_equal(Vector2i.ZERO)
 	assert_int(model.get_item_count()).is_equal(0)
 	assert_int(model.get_fish_count()).is_equal(0)
+
+
+func test_ac03_default_tank_id_constant_is_the_medium_tank() -> void:
+	assert_that(Api.default_tank_id()).is_equal(&"tank_medium_60l")
+	assert_that(_model().get_tank_id()).is_equal(&"tank_medium_60l")
+
+
+func test_ac03_every_new_model_starts_with_the_default_tank_id() -> void:
+	var first: AquariumModel = _model()
+	first.apply_set_tank_id(&"tank_other")
+	assert_that(_model().get_tank_id()).is_equal(Api.default_tank_id())
 
 
 func test_new_model_timestamps_injected() -> void:
