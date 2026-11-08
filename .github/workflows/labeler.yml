@@ -2,13 +2,19 @@ name: Labeler
 
 # Called by owner-gate.yml so the owner gate reads the labels only after labeling finished.
 # Labels added with GITHUB_TOKEN do not trigger other workflows, so this workflow calls
-# notify-owner.yml itself when it adds needs:owner.
+# notify-owner.yml itself when needs:owner gets added.
+#
+# The path rules (.github/labeler.yml) and the licence-log classifier are read from the base
+# commit, so a pull request cannot edit the rules that judge it. The pull request itself is only
+# ever read as git data (git show at the merge base and the head commit): its files are never
+# checked out, imported or executed. Labels are sticky: nothing here removes needs:owner.
 on:
   workflow_call:
 
 permissions: {}
 
 jobs:
+  # Path rules, read from the base commit.
   label:
     runs-on: ubuntu-latest
     permissions:
@@ -17,15 +23,119 @@ jobs:
     outputs:
       new-labels: ${{ steps.labeler.outputs.new-labels }}
     steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
       - id: labeler
         uses: actions/labeler@v7.0.0
         with:
-          configuration-path: .github/labeler.yml
+          # actions/labeler reads a configuration file that exists locally and only falls back
+          # to the API (merge commit of the pull request) when it does not.
+          configuration-path: base/.github/labeler.yml
           sync-labels: false
 
-  notify:
+  # Licence-log classifier, run from the base commit with read-only permissions. Fails safe:
+  # every outcome except an explicit exempt or unchanged result is the verdict "gate".
+  classify:
     needs: label
-    if: contains(format(',{0},', needs.label.outputs.new-labels), ',needs:owner,')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      verdict: ${{ steps.classify.outputs.verdict }}
+    steps:
+      # Full history so the merge base exists. The token stays in the git config of this
+      # read-only checkout so the head commit can be fetched; only base code runs here.
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          fetch-depth: 0
+          lfs: false
+      - id: classify
+        working-directory: base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          verdict=gate
+          script=tools/scripts/classify_asset_license_change.py
+          {
+            echo "### Licence log classifier"
+            if [ ! -f "$script" ]; then
+              echo "No classifier at the base commit: gate."
+            elif ! git fetch --no-tags origin "$HEAD_SHA"; then
+              echo "Could not fetch the head commit: gate."
+            elif ! merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")" || [ -z "$merge_base" ]; then
+              echo "No merge base: gate."
+            else
+              output="$(python3 "$script" --repo . --old "$merge_base" --new "$HEAD_SHA")"
+              code=$?
+              echo '```'
+              echo "$output"
+              echo "exit code: $code"
+              echo '```'
+              if [ "$code" -eq 0 ] && echo "$output" | grep -qx 'RESULT: exempt'; then
+                verdict=exempt
+              elif [ "$code" -eq 0 ] && echo "$output" | grep -qx 'RESULT: unchanged'; then
+                verdict=unchanged
+              fi
+            fi
+            echo "Verdict: $verdict"
+          } >> "$GITHUB_STEP_SUMMARY" 2>&1
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+          exit 0
+
+  # Only ever ADDS needs:owner; no checkout, no pull request code.
+  apply:
+    needs: [label, classify]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    outputs:
+      added: ${{ steps.apply.outputs.added }}
+    steps:
+      - id: apply
+        uses: actions/github-script@v9.0.0
+        env:
+          VERDICT: ${{ needs.classify.outputs.verdict }}
+        with:
+          script: |
+            core.setOutput('added', 'false');
+            const verdict = process.env.VERDICT;
+            if (verdict === 'exempt' || verdict === 'unchanged') {
+              core.info(`Classifier verdict: ${verdict}; no label added.`);
+              return;
+            }
+            const number = context.payload.pull_request.number;
+            const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              per_page: 100,
+            });
+            if (labels.some((label) => label.name === 'needs:owner')) {
+              core.info('needs:owner is already set.');
+              return;
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              labels: ['needs:owner'],
+            });
+            core.setOutput('added', 'true');
+            core.info(`Verdict "${verdict || '(none)'}": added needs:owner.`);
+
+  # Notifies once per label add: when the path rules added the label, apply sees it and adds nothing.
+  notify:
+    needs: [label, apply]
+    if: always() && (contains(format(',{0},', needs.label.outputs.new-labels), ',needs:owner,') || needs.apply.outputs.added == 'true')
     uses: ./.github/workflows/notify-owner.yml
     permissions:
       issues: write

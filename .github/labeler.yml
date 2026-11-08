@@ -1,4 +1,8 @@
 # Path rules for actions/labeler: changes to these paths need the product owner (owner gate).
+# The workflow reads this file from the base commit, so a pull request cannot edit the rules that
+# judge it. docs/asset-licenses.md is not listed: tools/scripts/classify_asset_license_change.py
+# judges it and adds needs:owner unless the change is only exempt rows (own-project data files).
+# The classifier, the licence check and their tests are gated here because the gate relies on them.
 needs:owner:
   - changed-files:
       - any-glob-to-any-file:
@@ -8,4 +12,7 @@ needs:owner:
           - .github/labeler.yml
           - game/project.godot
           - docs/adr/**
-          - docs/asset-licenses.md
+          - tools/scripts/classify_asset_license_change.py
+          - tools/scripts/test_classify_asset_license_change.py
+          - tools/scripts/check_asset_licenses.py
+          - tools/scripts/test_check_asset_licenses.py

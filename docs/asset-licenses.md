@@ -9,6 +9,19 @@ one row per file. An addon (each folder directly in `game/addons/`) needs one ro
 folder, for example `addons/gdUnit4/`; a loose file directly in `game/addons/` needs its own row. A
 row covers only the exact path it names.
 
+Owner gate rules (`tools/scripts/classify_asset_license_change.py`): adding or removing a row skips
+the owner gate only when it is an exempt row. An own row has the author `Cozy Aquarium (AI, this
+project)`, the license `MIT (this project)`, a Source that starts with ``Generated in-house by
+`tools/...` `` (the generator must exist) or `Hand-written in this project` and cites no
+third-party input (no URL, license or copyright text, or named asset site), a Link to an issue or
+pull request of this repository and an `Added` date. An own data file is one quoted path under
+`assets/` ending in `.glb`, `.png`, `.ogg`, `.wav`, `.mp3`, or a `.tres` that is a plain
+StandardMaterial3D or ORMMaterial3D (no script, shader or sub-resource); an added file whose
+`.import` file binds a script, a shader or a non-plain material is not exempt. An exempt row is an
+own row of an own data file. Every other edit gates: any third-party row, any edit of a third-party
+row, changing a row from own to third-party or back, and every change outside single table rows
+(text, header, row order, whitespace, line endings). Anything the classifier cannot read also gates.
+
 | File | Source | Author | License | Link | Added |
 | --- | --- | --- | --- | --- | --- |
 | `addons/gdUnit4/` | GdUnit4 v6.2.2, tag archive `https://github.com/godot-gdunit-labs/gdUnit4/archive/refs/tags/v6.2.2.zip` (sha256 `ddb44730ffb9cd77fd70d283753450759b00c5016143d7572bf63625f64d5433`) | Mike Schulze (godot-gdunit-labs) | MIT, confirmed from the shipped `addons/gdUnit4/LICENSE` ("Copyright (c) 2023 Mike Schulze"). Bundled third-party parts: none found (no other LICENSE/NOTICE files, fonts or libraries; the 9 PNGs are GdUnit4's own images; `GdUnit4CSharpApi.cs` is MIT, same author). Only the HTML report template links jQuery 3.6.4 (MIT) from code.jquery.com, which is not bundled. | https://github.com/godot-gdunit-labs/gdUnit4/releases/tag/v6.2.2 | 2026-11-01 |

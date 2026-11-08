@@ -102,10 +102,13 @@ feature/<issue> ──PR──▶ develop ──release PR──▶ main
 
 **Owner gate:** a required check that fails while a pull request has the `needs:owner` label without the `owner-approved` label. `needs:owner` is set in two ways:
 
-- automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `.github/labeler.yml` (the path rules themselves), `game/project.godot`, `docs/adr/` (Godot version) and `docs/asset-licenses.md` (new assets);
+- automatically by path rules, for changes to `CLAUDE.md`, `.claude/`, `.github/workflows/`, `.github/labeler.yml` (the path rules themselves), `game/project.godot`, `docs/adr/` (Godot version), and the files the gate itself relies on: `tools/scripts/classify_asset_license_change.py`, `check_asset_licenses.py` and their tests;
+- automatically by a classifier for `docs/asset-licenses.md`: `tools/scripts/classify_asset_license_change.py` compares the licence log at the merge base and at the head commit. A change made only of rows for own-project data files (generated in-house or hand-written `.glb`, `.png`, `.ogg`, `.wav`, `.mp3` files and plain StandardMaterial3D `.tres` files, with no third-party input and no script or custom shader binding) skips the gate. Any third-party row, any edited or removed third-party row, and any edit outside single table rows (text, header, order) adds `needs:owner`, and so does anything the classifier cannot read (fail safe). The rules are in `docs/asset-licenses.md`;
 - by the developer, technical artist or code reviewer for visible look-and-feel changes, which paths alone cannot detect.
 
-Known limit: the labeler and the owner gate run on the `pull_request` event, so a pull request is checked by its own version of `owner-gate.yml`, `labeler.yml` and `.github/labeler.yml`. Those paths are gated themselves, and the code reviewer checks any change to them with extra care; review such pull requests closely before adding `owner-approved`.
+The path rules (`.github/labeler.yml`) and the classifier are read from the base commit, so a pull request cannot edit the rules that judge it; the pull request content is only read as git data and never checked out or run, and a missing classifier at the base commit means the gate applies. The label step only ever adds `needs:owner`, never removes it. `pull_request_target` was rejected for the gate: the pull request that switches the trigger would get no owner-gate run, it is not verified that the required check accepts such a run, and it would put a write token next to pull request data.
+
+Known limit: the labeler and the owner gate run on the `pull_request` event, so a pull request is still checked by its own version of `owner-gate.yml` and `labeler.yml` (the workflow files). Those paths are gated themselves, and the code reviewer checks any change to them with extra care; review such pull requests closely before adding `owner-approved`. Changing the bytes of a file in `game/assets/` or `game/addons/` without touching its licence row is not gated.
 
 To let a gated pull request through, add the `owner-approved` label (GitHub does not let you approve pull requests that your own account opened, and the agents act as your account). Agents never add `owner-approved`, never merge into `main`, and never change rulesets; `CLAUDE.md` states this and the Claude Code permission settings deny it.
 
@@ -134,7 +137,8 @@ All created by backlog item B43 in one pull request, which is gated (`needs:owne
 | `.claude/settings.json` | Default model for the main session, permission allow and deny rules, hook registration |
 | `.claude/hooks/require_review.py` | Blocks `gh pr create` without a current review approval |
 | `CLAUDE.md`, Orchestrator section | Flows, escalation triggers, digest format, one-issue-at-a-time rule |
-| `.github/labeler.yml` and `.github/workflows/labeler.yml` | Path rules that add `needs:owner` |
+| `.github/labeler.yml` and `.github/workflows/labeler.yml` | Path rules and licence-log classifier step that add `needs:owner` (rules and classifier read from the base commit) |
+| `tools/scripts/classify_asset_license_change.py` | Decides whether a licence-log change is only exempt own-project data rows |
 | `.github/workflows/owner-gate.yml` | The owner gate check |
 | `.github/workflows/notify-owner.yml` | Bot comment that notifies you |
 | `.github/workflows/prerelease.yml` | `develop-latest` Windows pre-release |
@@ -435,7 +439,7 @@ Ambient water, bubbles, filter hum, soft UI sounds and calm music come from CC0 
 
 ### Asset license log
 
-Every file in `game/assets/` and every addon in `game/addons/` gets a row in `docs/asset-licenses.md` in the same pull request that adds it, whether generated in-house or third-party. CI fails if a file in `game/assets/` or an addon folder or file in `game/addons/` has no matching row.
+Every file in `game/assets/` and every addon in `game/addons/` gets a row in `docs/asset-licenses.md` in the same pull request that adds it, whether generated in-house or third-party. CI fails if a file in `game/assets/` or an addon folder or file in `game/addons/` has no matching row. Adding or removing a row for an own-project data file does not need the owner; every other change to the log does (see Owner gate).
 
 | File | Source | Author | License | Link | Added |
 | --- | --- | --- | --- | --- | --- |
@@ -1069,7 +1073,7 @@ The AI team setup (backlog B43) adds four small workflows around these two:
 | --- | --- | --- |
 | prerelease.yml | Push to `develop`, after CI succeeded | Takes the Windows build of that CI run and replaces the GitHub pre-release `develop-latest` with the new zip |
 | owner-gate.yml | Pull request opened, updated, edited (base branch changed), labeled or unlabeled | Runs labeler.yml first, then the required check: fails for pull requests into `main` without `owner-approved`, and for pull requests into `develop` that have `needs:owner` without `owner-approved` |
-| labeler.yml | Called by owner-gate.yml | Adds `needs:owner` when the change touches gated paths (see AI team → Branches and gates), and calls notify-owner.yml when it does |
+| labeler.yml | Called by owner-gate.yml | Adds `needs:owner` when the change touches gated paths or the licence-log classifier says gate (see AI team → Branches and gates), reading rules and classifier from the base commit, and calls notify-owner.yml once when it adds the label |
 | notify-owner.yml | `needs:decision` or `needs:owner` added | Posts a bot comment that @mentions you, so GitHub notifies you |
 
 All builds run on Ubuntu runners: Godot exports Windows, Linux and macOS builds from Linux, which is faster and cheaper than Windows runners. The macOS build is unsigned, which itch.io allows; players must right-click → Open the first time.
@@ -1208,6 +1212,7 @@ This table records where each file is specified and which step or issue creates 
 | `.github/workflows/ci.yml` | Lint, test, Windows build | CI/CD pipelines | Backlog issue 3 | Claude Code |
 | `game/export_presets.cfg` | Windows, Linux, macOS export presets | CI/CD pipelines | Backlog issue 3 | Claude Code |
 | `tools/scripts/check_translations.py`, `check_asset_licenses.py` | CI checks for translation keys and asset licenses | CI/CD pipelines | Backlog issue 3 | Claude Code |
+| `tools/scripts/classify_asset_license_change.py` and its test | Classifier for licence-log changes (owner gate) | AI team → Branches and gates | Issue #122 | Claude Code |
 | `tools/scripts/generate_pot.py` | Generates `game/localization/messages.pot` from the translation keys in scripts, scenes and catalog | Unicode, localization and fonts | Backlog issue 7 (#18, PR #73) | Claude Code |
 | `tools/scripts/check_project_settings.py` | Pre-commit check that `game/project.godot` keeps the settings the editor would drop | GitHub repository setup | Issue #80 (PR #83) | Claude Code |
 | `tools/scripts/check_godot_log.py` | CI gate that fails an import, test or export step on unexplained engine output (leaks, engine errors and warnings, output outside a test case) | CI/CD pipelines | Issues #88 (PR #89) and #93 | Claude Code |
