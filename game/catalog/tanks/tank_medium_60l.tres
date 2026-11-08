@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="TankDefinition" format=3]
+
+[ext_resource type="Script" path="res://catalog/tank_definition.gd" id="1_def"]
+[ext_resource type="PackedScene" path="res://scenes/tank/tank_medium_60l.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"tank_medium_60l"
+name_key = "tank.medium_60l.name"
+description_key = "tank.medium_60l.description"
+scene = ExtResource("2_scene")
+interior_size_m = Vector3(0.6, 0.35, 0.3)
+volume_litres = 60
+glass_thickness_m = 0.005
+water_line_height_m = 0.33
+empty_weight_kg = 8.0
+heat_loss_factor = 1.0
+evaporation_l_per_day = 0.5
+heater_slots = 1
+filter_slots = 1
+light_slots = 1
+recommended_heater_watts = 50
+recommended_filter_lph = 240
+has_lid = false

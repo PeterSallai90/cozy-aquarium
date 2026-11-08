@@ -23,8 +23,11 @@ signal fish_added(uid: String, index: int)
 signal fish_removed(uid: String, index: int)
 signal fish_changed(uid: String, index: int)
 
+## The tank a new aquarium starts with (a catalog id).
+const DEFAULT_TANK_ID: StringName = &"tank_medium_60l"
+
 var _aquarium_name: String = ""
-var _tank_id: StringName = &""
+var _tank_id: StringName = DEFAULT_TANK_ID
 var _substrate_id: StringName = &""
 var _substrate_colour: Color = Color.WHITE
 var _heightmap: PackedFloat32Array = PackedFloat32Array()

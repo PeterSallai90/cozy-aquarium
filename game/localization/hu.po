@@ -27,3 +27,9 @@ msgstr "Nyelv"
 
 msgid "settings.title"
 msgstr "Beállítások"
+
+msgid "tank.medium_60l.description"
+msgstr "Hangulatos 60 literes akvárium egy kis közösségnek."
+
+msgid "tank.medium_60l.name"
+msgstr "Közepes akvárium"

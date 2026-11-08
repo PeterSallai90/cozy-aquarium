@@ -26,3 +26,9 @@ msgstr ""
 
 msgid "settings.title"
 msgstr ""
+
+msgid "tank.medium_60l.description"
+msgstr ""
+
+msgid "tank.medium_60l.name"
+msgstr ""

@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/room/room_corner.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/room/room_corner.glb" id="2_room"]
+[ext_resource type="PackedScene" path="res://assets/room/cabinet.glb" id="3_cabinet"]
+[ext_resource type="PackedScene" path="res://scenes/room/lamp.tscn" id="4_lamp"]
+[ext_resource type="Environment" path="res://scenes/room/room_environment.tres" id="5_env"]
+
+[node name="RoomCorner" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Room" parent="." instance=ExtResource("2_room")]
+
+[node name="Cabinet" parent="." instance=ExtResource("3_cabinet")]
+
+[node name="Lamp" parent="." instance=ExtResource("4_lamp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.115, -0.03)
+
+[node name="PlaceholderCamera" type="Camera3D" parent="."]
+current = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("5_env")
