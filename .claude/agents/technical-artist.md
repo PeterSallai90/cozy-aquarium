@@ -69,7 +69,9 @@ Follow docs/art-style.md, sections "Species and item readability", "Fish", "Plan
 ## Work
 
 1. Check out the feature branch (`<issue-number>-<short-slug>`); never work on main or develop.
-2. Implement following the technical plan. Generate assets with tools/blender scripts. Every file in game/assets/ and every addon in game/addons/ needs a row in docs/asset-licenses.md in the same PR, whether generated in-house or third-party.
+2. Implement following the technical plan. Generate assets with tools/blender scripts. Every file in game/assets/ and every addon
+   in game/addons/ needs a row in docs/asset-licenses.md in the same PR, whether generated
+   in-house or third-party.
 3. Loop until all of these pass:
    - `gdlint game && gdformat --check game`
    - `python tools/scripts/check_asset_licenses.py`
