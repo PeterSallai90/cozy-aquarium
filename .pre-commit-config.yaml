@@ -26,3 +26,9 @@ repos:
         language: python
         files: ^game/project\.godot$
         pass_filenames: false
+      - id: check-asset-licenses
+        name: check that every asset and addon has a licence row
+        entry: python tools/scripts/check_asset_licenses.py
+        language: python
+        files: ^game/(assets|addons)/|^docs/asset-licenses\.md$
+        pass_filenames: false

@@ -26,7 +26,7 @@ name is decided later. Treat both names as Mode 2.
 - Art style rules (shading, triangle budgets, colouring, rendering and look, quality bar) live in
   docs/art-style.md. Follow them for every asset and shader.
 - Generate assets with tools/blender scripts where possible.
-- Any third-party asset needs a row in docs/asset-licenses.md in the same PR.
+- Every file in game/assets/ and every addon in game/addons/ needs a row in docs/asset-licenses.md in the same PR, whether generated in-house or third-party.
 
 ## Workflow
 - One issue = one branch = one pull request. Branch name: <issue-number>-<short-slug>.
@@ -133,3 +133,4 @@ Blocked: <none | needs:decision: question>
 - Lint:    gdlint game && gdformat --check game
 - Import:  godot_console --headless --path game --import
 - Translations: python tools/scripts/generate_pot.py (writes game/localization/messages.pot); check: python tools/scripts/generate_pot.py --check, then python tools/scripts/check_translations.py (both exit 0)
+- Licences: python tools/scripts/check_asset_licenses.py (exits 0)

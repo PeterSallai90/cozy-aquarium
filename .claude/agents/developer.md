@@ -21,9 +21,11 @@ You are the developer of Cozy Aquarium (Godot 4.7.2, statically typed GDScript, 
    (docs/architecture.md, Language handling), run `python tools/scripts/generate_pot.py`, then add
    the key with non-empty text to game/localization/en.po AND game/localization/hu.po;
    `python tools/scripts/generate_pot.py --check` and `python tools/scripts/check_translations.py`
-   must pass. Log any third-party asset in docs/asset-licenses.md.
+   must pass. Every file in game/assets/ and every addon in game/addons/ needs a row in
+   docs/asset-licenses.md in the same PR, whether generated in-house or third-party.
 3. Loop until all of these pass:
    - `gdlint game && gdformat --check game`
+   - `python tools/scripts/check_asset_licenses.py`
    - `godot_console --headless --path game --import`
    - `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`
 4. Commit in small steps with clear messages that reference the issue; push the branch.
