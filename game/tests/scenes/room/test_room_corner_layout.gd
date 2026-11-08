@@ -1,0 +1,255 @@
+# gdlint: disable=max-public-methods
+extends GdUnitTestSuite
+## #22 criteria 7, 10, 11, 12 (key light position) and 15 on the composed room (spans
+## technical-artist and developer files). Room space = Node3D local space.
+
+const Glb := preload("res://tests/helpers/glb_mesh_checks.gd")
+const Checks := preload("res://tests/helpers/proof_fish_checks.gd")
+const Api := preload("res://tests/helpers/late_api.gd")
+const Rig := preload("res://tests/helpers/room_rig.gd")
+const EngineOutput := preload("res://tests/helpers/engine_output.gd")
+
+const MM := 0.001
+
+
+func _room() -> Node3D:
+	(
+		assert_bool(ResourceLoader.exists(Rig.ROOM_SCENE))
+		. override_failure_message("room scene missing: %s" % Rig.ROOM_SCENE)
+		. is_true()
+	)
+	var room: Node3D = Rig.instantiate(AquariumModel.new(), Rig.default_catalog())
+	add_child(room)
+	return auto_free(room)
+
+
+func _mesh(root: Node, wanted: String) -> MeshInstance3D:
+	var instance: MeshInstance3D = Glb.find_mesh(root, wanted)
+	assert_object(instance).override_failure_message("mesh %s missing" % wanted).is_not_null()
+	return instance
+
+
+func _room_box(room: Node3D, root_name: String, wanted: String) -> AABB:
+	var instance: MeshInstance3D = _mesh(room.get_node(root_name), wanted)
+	if instance == null:
+		return AABB()
+	return Glb.bounds_in(instance, room)
+
+
+func _tank_box(room: Node3D, root_path: String, wanted: String) -> AABB:
+	var instance: MeshInstance3D = _mesh(room.get_node(root_path), wanted)
+	if instance == null:
+		return AABB()
+	return Checks.bounds(Rig.vertices_in_tank(room, instance))
+
+
+# --- AC 7 ---
+
+
+func test_ac07_cabinet_top_height_constant_is_075() -> void:
+	assert_float(Api.room_constant("CABINET_TOP_HEIGHT_M")).is_equal_approx(0.75, 0.00001)
+
+
+func test_ac07_tank_root_sits_at_cabinet_top_plus_glass_thickness() -> void:
+	var room: Node3D = _room()
+	var tank: Node3D = room.get_node("Tank") as Node3D
+	var glass: float = Rig.glass_m()
+	assert_float(tank.position.y).is_equal_approx(
+		Api.room_constant("CABINET_TOP_HEIGHT_M") + glass, MM
+	)
+	assert_float(tank.position.x).is_equal_approx(0.0, MM)
+	assert_float(tank.position.z).is_equal_approx(0.0, MM)
+
+
+func test_ac07_tank_bottom_rests_on_the_cabinet_top() -> void:
+	var room: Node3D = _room()
+	var cabinet: AABB = Glb.scene_bounds_in(room.get_node("Cabinet") as Node3D, room)
+	var glass: AABB = _room_box(room, "Tank", "Glass")
+	assert_float(glass.position.y).is_equal_approx(cabinet.end.y, MM)
+
+
+func test_ac07_cabinet_top_is_at_the_constant() -> void:
+	var room: Node3D = _room()
+	var cabinet: AABB = Glb.scene_bounds_in(room.get_node("Cabinet") as Node3D, room)
+	assert_float(cabinet.end.y).is_equal_approx(Api.room_constant("CABINET_TOP_HEIGHT_M"), MM)
+
+
+func test_ac07_tank_footprint_lies_inside_the_cabinet_footprint() -> void:
+	var room: Node3D = _room()
+	var cabinet: AABB = Glb.scene_bounds_in(room.get_node("Cabinet") as Node3D, room)
+	for wanted: String in ["Glass", "Frame"]:
+		var part: AABB = _room_box(room, "Tank", wanted)
+		assert_float(part.position.x).is_greater_equal(cabinet.position.x)
+		assert_float(part.end.x).is_less_equal(cabinet.end.x)
+		assert_float(part.position.z).is_greater_equal(cabinet.position.z)
+		assert_float(part.end.z).is_less_equal(cabinet.end.z)
+
+
+func test_ac07_cabinet_stands_on_the_floor_surface() -> void:
+	var room: Node3D = _room()
+	var cabinet: AABB = Glb.scene_bounds_in(room.get_node("Cabinet") as Node3D, room)
+	var floor_box: AABB = _room_box(room, "Room", "Floor")
+	assert_float(cabinet.position.y).is_equal_approx(floor_box.end.y, MM)
+
+
+func test_ac07_gap_between_cabinet_back_and_wall_is_2_to_5_cm() -> void:
+	var room: Node3D = _room()
+	var cabinet: AABB = Glb.scene_bounds_in(room.get_node("Cabinet") as Node3D, room)
+	var wall: AABB = _room_box(room, "Room", "BackWall")
+	assert_float(cabinet.position.z - wall.end.z).is_between(0.02 - MM, 0.05 + MM)
+
+
+func test_ac07_nothing_is_below_the_floor_slab_and_only_the_slab_below_the_floor_surface() -> void:
+	var room: Node3D = _room()
+	var floor_box: AABB = _room_box(room, "Room", "Floor")
+	assert_float(floor_box.size.y).is_greater_equal(0.01)
+	for instance: MeshInstance3D in Glb.mesh_instances(room):
+		var box: AABB = Glb.bounds_in(instance, room)
+		assert_float(box.position.y).is_greater_equal(floor_box.position.y - MM)
+		if instance.name != &"Floor":
+			(
+				assert_float(box.position.y)
+				. override_failure_message("%s reaches below the floor surface" % instance.name)
+				. is_greater_equal(floor_box.end.y - MM)
+			)
+
+
+func test_main_scene_instances_the_room_corner() -> void:
+	var scene: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var main: Node = scene.instantiate()
+	var corner: Node = main.get_node_or_null("RoomCorner")
+	assert_object(corner).is_not_null()
+	if corner != null:
+		assert_str(corner.scene_file_path).is_equal("res://scenes/room/room_corner.tscn")
+	main.free()
+
+
+# --- AC 10 in tank space ---
+
+
+func test_ac10_lamp_nodes_exist_under_the_lamp_root() -> void:
+	var room: Node3D = _room()
+	assert_object(room.get_node_or_null("Lamp/lamp")).is_instanceof(MeshInstance3D)
+	assert_object(room.get_node_or_null("Lamp/lamp_brackets")).is_instanceof(MeshInstance3D)
+	assert_object(room.get_node_or_null("Tank/lamp_mount")).is_instanceof(Marker3D)
+
+
+func test_ac10_lamp_is_placed_at_the_lamp_mount() -> void:
+	var room: Node3D = _room()
+	var mount: Node3D = room.get_node("Tank/lamp_mount") as Node3D
+	var lamp: Node3D = room.get_node("Lamp") as Node3D
+	assert_vector(lamp.global_position).is_equal_approx(mount.global_position, Vector3.ONE * MM)
+
+
+func test_ac10_bar_is_058_by_006_and_its_lowest_point_is_at_or_above_the_trim_top() -> void:
+	var room: Node3D = _room()
+	var bar: AABB = _tank_box(room, "Lamp", "lamp")
+	assert_float(bar.size.x).is_equal_approx(0.58, MM)
+	assert_float(bar.size.z).is_equal_approx(0.06, MM)
+	assert_float(bar.position.y).is_greater_equal(0.36 - MM)
+
+
+func test_ac10_bar_has_no_front_skirt_it_stays_within_the_tank_depth() -> void:
+	var room: Node3D = _room()
+	var whole: AABB = Glb.scene_bounds_in(room.get_node("Lamp") as Node3D, room)
+	assert_float(whole.size.z).is_less_equal(0.06 + MM)
+
+
+func test_ac10_brackets_rest_on_the_trim_top() -> void:
+	var room: Node3D = _room()
+	var brackets: AABB = _tank_box(room, "Lamp", "lamp_brackets")
+	assert_float(brackets.position.y).is_equal_approx(0.36, MM)
+	assert_float(brackets.end.x).is_less_equal(0.305 + MM)
+	assert_float(brackets.position.x).is_greater_equal(-0.305 - MM)
+
+
+# --- AC 11 ---
+
+
+func test_ac11_rays_from_the_camera_to_the_water_line_grid_miss_the_lamp() -> void:
+	var room: Node3D = _room()
+	var tank: Node3D = room.get_node("Tank") as Node3D
+	var camera: Camera3D = room.get_node("PlaceholderCamera") as Camera3D
+	var boxes: Array[AABB] = [
+		_room_box(room, "Lamp", "lamp"),
+		_room_box(room, "Lamp", "lamp_brackets"),
+	]
+	var half_x: float = Rig.interior_m().x / 2.0
+	var half_z: float = Rig.interior_m().z / 2.0
+	var hits: int = 0
+	for column: int in 3:
+		for row: int in 3:
+			var local: Vector3 = Vector3(
+				(column - 1) * half_x, Rig.water_line_m(), (row - 1) * half_z
+			)
+			var target: Vector3 = tank.transform * local
+			for box: AABB in boxes:
+				if box.intersects_segment(camera.global_position, target):
+					hits += 1
+	assert_int(hits).is_equal(0)
+
+
+# --- AC 12: key light above the tank ---
+
+
+func test_ac12_key_light_is_inside_the_tank_footprint_and_above_the_trim() -> void:
+	var room: Node3D = _room()
+	var tank: Node3D = room.get_node("Tank") as Node3D
+	var light: SpotLight3D = room.get_node("Lamp/KeyLight") as SpotLight3D
+	var local: Vector3 = tank.transform.affine_inverse() * light.global_position
+	assert_float(absf(local.x)).is_less_equal(0.305)
+	assert_float(absf(local.z)).is_less_equal(0.155 + 0.06)
+	assert_float(local.y).is_greater_equal(0.36 - MM)
+
+
+# --- AC 15 ---
+
+
+func _hide_and_check(root_name: String) -> void:
+	var room: Node3D = _room()
+	var tank: Node3D = room.get_node("Tank") as Node3D
+	var before: Transform3D = tank.transform
+	var seen: Dictionary = await EngineOutput.capture(
+		func() -> void: (room.get_node(root_name) as Node3D).visible = false
+	)
+	assert_dict(seen["errors"]).is_empty()
+	assert_dict(seen["warnings"]).is_empty()
+	assert_bool(tank.transform.is_equal_approx(before)).is_true()
+	assert_bool(tank.is_visible_in_tree()).is_true()
+	assert_bool((room.get_node(root_name) as Node3D).is_visible_in_tree()).is_false()
+	var light: SpotLight3D = room.get_node("Lamp/KeyLight") as SpotLight3D
+	assert_bool(light.is_visible_in_tree()).is_equal(root_name != "Lamp")
+
+
+func test_ac15_hiding_room_keeps_the_tank_and_the_key_light() -> void:
+	await _hide_and_check("Room")
+
+
+func test_ac15_hiding_cabinet_keeps_the_tank_and_the_key_light() -> void:
+	await _hide_and_check("Cabinet")
+
+
+func test_ac15_hiding_lamp_hides_the_lamp_and_its_light_but_not_the_tank() -> void:
+	await _hide_and_check("Lamp")
+
+
+func test_ac15_hiding_lamp_hides_the_bar_and_brackets() -> void:
+	var room: Node3D = _room()
+	(room.get_node("Lamp") as Node3D).visible = false
+	assert_bool((room.get_node("Lamp/lamp") as Node3D).is_visible_in_tree()).is_false()
+	assert_bool((room.get_node("Lamp/lamp_brackets") as Node3D).is_visible_in_tree()).is_false()
+
+
+func test_ac15_the_camera_is_not_under_a_hideable_root() -> void:
+	var room: Node3D = _room()
+	var camera: Node = room.get_node("PlaceholderCamera")
+	assert_object(camera.get_parent()).is_same(room)
+	for root_name: String in ["Room", "Cabinet", "Lamp"]:
+		assert_bool(room.get_node(root_name).is_ancestor_of(camera)).is_false()
+
+
+func test_ac15_hiding_all_three_roots_leaves_the_tank_visible() -> void:
+	var room: Node3D = _room()
+	for root_name: String in ["Room", "Cabinet", "Lamp"]:
+		(room.get_node(root_name) as Node3D).visible = false
+	assert_bool((room.get_node("Tank") as Node3D).is_visible_in_tree()).is_true()

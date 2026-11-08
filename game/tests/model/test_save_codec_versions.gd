@@ -1,5 +1,6 @@
 extends GdUnitTestSuite
 
+const Api := preload("res://tests/helpers/late_api.gd")
 const ModelState := preload("res://tests/helpers/model_state.gd")
 const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 
@@ -229,6 +230,14 @@ func test_golden_v1_loads_expected_model() -> void:
 	assert_dict(ModelState.snapshot_8bit(SaveFixtures.model_of(result))).is_equal(
 		ModelState.snapshot_8bit(expected)
 	)
+
+
+func test_ac03_decoded_golden_file_keeps_its_own_tank_id_not_the_default() -> void:
+	var bytes: PackedByteArray = SaveFixtures.read_bytes(SaveFixtures.GOLDEN_PATH)
+	var model: AquariumModel = SaveFixtures.model_of(SaveCodec.new().decode_bytes(bytes, NOW))
+	assert_that(model.get_tank_id()).is_equal(&"tank_60")
+	assert_that(Api.default_tank_id()).is_equal(&"tank_medium_60l")
+	assert_that(model.get_tank_id()).is_not_equal(Api.default_tank_id())
 
 
 func test_golden_v1_pins_little_endian_heightmap() -> void:

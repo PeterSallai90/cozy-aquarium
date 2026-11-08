@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://7ym8p2ucg0pj" path="res://assets/tank/tank_medium_60l.glb" id="1_glb"]
+
+[node name="TankMedium60l" instance=ExtResource("1_glb")]
+
+[node name="Glass" parent="." index="1"]
+cast_shadow = 0
+
+[node name="WaterVolume" type="Node3D" parent="." index="2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.165, 0)
+
+[node name="SubstrateAnchor" type="Marker3D" parent="." index="3"]
+
+[node name="lamp_mount" type="Marker3D" parent="." index="4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, -0.03)
