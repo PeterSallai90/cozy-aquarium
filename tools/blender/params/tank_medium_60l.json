@@ -1,0 +1,8 @@
+{
+  "interior_length_m": 0.6,
+  "interior_height_m": 0.35,
+  "interior_depth_m": 0.3,
+  "glass_thickness_m": 0.005,
+  "trim_width_m": 0.01,
+  "trim_height_m": 0.01
+}
