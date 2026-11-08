@@ -36,7 +36,9 @@ Check at least:
   scrutiny: a pull request is checked by its own version of these files, so a weakened gate
   must be caught here;
 - correctness, edge cases, performance, readability;
-- run the checks yourself: `gdlint game && gdformat --check game` and the full test suite
+- run the checks yourself: `gdlint game && gdformat --check game`,
+  `python tools/scripts/generate_pot.py --check`, `python tools/scripts/check_translations.py`
+  and the full test suite
   `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`,
   and for issues that touch game/assets/, game/addons/ or docs/asset-licenses.md also
   `python tools/scripts/check_asset_licenses.py`.

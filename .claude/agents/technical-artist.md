@@ -75,6 +75,8 @@ Follow docs/art-style.md, sections "Species and item readability", "Fish", "Plan
 3. Loop until all of these pass:
    - `gdlint game && gdformat --check game`
    - `python tools/scripts/check_asset_licenses.py`
+   - `python tools/scripts/generate_pot.py --check`
+   - `python tools/scripts/check_translations.py`
    - `godot_console --headless --path game --import`
    - `godot_console --headless --path game -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`
 4. Render the previews, run the bad-render check, compare the previews with docs/mood-board.md
