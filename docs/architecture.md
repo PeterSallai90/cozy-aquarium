@@ -309,14 +309,14 @@ The build camera behaves like a person walking around a real tank on a cabinet: 
 | Parameter | Starting value | Notes |
 | --- | --- | --- |
 | Pivot | Centre of the tank's water volume | Can be panned within the tank's footprint, never outside it |
-| Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action |
+| Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action; 85% up to 16:9, wider screens keep the 16:9 framing ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)) |
 | Horizontal orbit | Full 360° | Back and side views allowed |
 | Elevation, minimum | −10° | "Crouching by the cabinet"; plus a hard rule: camera height never below the cabinet top |
 | Elevation, maximum | 85° | Near top-down; 90° avoided to prevent the view flipping |
 | Zoom distance | 0.6× to 2.5× the default distance | Scaled by tank size |
 | Collision | Camera never enters the glass, the cabinet or room geometry | Sphere cast from pivot to camera; camera is pulled in when blocked |
 | Smoothing | Damped interpolation, about 0.15 s | Toggle in settings for players sensitive to motion |
-| Field of view | 50° | Adjustable 40–70° in settings |
+| Field of view | 50° | Horizontal angle at 16:9 ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)); adjustable 40–70° in settings |
 
 **Controls (mouse and keyboard):** right-drag orbits, mouse wheel zooms, middle-drag pans, `Home` resets to the front view, `Q`/`E` orbit in 45° steps, `R`/`F` raise and lower elevation. Left mouse stays reserved for selecting and placing items. All bindings are remappable.
 
