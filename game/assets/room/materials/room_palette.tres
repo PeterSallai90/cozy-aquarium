@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" uid="uid://ck2quutgkmq6v" path="res://shaders/palette_atlas.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" uid="uid://eup6c41o7oj" path="res://assets/room/room_palette_atlas.png" id="2_atlas"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/palette_atlas = ExtResource("2_atlas")
+shader_parameter/roughness = 0.75
+shader_parameter/specular_amount = 0.5
+shader_parameter/emission_from_v = 0.875
+shader_parameter/emission_energy = 3.0
