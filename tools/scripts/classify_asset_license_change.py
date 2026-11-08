@@ -177,6 +177,8 @@ def plain_material_problem(data: bytes | None) -> str | None:
     if not any(lines[0].startswith(f'[gd_resource type="{t}"') for t in MATERIAL_TYPES):
         return "material file is not a StandardMaterial3D or ORMMaterial3D"
     for line in lines:
+        if re.match(r"next_pass\s*=.*(ExtResource|SubResource)", line):
+            return "material file chains a next_pass resource"
         if line.startswith("["):
             if line.startswith("[ext_resource "):
                 type_ok = any(f'type="{t}"' in line for t in TEXTURE_TYPES)
@@ -213,6 +215,11 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
             return "import sidecar sets nodes/root_script"
     if '.gd"' in text or ".gdshader" in text:
         return "import sidecar references a script or shader"
+    for match in re.finditer(r"(?m)^nodes/root_type=(.*)$", text):
+        if match.group(1) != '""':
+            return "import sidecar sets nodes/root_type"
+    if "uid://" in re.sub(r'(?m)^uid="uid://[^"\n]*"$', "", text):
+        return "import sidecar references a resource by uid"
     for ref in RES_REF_RE.findall(text):
         rel = ref[len("res://") :]
         if rel.startswith(".godot/imported/"):
