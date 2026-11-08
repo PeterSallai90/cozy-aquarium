@@ -640,6 +640,10 @@ class TestImportSidecar(ClassifierCase):
         path = f"assets/test/new_file{ext}"
         files: dict[str, bytes | str] = {path: b"data"}
         if sidecar is not None:
+            if isinstance(sidecar, str):
+                sidecar = re.sub(
+                    r'(?m)^source_file="res://[^"]*"$', f'source_file="res://{path}"', sidecar
+                )
             files[path + ".import"] = sidecar
         files.update(extra)
         return self.add_row(own_row(path), files)
@@ -763,6 +767,77 @@ class TestImportSidecar(ClassifierCase):
         absent = sidecar.replace('nodes/root_type=""\n', "")
         self.assertNotEqual(absent, sidecar)
         self.assert_exempt(self.sidecar_verdict(absent))
+
+    def test_review2_formatting_variants_of_script_keys_gate(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        keys = {
+            "nodes/root_type": ('nodes/root_type=""', '"FishBody"'),
+            "nodes/root_script": ("nodes/root_script=null", 'Resource("SomeScript")'),
+            "import_script/path": ('import_script/path=""', '"some_script"'),
+        }
+        for key, (original, bad) in keys.items():
+            self.assertIn(original, sidecar)
+            variants = {
+                "spaces around equals": sidecar.replace(original, f"{key} = {bad}"),
+                "space before equals": sidecar.replace(original, f"{key} ={bad}"),
+                "space after equals": sidecar.replace(original, f"{key}= {bad}"),
+                "leading whitespace": sidecar.replace(original, f" {key}={bad}"),
+                "leading tab": sidecar.replace(original, f"{chr(9)}{key}={bad}"),
+                "quoted key": sidecar.replace(original, f'"{key}"={bad}'),
+                "later line after allowed empty": sidecar + f"{key} ={bad}" + chr(10),
+                "later line without spaces": sidecar + f"{key}={bad}" + chr(10),
+            }
+            for name, changed in variants.items():
+                with self.subTest(key=key, variant=name):
+                    self.assertNotEqual(changed, sidecar)
+                    self.assert_gate(self.sidecar_verdict(changed))
+
+    def test_review2_script_resource_values_with_formatting_variants_gate(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        value = 'Resource("res://assets/test/s.gd")'
+        original = "nodes/root_script=null"
+        for line in (
+            f"nodes/root_script = {value}",
+            f" nodes/root_script={value}",
+            f'"nodes/root_script"={value}',
+        ):
+            with self.subTest(line=line):
+                self.assert_gate(self.sidecar_verdict(sidecar.replace(original, line)))
+
+    def test_review2_allowlist_gates_unknown_res_references(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        original = "nodes/root_script=null"
+        cases = {
+            "root_script anim": sidecar.replace(
+                original, 'nodes/root_script = Resource("res://assets/test/s.anim")'
+            ),
+            "root_script anim, plain form": sidecar.replace(
+                original, 'nodes/root_script=Resource("res://assets/test/s.anim")'
+            ),
+            "bin in an extra key": sidecar + 'extra="res://assets/test/x.bin"' + chr(10),
+            "bin in a dict": sidecar + '_extra={"a": "res://assets/test/x.bin"}' + chr(10),
+            "bin in an array": sidecar + 'list=["res://assets/test/x.bin"]' + chr(10),
+            "extensionless": sidecar + 'extra="res://assets/test/x"' + chr(10),
+            "uppercase tres": sidecar + 'extra="res://assets/test/x.TRES"' + chr(10),
+            "other source_file": sidecar.replace(
+                "res://assets/fish/proof_fish.glb", "res://assets/test/other.glb"
+            ),
+        }
+        for name, changed in cases.items():
+            with self.subTest(case=name):
+                self.assertNotEqual(changed, sidecar)
+                self.assert_gate(self.sidecar_verdict(changed))
+
+    def test_review2_allowlist_keeps_import_files_and_plain_materials_exempt(self) -> None:
+        glass = (REPO_ROOT / "game/assets/tank/materials/glass_placeholder.tres").read_bytes()
+        mat = "assets/tank/materials/glass_placeholder.tres"
+        cabinet = self.real_sidecar("room/cabinet.glb.import").replace(
+            "res://assets/room/materials/room_palette.tres", "res://" + mat
+        )
+        self.assert_exempt(self.sidecar_verdict(cabinet, **{mat: glass}))
+        self.assert_exempt(self.sidecar_verdict(self.real_sidecar("fish/proof_fish.glb.import")))
+        png = self.real_sidecar("fish/proof_palette_atlas.png.import")
+        self.assert_exempt(self.sidecar_verdict(png, ".png"))
 
     def test_r7_audio_sidecar_with_script_gates(self) -> None:
         sidecar = 'importer="wav"\nimport_script/path="res://x.gd"\n'
