@@ -612,6 +612,15 @@ class TestPlainMaterial(ClassifierCase):
             with self.subTest(case=name):
                 self.assert_gate(self.tres_verdict(content), name)
 
+    def test_review3_next_pass_gates(self) -> None:
+        cases = {
+            "ext_resource": PLAIN_TRES + 'next_pass = ExtResource("1_np")' + chr(10),
+            "sub_resource": PLAIN_TRES + 'next_pass = SubResource("m_1")' + chr(10),
+        }
+        for name, content in cases.items():
+            with self.subTest(case=name):
+                self.assert_gate(self.tres_verdict(content), name)
+
     def test_ac7_ext_resource_that_is_not_a_texture_png_gates(self) -> None:
         cases = {
             "wrong type": TEXTURE_TRES.replace('type="Texture2D"', 'type="Material"'),
@@ -694,6 +703,66 @@ class TestImportSidecar(ClassifierCase):
         for ref in ("res://assets/test/s.tscn", "res://assets/test/s.scn"):
             with self.subTest(ref=ref):
                 self.assert_gate(self.sidecar_verdict(sidecar + f'extra_ref="{ref}"\n'))
+
+    def test_review1_uid_only_external_material_gates(self) -> None:
+        palette = (REPO_ROOT / "game/assets/room/materials/room_palette.tres").read_bytes()
+        mat = "assets/room/materials/room_palette.tres"
+        cabinet = self.real_sidecar("room/cabinet.glb.import")
+        uid_only = cabinet.replace(
+            '"use_external/fallback_path": "res://assets/room/materials/room_palette.tres",\n',
+            "",
+        ).replace(
+            '"use_external/path": "res://assets/room/materials/room_palette.tres"',
+            '"use_external/path": "uid://ck2quutgkmq6v"',
+        )
+        self.assertIn("uid://ck2quutgkmq6v", uid_only)
+        self.assertNotIn("room_palette.tres", uid_only)
+        for ext in (".glb", ".png"):
+            with self.subTest(ext=ext):
+                self.assert_gate(self.sidecar_verdict(uid_only, ext, **{mat: palette}))
+
+    def test_review1_uid_external_material_pointing_at_a_plain_material_still_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import") + (
+            '_subresources={"materials": {"m": {"use_external/path": "uid://abc123"}}}\n'
+        )
+        self.assert_gate(self.sidecar_verdict(sidecar))
+
+    def test_review1_any_uid_outside_the_remap_uid_line_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        for extra in (
+            'custom_ref="uid://abc123"',
+            "custom_ref=uid://abc123",
+            'dest_uid="uid://abc123"',
+            'other/uid="uid://abc123"',
+        ):
+            with self.subTest(extra=extra):
+                self.assert_gate(self.sidecar_verdict(sidecar + extra + "\n"))
+
+    def test_review1_remap_uid_line_alone_stays_exempt(self) -> None:
+        for name, ext in (
+            ("fish/proof_fish.glb.import", ".glb"),
+            ("fish/proof_palette_atlas.png.import", ".png"),
+        ):
+            with self.subTest(sidecar=name):
+                sidecar = self.real_sidecar(name)
+                self.assertRegex(sidecar, r'(?m)^uid="uid://[a-z0-9]+"$')
+                self.assert_exempt(self.sidecar_verdict(sidecar, ext))
+
+    def test_review2_non_empty_root_type_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        for value in ("FishBody", "FishBody (fish_body.gd)", "Node3D"):
+            with self.subTest(root_type=value):
+                changed = sidecar.replace('nodes/root_type=""', f'nodes/root_type="{value}"')
+                self.assertNotEqual(changed, sidecar)
+                self.assert_gate(self.sidecar_verdict(changed))
+
+    def test_review2_empty_or_absent_root_type_stays_exempt(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        self.assertIn('nodes/root_type=""', sidecar)
+        self.assert_exempt(self.sidecar_verdict(sidecar))
+        absent = sidecar.replace('nodes/root_type=""\n', "")
+        self.assertNotEqual(absent, sidecar)
+        self.assert_exempt(self.sidecar_verdict(absent))
 
     def test_r7_audio_sidecar_with_script_gates(self) -> None:
         sidecar = 'importer="wav"\nimport_script/path="res://x.gd"\n'
