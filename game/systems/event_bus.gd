@@ -16,6 +16,8 @@ signal command_redone(command: Command)
 signal history_changed(can_undo: bool, can_redo: bool)
 signal language_changed(language: String)
 signal setting_changed(section: String, key: String, value: Variant)
+## Emitted by the room after it has swapped the tank; an empty id means no tank is shown.
+signal tank_displayed(tank_id: StringName)
 
 var _history: CommandHistory = null
 
