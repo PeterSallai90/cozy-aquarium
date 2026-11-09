@@ -154,18 +154,18 @@ func test_ac04_tank_changed_is_emitted_once_with_the_new_id() -> void:
 func test_ac04_tank_changed_comes_last_when_the_contents_are_already_gone() -> void:
 	var model: AquariumModel = _furnished()
 	var seen: Array = []
-	model.tank_changed.connect(
-		func(_id: StringName) -> void:
-			seen.append(
-				[
-					model.get_item_count(),
-					model.get_fish_count(),
-					model.get_heightmap().size(),
-					model.get_heightmap_size()
-				]
-			)
-	)
+	var on_tank_changed: Callable = func(_id: StringName) -> void:
+		seen.append(
+			[
+				model.get_item_count(),
+				model.get_fish_count(),
+				model.get_heightmap().size(),
+				model.get_heightmap_size()
+			]
+		)
+	model.tank_changed.connect(on_tank_changed)
 	_change(model, Table.LARGE)
+	model.tank_changed.disconnect(on_tank_changed)
 	assert_array(seen).is_equal([[0, 0, 0, Vector2i.ZERO]])
 
 

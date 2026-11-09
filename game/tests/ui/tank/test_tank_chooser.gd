@@ -12,6 +12,8 @@ const Table := preload("res://tests/helpers/tank_table.gd")
 const Recorder := preload("res://tests/helpers/signal_recorder.gd")
 const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 
+const WINDOW := Vector2i(1280, 720)
+
 var _saved_locale: String = ""
 var _model: AquariumModel = null
 var _catalog: RefCounted = null
@@ -33,12 +35,14 @@ func after_test() -> void:
 
 
 ## Builds the room and the controls; false (and a failed assert) while the scene is missing.
-func _build(model: AquariumModel = null, catalog: RefCounted = null) -> bool:
+func _build(model: AquariumModel = null, catalog: RefCounted = null, parent: Node = null) -> bool:
 	if model != null:
 		_model = model
 	if catalog != null:
 		_catalog = catalog
-	var rig: Dictionary = await Ui.open(self, _model, _catalog, _history)
+	var rig: Dictionary = await Ui.open(
+		parent if parent != null else self, _model, _catalog, _history
+	)
 	_room = rig["room"]
 	_controls = rig["controls"]
 	auto_free(_room)
@@ -52,8 +56,8 @@ func _build(model: AquariumModel = null, catalog: RefCounted = null) -> bool:
 	return _controls != null
 
 
-func _open_chooser() -> bool:
-	if not await _build():
+func _open_chooser(parent: Node = null) -> bool:
+	if not await _build(null, null, parent):
 		return false
 	await Ui.open_chooser(self, _controls)
 	(
@@ -426,8 +430,19 @@ func test_ac18_picking_medium_while_the_model_holds_an_unknown_id_runs_the_comma
 	assert_that(_model.get_tank_id()).is_equal(Table.MEDIUM)
 	assert_int(_history.get_undo_count()).is_equal(1)
 	assert_bool(Ui.is_open(_controls)).is_false()
-	_history.undo()
+	var undo_seen: Dictionary = await EngineOutput.capture(func() -> void: _history.undo())
 	assert_that(_model.get_tank_id()).is_equal(&"tank_from_the_future")
+	(
+		assert_dict(undo_seen["warnings"])
+		. is_equal(
+			{
+				'RoomCorner: unknown tank id "tank_from_the_future"; showing the default tank "tank_medium_1"':
+				1
+			}
+		)
+	)
+	assert_dict(undo_seen["errors"]).is_empty()
+	assert_that(Rig.displayed_id(_room)).is_equal(Table.MEDIUM)
 
 
 func test_ac18_picking_another_tank_while_the_model_holds_an_unknown_id_works_the_same_way(
@@ -555,10 +570,23 @@ func test_ac20_after_a_pick_the_focus_returns_to_the_change_tank_button() -> voi
 	assert_object(Ui.focus_owner(_controls)).is_same(Ui.change_button(_controls))
 
 
+## A 1280x720 SubViewport below the suite, so layout checks work headless.
+func _window() -> SubViewport:
+	var viewport: SubViewport = SubViewport.new()
+	viewport.size = WINDOW
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(auto_free(viewport))
+	return viewport
+
+
 func test_ac20_the_chooser_is_non_modal_no_big_control_swallows_mouse_input() -> void:
-	if not await _open_chooser():
+	var viewport: SubViewport = _window()
+	var holder: Node = Node.new()
+	viewport.add_child(holder)
+	if not await _open_chooser(holder):
 		return
 	var screen: Rect2 = _controls.get_viewport().get_visible_rect()
+	assert_vector(screen.size).is_equal(Vector2(WINDOW))
 	for node: Node in _controls.find_children("*", "Control", true, false):
 		var control: Control = node as Control
 		if not control.is_visible_in_tree() or control.mouse_filter != Control.MOUSE_FILTER_STOP:
