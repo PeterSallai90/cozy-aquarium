@@ -309,7 +309,7 @@ The build camera behaves like a person walking around a real tank on a cabinet: 
 | Parameter | Starting value | Notes |
 | --- | --- | --- |
 | Pivot | Centre of the tank's water volume | Can be panned within the tank's footprint, never outside it |
-| Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action; 85% up to 16:9, wider screens keep the 16:9 framing ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)) |
+| Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action; 85% up to 16:9, wider screens keep the 16:9 framing ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)); a tank too tall for 85% (the small tank, about 77% at 16:9) is framed so that the tank, its trim and the cabinet front edge stay on screen ([ADR 0006](adr/0006-default-framing-vertical-fit.md)) |
 | Horizontal orbit | Full 360° | Back and side views allowed |
 | Elevation, minimum | −10° | "Crouching by the cabinet"; plus a hard rule: camera height never below the cabinet top |
 | Elevation, maximum | 85° | Near top-down; 90° avoided to prevent the view flipping |

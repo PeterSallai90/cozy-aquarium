@@ -1,6 +1,7 @@
 # ADR 0005: Camera field of view reference and default framing
 
-- Status: Proposed (accepted when the #22 pull request merges)
+- Status: Accepted (#22 merged); rule 3 amended by
+  [ADR 0006](0006-default-framing-vertical-fit.md) (vertical fit for tall tanks, #24)
 - Date: 2026-11-08
 - Decision log reference: none (D7 is unchanged); clarifies the "Default view" and "Field of view"
   rows of the camera specification in docs/architecture.md
@@ -41,7 +42,9 @@ fill 85% of the width and stay fully on screen, whatever field of view is chosen
    trim is not counted) and `s` is the width share (0.85). At aspect ratios up to 16:9 the front
    glass then fills exactly `s` of the screen width, measured between the front corners at pivot
    height; above 16:9 it fills `s·(16/9)/aspect` (64.8% at 21:9). The formula is a pure function in
-   `game/systems/camera/camera_framing.gd`; the starting values are named constants.
+   `game/systems/camera/camera_framing.gd`; the starting values are named constants. Amended by
+   [ADR 0006](0006-default-framing-vertical-fit.md): the distance is the larger of this width
+   distance and the distance that keeps the tank, its trim and the cabinet front edge on screen.
 
 ## Alternatives considered
 
