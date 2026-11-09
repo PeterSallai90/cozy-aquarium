@@ -1051,6 +1051,144 @@ class TestImportSidecar(ClassifierCase):
             with self.subTest(ext=ext):
                 self.assert_gate(self.sidecar_verdict(sidecar, ext))
 
+    # ---- review round 4: comments and whole-string material paths ----
+
+    FISH_BODY = '{"nodes": {"PATH:Body": {"node/node_type": "FishBody"}}}'
+    PALETTE_PATH = "res://assets/room/materials/room_palette.tres"
+    PLAIN_PATH = "assets/test/plain.tres"
+
+    def test_review4_semicolon_bracket_comment_hiding_a_key_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        hidden = (
+            "gltf/texture_map_mode=1 ; [\n"
+            f"_subresources={self.FISH_BODY}\n"
+            "; ]\n"
+        )
+        with_empty = sidecar.replace("_subresources={}\n", "").replace(
+            "gltf/texture_map_mode=1\n", hidden
+        )
+        self.assertNotEqual(with_empty, sidecar)
+        self.assert_gate(self.sidecar_verdict(with_empty))
+        keep_line = sidecar.replace("gltf/texture_map_mode=1\n", hidden)
+        self.assertIn("_subresources={}", keep_line)
+        self.assert_gate(self.sidecar_verdict(keep_line))
+
+    def test_review4_any_comment_outside_a_string_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        cases = {
+            "semicolon comment line": "; just a comment\n",
+            "hash comment line": "# just a comment\n",
+            "trailing semicolon": "gltf/naming_version=2 ; note\n",
+            "trailing hash": "gltf/naming_version=2 # note\n",
+        }
+        for name, text in cases.items():
+            with self.subTest(name=name):
+                if text.startswith("gltf/"):
+                    changed = sidecar.replace("gltf/naming_version=2\n", text)
+                else:
+                    changed = sidecar.replace("[params]\n", "[params]\n" + text)
+                self.assertNotEqual(changed, sidecar)
+                self.assert_gate(self.sidecar_verdict(changed))
+                self.assert_gate(self.sidecar_verdict(sidecar + text))
+
+    def test_review4_comment_marker_inside_a_string_stays_exempt(self) -> None:
+        mat = self.PLAIN_GLASS
+        entry = f'{{"use_external/enabled": true, "use_external/path": "res://{mat}"}}'
+        value = '{"materials": {"a;b#c": ' + entry + "}}"
+        sidecar = self.with_subresources(value)
+        self.assert_exempt(self.sidecar_verdict(sidecar, **{mat: self.glass_bytes()}))
+
+    def test_review4_multi_line_value_on_another_key_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        cases = {
+            "dict": 'gltf/naming_version={\n"a": 1\n}\n',
+            "array": "gltf/naming_version=[\n2\n]\n",
+        }
+        for name, text in cases.items():
+            with self.subTest(name=name):
+                changed = sidecar.replace("gltf/naming_version=2\n", text)
+                self.assertNotEqual(changed, sidecar)
+                self.assert_gate(self.sidecar_verdict(changed))
+
+    def test_review4_multi_line_subresources_stays_exempt(self) -> None:
+        mat = self.PLAIN_GLASS
+        entry = f'{{\n"use_external/enabled": true,\n"use_external/path": "res://{mat}"\n}}'
+        value = '{\n"materials": {\n"glass": ' + entry + "\n}\n}"
+        sidecar = self.with_subresources(value)
+        self.assert_exempt(self.sidecar_verdict(sidecar, **{mat: self.glass_bytes()}))
+
+    def cabinet_with(self, path: str, fallback: str | None = None) -> str:
+        sidecar = self.real_sidecar("room/cabinet.glb.import")
+        pal = self.PALETTE_PATH
+        sidecar = sidecar.replace(
+            f'"use_external/path": "{pal}"', f'"use_external/path": "{path}"'
+        ).replace(
+            f'"use_external/fallback_path": "{pal}"',
+            f'"use_external/fallback_path": "{fallback if fallback is not None else path}"',
+        )
+        self.assertNotIn(pal, sidecar)
+        return sidecar
+
+    def test_review4_material_path_with_trailing_junk_after_a_plain_name_gates(self) -> None:
+        palette = (REPO_ROOT / "game/assets/room/materials/room_palette.tres").read_bytes()
+        plain = self.glass_bytes()
+        for junk in (")", " ", "'", ",", "]"):
+            evil = f"assets/test/plain.tres{junk}evil.tres"
+            files = {self.PLAIN_PATH: plain, evil: palette}
+            for key in ("path", "fallback_path"):
+                with self.subTest(junk=junk, key=key):
+                    bad = f"res://{evil}"
+                    good = "res://" + self.PLAIN_PATH
+                    if key == "path":
+                        sidecar = self.cabinet_with(bad, good)
+                    else:
+                        sidecar = self.cabinet_with(good, bad)
+                    self.assert_gate(self.sidecar_verdict(sidecar, **files))
+
+    def test_review4_remap_path_with_trailing_junk_gates(self) -> None:
+        plain = self.glass_bytes()
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        for junk in (")", " ", "'", ",", "]"):
+            with self.subTest(junk=junk):
+                changed = sidecar.replace(
+                    'path="res://.godot/imported/',
+                    f'path="res://{self.PLAIN_PATH}{junk}evil.scn" #',
+                    1,
+                )
+                self.assertNotEqual(changed, sidecar)
+                self.assert_gate(self.sidecar_verdict(changed, **{self.PLAIN_PATH: plain}))
+                changed = sidecar.replace(
+                    'path="res://.godot/imported/proof_fish',
+                    f'path="res://{self.PLAIN_PATH}{junk}evil.scn"\nx="proof_fish',
+                    1,
+                )
+                self.assert_gate(self.sidecar_verdict(changed, **{self.PLAIN_PATH: plain}))
+
+    def test_review4_material_path_into_godot_imported_gates(self) -> None:
+        evil = "res://.godot/imported/evil.tres"
+        palette = (REPO_ROOT / "game/assets/room/materials/room_palette.tres").read_bytes()
+        files = {".godot/imported/evil.tres": palette}
+        self.assert_gate(self.sidecar_verdict(self.cabinet_with(evil), **files))
+        good = "res://" + self.PLAIN_PATH
+        self.assert_gate(self.sidecar_verdict(self.cabinet_with(good, evil), **files))
+
+    def test_review4_material_path_with_dot_dot_gates(self) -> None:
+        plain = self.glass_bytes()
+        sneaky = "res://assets/test/../test/plain.tres"
+        files = {self.PLAIN_PATH: plain}
+        self.assert_gate(self.sidecar_verdict(self.cabinet_with(sneaky), **files))
+
+    def test_review4_counter_cases_stay_exempt(self) -> None:
+        plain = self.glass_bytes()
+        mat = "assets/tank/materials/glass_placeholder.tres"
+        cabinet = self.cabinet_with("res://" + mat)
+        self.assert_exempt(self.sidecar_verdict(cabinet, **{mat: plain}))
+        empty_path = self.cabinet_with("", "res://" + mat)
+        self.assert_exempt(self.sidecar_verdict(empty_path, **{mat: plain}))
+        self.assert_exempt(self.sidecar_verdict(self.real_sidecar("fish/proof_fish.glb.import")))
+        png = self.real_sidecar("fish/proof_palette_atlas.png.import")
+        self.assert_exempt(self.sidecar_verdict(png, ".png"))
+
 
 class TestRevisionRead(ClassifierCase):
     """R8 and AC4: added rows read head, deleted .tres rows read the old revision."""
