@@ -12,6 +12,8 @@ const CATALOG_PATH := "res://catalog/tank_catalog.gd"
 const FRAMING_PATH := "res://systems/camera/camera_framing.gd"
 const ROOM_SCRIPT_PATH := "res://scenes/room/room_corner.gd"
 const MODEL_PATH := "res://model/aquarium_model.gd"
+const FailingCommand := preload("res://tests/helpers/commands/failing_command.gd")
+const CHANGE_TANK_PATH := "res://model/change_tank_command.gd"
 const MISSING: StringName = &"<missing>"
 ## Stand-in for a number of a missing class: a value no assertion in the suites accepts. NAN is
 ## not used because GdUnit4 float asserts let NaN pass.
@@ -108,3 +110,34 @@ static func camera_position(pivot: Vector3, distance: float, elevation: float) -
 	if script == null:
 		return Vector3.ONE * MISSING_NUMBER
 	return script.call("camera_position", pivot, distance, elevation)
+
+
+# --- ChangeTankCommand (#24) ---
+
+
+static func change_tank_exists() -> bool:
+	return _script(CHANGE_TANK_PATH) != null
+
+
+## A ChangeTankCommand for the model, or, while the class is missing, a command whose do() fails.
+static func change_tank(model: AquariumModel, catalog: RefCounted, tank_id: StringName) -> Command:
+	var script: GDScript = _script(CHANGE_TANK_PATH)
+	if script == null:
+		return FailingCommand.new(model)
+	return script.new(model, catalog, tank_id) as Command
+
+
+## ChangeTankCommand.would_clear(model); null while the class is missing.
+static func would_clear(model: AquariumModel) -> Variant:
+	var script: GDScript = _script(CHANGE_TANK_PATH)
+	if script == null:
+		return null
+	return script.call("would_clear", model)
+
+
+## ChangeTankCommand.is_heightmap_flat(model); null while the class is missing.
+static func is_heightmap_flat(model: AquariumModel) -> Variant:
+	var script: GDScript = _script(CHANGE_TANK_PATH)
+	if script == null:
+		return null
+	return script.call("is_heightmap_flat", model)

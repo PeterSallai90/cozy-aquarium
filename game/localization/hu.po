@@ -28,8 +28,44 @@ msgstr "Nyelv"
 msgid "settings.title"
 msgstr "Beállítások"
 
-msgid "tank.medium_60l.description"
-msgstr "Hangulatos 60 literes akvárium egy kis közösségnek."
+msgid "tank.change.body"
+msgstr "A(z) %s akváriumra váltás mindent kiüríti ebből az akváriumból: dekorációt, növényeket, halakat és a homok formáját."
 
-msgid "tank.medium_60l.name"
+msgid "tank.change.cancel"
+msgstr "Mégse"
+
+msgid "tank.change.confirm"
+msgstr "Csere"
+
+msgid "tank.change.title"
+msgstr "Akvárium cseréje?"
+
+msgid "tank.chooser.current"
+msgstr "Használatban"
+
+msgid "tank.chooser.open"
+msgstr "Akvárium cseréje"
+
+msgid "tank.chooser.title"
+msgstr "Válaszd ki az akváriumot"
+
+msgid "tank.large_1.description"
+msgstr "Tágas akvárium egy nagy, élénk közösségnek."
+
+msgid "tank.large_1.name"
+msgstr "Nagy akvárium"
+
+msgid "tank.medium_1.description"
+msgstr "Hangulatos, kiegyensúlyozott akvárium egy kis közösségnek."
+
+msgid "tank.medium_1.name"
 msgstr "Közepes akvárium"
+
+msgid "tank.small_1.description"
+msgstr "Kicsi, csendes akvárium néhány apró halnak."
+
+msgid "tank.small_1.name"
+msgstr "Kis akvárium"
+
+msgid "unit.litre"
+msgstr "%s l"

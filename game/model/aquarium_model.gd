@@ -24,7 +24,7 @@ signal fish_removed(uid: String, index: int)
 signal fish_changed(uid: String, index: int)
 
 ## The tank a new aquarium starts with (a catalog id).
-const DEFAULT_TANK_ID: StringName = &"tank_medium_60l"
+const DEFAULT_TANK_ID: StringName = &"tank_medium_1"
 
 var _aquarium_name: String = ""
 var _tank_id: StringName = DEFAULT_TANK_ID

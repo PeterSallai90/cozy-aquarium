@@ -283,8 +283,11 @@ static func asset_failures(glb_path: String) -> PackedStringArray:
 
 
 ## Interior, exterior, height and base of the tank glb against the given interior size (x length,
-## y height, z depth) and glass thickness, all in metres, tolerance 1 mm.
-static func tank_failures(root: Node3D, interior: Vector3, glass: float) -> PackedStringArray:
+## y height, z depth), glass thickness and trim size (width and height), all in metres, tolerance
+## 1 mm.
+static func tank_failures(
+	root: Node3D, interior: Vector3, glass: float, trim_size: float = 0.01
+) -> PackedStringArray:
 	var failures: PackedStringArray = PackedStringArray()
 	var frame: MeshInstance3D = find_mesh(root, "Frame")
 	var glass_mesh: MeshInstance3D = find_mesh(root, "Glass")
@@ -328,13 +331,27 @@ static func tank_failures(root: Node3D, interior: Vector3, glass: float) -> Pack
 	if absf(whole.position.y + glass) > MM:
 		failures.append("exterior base: lowest y = %.4f, need %.4f" % [whole.position.y, -glass])
 	var trim: AABB = bounds_in(frame, root)
-	var total_height: float = interior.y + glass + 0.01
+	var total_height: float = interior.y + glass + trim_size
 	if absf(whole.size.y - total_height) > MM:
 		failures.append("exterior height: %.4f, need %.4f" % [whole.size.y, total_height])
-	if absf(trim.size.y - 0.01) > MM or absf(trim.position.y - interior.y) > MM:
-		failures.append("trim: must be 1 cm tall on the glass rim at y = %.3f" % interior.y)
+	if absf(trim.size.y - trim_size) > MM or absf(trim.position.y - interior.y) > MM:
+		failures.append(
+			"trim: must be %.3f m tall on the glass rim at y = %.3f" % [trim_size, interior.y]
+		)
 	if absf(trim.size.x - footprint.x) > MM or absf(trim.size.z - footprint.y) > MM:
 		failures.append("trim: must be flush with the outer glass faces")
+	var frame_points: PackedVector3Array = vertices_in(frame, root)
+	var frame_xs: Array[float] = distinct_values(frame_points, 0)
+	var frame_zs: Array[float] = distinct_values(frame_points, 2)
+	for side: float in [-1.0, 1.0]:
+		if not has_value(frame_xs, side * (footprint.x / 2.0 - trim_size), MM):
+			failures.append(
+				"trim width: no inner edge at x = %.4f" % (side * (footprint.x / 2.0 - trim_size))
+			)
+		if not has_value(frame_zs, side * (footprint.y / 2.0 - trim_size), MM):
+			failures.append(
+				"trim width: no inner edge at z = %.4f" % (side * (footprint.y / 2.0 - trim_size))
+			)
 	if absf(whole.get_center().x) > MM or absf(whole.get_center().z) > MM:
 		failures.append("origin: the footprint is not centred on the inner floor centre")
 	return failures

@@ -1,28 +1,37 @@
 extends GdUnitTestSuite
-## #22 criteria 7 (asset part), 8 for the cabinet, room and lamp assets (owner: technical-artist).
+## #22 criteria 7 (asset part), 8 for the cabinet, room and lamp assets (owner: technical-artist),
+## and #24 criteria 10 (asset part) and 14: one cabinet and one lamp glb per tank, each at most
+## 10,000 triangles; the room glb stays one fixed asset (back wall 0.215 m behind the room origin).
 ## Mesh names inside room_corner.glb are part of the contract these tests fix: Floor, BackWall,
 ## SideWall and Skirting (Blender object names become node names). Room space: the origin is the
 ## floor point under the tank centre, +Y up, +Z front.
 
 const Glb := preload("res://tests/helpers/glb_mesh_checks.gd")
 const LfsGuard := preload("res://tests/helpers/lfs_guard.gd")
+const Table := preload("res://tests/helpers/tank_table.gd")
 
 const ROOM_PATH := "res://assets/room/room_corner.glb"
-const CABINET_PATH := "res://assets/room/cabinet.glb"
-const LAMP_PATH := "res://assets/room/lamp.glb"
+const BACK_WALL_Z_M := -0.215
+const SIDE_WALL_X_M := -0.85
 const ATLAS_PATH := "res://assets/room/room_palette_atlas.png"
+## The medium cabinet: the room glb is checked against it (the room is fixed for all three).
 const CABINET_SIZE := Vector3(0.66, 0.75, 0.36)
 
 var _root: Node3D = null
 
 
 func after_test() -> void:
+	_free_root()
+
+
+func _free_root() -> void:
 	if _root != null and is_instance_valid(_root):
 		_root.free()
 	_root = null
 
 
 func _open(path: String) -> bool:
+	_free_root()
 	var opened: Dictionary = Glb.open_glb(path)
 	assert_str(String(opened["problem"])).is_empty()
 	_root = opened["root"]
@@ -42,16 +51,28 @@ func _part(wanted: String) -> AABB:
 # --- AC 8 ---
 
 
-func test_ac08_cabinet_glb_budget_uv_layers_normals_and_import_flags() -> void:
-	_expect(Glb.asset_failures(CABINET_PATH))
+func test_ac08_each_cabinet_glb_budget_uv_layers_normals_and_import_flags() -> void:
+	for id: StringName in Table.IDS:
+		var failures: PackedStringArray = Glb.asset_failures(Table.cabinet_glb_path(id))
+		(
+			assert_str("\n".join(failures))
+			. override_failure_message("%s: %s" % [id, "\n".join(failures)])
+			. is_empty()
+		)
 
 
 func test_ac08_room_glb_budget_uv_layers_normals_and_import_flags() -> void:
 	_expect(Glb.asset_failures(ROOM_PATH))
 
 
-func test_ac08_lamp_glb_budget_uv_layers_normals_and_import_flags() -> void:
-	_expect(Glb.asset_failures(LAMP_PATH))
+func test_ac08_each_lamp_glb_budget_uv_layers_normals_and_import_flags() -> void:
+	for id: StringName in Table.IDS:
+		var failures: PackedStringArray = Glb.asset_failures(Table.lamp_glb_path(id))
+		(
+			assert_str("\n".join(failures))
+			. override_failure_message("%s: %s" % [id, "\n".join(failures)])
+			. is_empty()
+		)
 
 
 func test_ac08_palette_atlas_is_a_real_png_with_several_flat_colours() -> void:
@@ -71,7 +92,11 @@ func test_ac08_palette_atlas_is_a_real_png_with_several_flat_colours() -> void:
 
 
 func test_ac08_every_room_mesh_uses_the_shared_palette_material_and_atlas() -> void:
-	for path: String in [CABINET_PATH, ROOM_PATH, LAMP_PATH]:
+	var paths: Array[String] = [ROOM_PATH]
+	for id: StringName in Table.IDS:
+		paths.append(Table.cabinet_glb_path(id))
+		paths.append(Table.lamp_glb_path(id))
+	for path: String in paths:
 		if not _open(path):
 			continue
 		for instance: MeshInstance3D in Glb.mesh_instances(_root):
@@ -94,21 +119,35 @@ func test_ac08_every_room_mesh_uses_the_shared_palette_material_and_atlas() -> v
 # --- cabinet (AC 7, asset part) ---
 
 
-func test_ac07_cabinet_footprint_height_and_origin() -> void:
-	if not _open(CABINET_PATH):
+func test_ac10_each_cabinet_is_the_tank_exterior_plus_2_5_cm_on_every_side_075_high() -> void:
+	for id: StringName in Table.IDS:
+		if not _open(Table.cabinet_glb_path(id)):
+			continue
+		var footprint: Vector2 = Table.cabinet_footprint(id)
+		var box: AABB = Glb.scene_bounds(_root)
+		assert_float(box.size.x).override_failure_message("%s width" % id).is_equal_approx(
+			footprint.x, Glb.MM
+		)
+		assert_float(box.size.z).override_failure_message("%s depth" % id).is_equal_approx(
+			footprint.y, Glb.MM
+		)
+		assert_float(box.end.y).is_equal_approx(Table.CABINET_TOP_M, Glb.MM)
+		assert_float(box.position.y).is_equal_approx(0.0, Glb.MM)
+		assert_float(box.get_center().x).is_equal_approx(0.0, Glb.MM)
+		assert_float(box.get_center().z).is_equal_approx(0.0, Glb.MM)
+
+
+func test_ac10_the_medium_cabinet_keeps_the_delivered_size() -> void:
+	if not _open(Table.cabinet_glb_path(Table.MEDIUM)):
 		return
 	var box: AABB = Glb.scene_bounds(_root)
-	assert_float(box.size.x).is_equal_approx(CABINET_SIZE.x, Glb.MM)
-	assert_float(box.size.z).is_equal_approx(CABINET_SIZE.z, Glb.MM)
-	assert_float(box.end.y).is_equal_approx(CABINET_SIZE.y, Glb.MM)
-	assert_float(box.position.y).is_equal_approx(0.0, Glb.MM)
-	assert_float(box.get_center().x).is_equal_approx(0.0, Glb.MM)
-	assert_float(box.get_center().z).is_equal_approx(0.0, Glb.MM)
+	assert_vector(box.size).is_equal_approx(CABINET_SIZE, Vector3.ONE * Glb.MM)
 
 
-func test_ac07_cabinet_has_no_baked_scale() -> void:
-	if _open(CABINET_PATH):
-		_expect(Glb.scale_failures(_root))
+func test_ac10_each_cabinet_has_no_baked_scale() -> void:
+	for id: StringName in Table.IDS:
+		if _open(Table.cabinet_glb_path(id)):
+			_expect(Glb.scale_failures(_root))
 
 
 # --- room (AC 7, asset part) ---
@@ -131,6 +170,14 @@ func test_ac07_back_wall_gap_to_the_cabinet_is_2_to_5_cm() -> void:
 	var wall: AABB = _part("BackWall")
 	var gap: float = (-CABINET_SIZE.z / 2.0) - wall.end.z
 	assert_float(gap).is_between(0.02 - Glb.MM, 0.05 + Glb.MM)
+
+
+func test_ac10_the_room_is_one_fixed_asset_back_wall_0215_and_side_wall_085_from_the_origin(
+) -> void:
+	if not _open(ROOM_PATH):
+		return
+	assert_float(_part("BackWall").end.z).is_equal_approx(BACK_WALL_Z_M, Glb.MM)
+	assert_float(_part("SideWall").end.x).is_equal_approx(SIDE_WALL_X_M, Glb.MM)
 
 
 func test_ac07_side_wall_does_not_touch_the_cabinet() -> void:

@@ -20,6 +20,26 @@ static func default_distance(
 	)
 
 
+## The smallest distance from the pivot at which every point stays inside the vertical field of
+## view of the reference aspect, with `margin` of the half screen height to spare (ADR 0006).
+## `points` are relative to the pivot, the camera looks at the pivot from +Z and above. The height
+## of a point on the screen does not depend on the distance, only its depth does, so the answer is
+## closed form.
+static func fit_distance(
+	points: PackedVector3Array, hfov_deg: float, elevation_deg: float, margin: float
+) -> float:
+	var elevation: float = deg_to_rad(elevation_deg)
+	var forward: Vector3 = Vector3(0.0, -sin(elevation), -cos(elevation))
+	var up: Vector3 = Vector3(0.0, cos(elevation), -sin(elevation))
+	var tan_vertical: float = tan(deg_to_rad(hfov_deg) / 2.0) / REFERENCE_ASPECT
+	var wanted: float = 0.0
+	for point: Vector3 in points:
+		wanted = maxf(
+			wanted, absf(point.dot(up)) / ((1.0 - margin) * tan_vertical) - point.dot(forward)
+		)
+	return wanted
+
+
 ## Camera position in front of and above the pivot (looking at it from +Z).
 static func camera_position(pivot: Vector3, distance: float, elevation_deg: float) -> Vector3:
 	var elevation: float = deg_to_rad(elevation_deg)

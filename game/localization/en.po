@@ -28,8 +28,44 @@ msgstr "Language"
 msgid "settings.title"
 msgstr "Settings"
 
-msgid "tank.medium_60l.description"
-msgstr "A cozy 60 litre tank for a small community."
+msgid "tank.change.body"
+msgstr "Changing to the %s will clear everything in this tank: decor, plants, fish and the sand shape."
 
-msgid "tank.medium_60l.name"
+msgid "tank.change.cancel"
+msgstr "Cancel"
+
+msgid "tank.change.confirm"
+msgstr "Change tank"
+
+msgid "tank.change.title"
+msgstr "Change tank?"
+
+msgid "tank.chooser.current"
+msgstr "In use"
+
+msgid "tank.chooser.open"
+msgstr "Change tank"
+
+msgid "tank.chooser.title"
+msgstr "Choose your tank"
+
+msgid "tank.large_1.description"
+msgstr "A roomy tank with space for a big, lively community."
+
+msgid "tank.large_1.name"
+msgstr "Large tank"
+
+msgid "tank.medium_1.description"
+msgstr "A cozy, balanced tank for a small community."
+
+msgid "tank.medium_1.name"
 msgstr "Medium tank"
+
+msgid "tank.small_1.description"
+msgstr "A small, quiet tank for a few tiny fish."
+
+msgid "tank.small_1.name"
+msgstr "Small tank"
+
+msgid "unit.litre"
+msgstr "%s L"

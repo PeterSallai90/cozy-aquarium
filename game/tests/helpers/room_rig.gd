@@ -7,7 +7,7 @@ const Glb := preload("res://tests/helpers/glb_mesh_checks.gd")
 const Api := preload("res://tests/helpers/late_api.gd")
 
 const ROOM_SCENE := "res://scenes/room/room_corner.tscn"
-const DEFAULT_ID := &"tank_medium_60l"
+const DEFAULT_ID := &"tank_medium_1"
 
 
 ## The committed scene with setup() called before it enters the tree. The caller adds it to the
@@ -36,6 +36,11 @@ static func default_definition() -> Resource:
 	return Api.definition_of(default_catalog(), DEFAULT_ID)
 
 
+## The catalog definition of a tank id, or null.
+static func definition_of(id: StringName) -> Resource:
+	return Api.definition_of(default_catalog(), id)
+
+
 static func displayed_id(room: Node) -> StringName:
 	return Api.call_on(room, "get_displayed_tank_id", [], &"<no method>")
 
@@ -52,7 +57,10 @@ static func variant(id: StringName, scene: PackedScene) -> Resource:
 		"interior_size_m",
 		"volume_litres",
 		"glass_thickness_m",
-		"water_line_height_m"
+		"water_line_height_m",
+		"trim_size_m",
+		"cabinet_scene",
+		"lamp_scene"
 	]:
 		copy.set(field, Api.prop(source, field, null))
 	return copy

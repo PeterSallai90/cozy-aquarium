@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://in8aj3xf0vrl" path="res://assets/tank/tank_large_1.glb" id="1_glb"]
+
+[node name="TankLarge1" instance=ExtResource("1_glb")]
+
+[node name="Glass" parent="." index="1"]
+cast_shadow = 0
+
+[node name="WaterVolume" type="Node3D" parent="." index="2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+
+[node name="SubstrateAnchor" type="Marker3D" parent="." index="3"]
+
+[node name="lamp_mount" type="Marker3D" parent="." index="4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.53, -0.04)

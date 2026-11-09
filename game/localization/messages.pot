@@ -27,8 +27,44 @@ msgstr ""
 msgid "settings.title"
 msgstr ""
 
-msgid "tank.medium_60l.description"
+msgid "tank.change.body"
 msgstr ""
 
-msgid "tank.medium_60l.name"
+msgid "tank.change.cancel"
+msgstr ""
+
+msgid "tank.change.confirm"
+msgstr ""
+
+msgid "tank.change.title"
+msgstr ""
+
+msgid "tank.chooser.current"
+msgstr ""
+
+msgid "tank.chooser.open"
+msgstr ""
+
+msgid "tank.chooser.title"
+msgstr ""
+
+msgid "tank.large_1.description"
+msgstr ""
+
+msgid "tank.large_1.name"
+msgstr ""
+
+msgid "tank.medium_1.description"
+msgstr ""
+
+msgid "tank.medium_1.name"
+msgstr ""
+
+msgid "tank.small_1.description"
+msgstr ""
+
+msgid "tank.small_1.name"
+msgstr ""
+
+msgid "unit.litre"
 msgstr ""

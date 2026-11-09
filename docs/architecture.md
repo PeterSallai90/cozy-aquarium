@@ -171,7 +171,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 1. **Catalog** – read-only definitions of every species, plant, substrate, decoration and tank. Stored as typed Godot resources (`.tres`, plain text).
 2. **Aquarium model** – the current state: chosen tank, substrate and colour, placed items with transforms, fish instances. Pure data, no nodes, serializable to JSON.
 3. **Commands** – every change to the model (place, move, rotate, recolour, delete, add fish) is a command object with `do()` and `undo()`. This gives unlimited undo/redo and a single place to validate changes.
-4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload and `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003); they never talk to each other directly. The model never references `EventBus`.
+4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload, `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003) and `tank_displayed(tank_id)` from the room after it swapped the tank (empty id: no tank shown); they never talk to each other directly. The model never references `EventBus`.
 5. **Presentation** – scenes, shaders, UI and audio that render the model.
 6. **Game mode** – `CozyMode` now. `SimulationMode` later adds a fixed-rate simulation tick and rules on top of the same model and catalog.
 
@@ -219,7 +219,7 @@ The sample is shown compact; the game writes the same keys in the same order, in
 {
   "format_version": 1,
   "name": "My first tank",
-  "tank_id": "tank_medium_60l",
+  "tank_id": "tank_medium_1",
   "substrate": {
     "id": "sand_fine",
     "colour": "#E8D9B0",
@@ -309,7 +309,7 @@ The build camera behaves like a person walking around a real tank on a cabinet: 
 | Parameter | Starting value | Notes |
 | --- | --- | --- |
 | Pivot | Centre of the tank's water volume | Can be panned within the tank's footprint, never outside it |
-| Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action; 85% up to 16:9, wider screens keep the 16:9 framing ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)) |
+| Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action; 85% up to 16:9, wider screens keep the 16:9 framing ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)); a tank too tall for 85% (the small tank, about 77% at 16:9) is framed so that the tank, its trim and the cabinet front edge stay on screen ([ADR 0006](adr/0006-default-framing-vertical-fit.md)) |
 | Horizontal orbit | Full 360° | Back and side views allowed |
 | Elevation, minimum | −10° | "Crouching by the cabinet"; plus a hard rule: camera height never below the cabinet top |
 | Elevation, maximum | 85° | Near top-down; 90° avoided to prevent the view flipping |

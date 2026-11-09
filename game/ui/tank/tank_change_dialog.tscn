@@ -1,0 +1,59 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/tank/tank_change_dialog.gd" id="1_script"]
+
+[node name="TankChangeDialog" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Box" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(460, 0)
+layout_mode = 2
+
+[node name="Layout" type="VBoxContainer" parent="Center/Box"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Center/Box/Layout"]
+layout_mode = 2
+text = "tank.change.title"
+
+[node name="BodyLabel" type="Label" parent="Center/Box/Layout"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Box/Layout"]
+layout_mode = 2
+alignment = 2
+
+[node name="CancelButton" type="Button" parent="Center/Box/Layout/Buttons"]
+layout_mode = 2
+text = "tank.change.cancel"
+
+[node name="ConfirmButton" type="Button" parent="Center/Box/Layout/Buttons"]
+layout_mode = 2
+text = "tank.change.confirm"
