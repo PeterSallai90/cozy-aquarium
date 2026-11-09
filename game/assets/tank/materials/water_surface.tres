@@ -1,0 +1,23 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://shaders/water_surface.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "water_surface"
+render_priority = -1
+shader = ExtResource("1_shader")
+shader_parameter/surface_color = Color(0.78, 0.92, 0.94, 1)
+shader_parameter/surface_opacity = 0.06
+shader_parameter/surface_reflection_color = Color(0.62, 0.66, 0.78, 1)
+shader_parameter/surface_reflection_strength = 0.35
+shader_parameter/surface_roughness = 0.3
+shader_parameter/surface_specular = 0.15
+shader_parameter/underside_color = Color(0.7, 0.86, 0.9, 1)
+shader_parameter/underside_opacity = 0.22
+shader_parameter/underside_brightness = 0.12
+shader_parameter/ripple_strength = 0.2
+shader_parameter/ripple_cells_per_m = 45.0
+shader_parameter/ripple_speed = 0.06
+shader_parameter/meniscus_strength = 0.3
+shader_parameter/meniscus_width_m = 0.003
+shader_parameter/meniscus_color = Color(0.88, 0.96, 0.97, 1)
