@@ -39,7 +39,7 @@ const KEY_TEXTS: Dictionary = {
 }
 
 var _saved_locale: String = ""
-var _saved_language: String = ""
+var _language_state: Dictionary = {}
 var _history: CommandHistory = null
 var _controls: Control = null
 var _room: Node3D = null
@@ -47,16 +47,14 @@ var _room: Node3D = null
 
 func before_test() -> void:
 	_saved_locale = TranslationServer.get_locale()
-	_saved_language = Localization.get_language()
-	Localization.set_language("en")
+	_language_state = Ui.begin_language_isolation("tank_details")
 	_history = CommandHistory.new()
 	_controls = null
 	_room = null
 
 
 func after_test() -> void:
-	Localization.set_language(_saved_language)
-	TranslationServer.set_locale(_saved_locale)
+	Ui.end_language_isolation(_language_state, _saved_locale)
 
 
 func _wait() -> void:
@@ -692,23 +690,11 @@ func _window() -> SubViewport:
 	return viewport
 
 
-func _longest_description_id(language: String) -> StringName:
-	var longest: StringName = Table.IDS[0]
-	for id: StringName in Table.IDS:
-		if (
-			String(Table.row(id)["description_" + language]).length()
-			> String(Table.row(longest)["description_" + language]).length()
-		):
-			longest = id
-	return longest
-
-
 func _check_nothing_is_clipped(language: String) -> void:
 	await Ui.set_language(self, language)
 	var viewport: SubViewport = _window()
 	var holder: Node = Node.new()
 	viewport.add_child(holder)
-	var longest: StringName = _longest_description_id(language)
 	for id: StringName in Table.IDS:
 		if not await _open_real(id, &"", holder):
 			return
@@ -757,21 +743,6 @@ func _check_nothing_is_clipped(language: String) -> void:
 					. override_failure_message("%s: %s hides lines" % [context, label.name])
 					. is_equal(label.get_line_count())
 				)
-		if id == longest:
-			var description: Label = (
-				(Ui.row(_controls, "DescriptionRow").find_child(Ui.VALUE_LABEL, true, false))
-				as Label
-			)
-			(
-				assert_int(description.get_line_count())
-				. override_failure_message(
-					(
-						"%s: the longest description does not wrap (%d line)"
-						% [context, description.get_line_count()]
-					)
-				)
-				. is_greater(1)
-			)
 		_drop()
 
 
@@ -781,3 +752,46 @@ func test_ac10_nothing_is_clipped_at_1280x720_in_english() -> void:
 
 func test_ac10_nothing_is_clipped_at_1280x720_in_hungarian() -> void:
 	await _check_nothing_is_clipped("hu")
+
+
+func _long_text() -> String:
+	# An unknown key: tr() returns it unchanged. Far longer than twice the panel width.
+	return (
+		"A very long description without any translation key that keeps going and going "
+		+ "to prove that the label wraps inside the fixed width panel in every language "
+		+ "and never gets clipped, however many words the text has."
+	)
+
+
+func _check_a_long_description_wraps(language: String) -> void:
+	await Ui.set_language(self, language)
+	var viewport: SubViewport = _window()
+	var holder: Node = Node.new()
+	viewport.add_child(holder)
+	var text: String = _long_text()
+	var definitions: Array[TankDefinition] = [Ui.fixture_definition({"description_key": text})]
+	if not await _open_fixture(definitions, Table.MEDIUM, Table.MEDIUM, holder):
+		return
+	await _wait()
+	var panel: Control = Ui.details(_controls)
+	var description: Label = (
+		Ui.row(_controls, "DescriptionRow").find_child(Ui.VALUE_LABEL, true, false) as Label
+	)
+	assert_str(Ui.shown(description)).is_equal(text)
+	var font: Font = description.get_theme_font("font")
+	var size: int = description.get_theme_font_size("font_size")
+	var one_line: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	assert_float(one_line).is_greater_equal(2.0 * Ui.DETAILS_WIDTH)
+	assert_int(description.get_line_count()).is_greater(2)
+	assert_int(description.get_visible_line_count()).is_equal(description.get_line_count())
+	assert_float(panel.size.x).is_equal_approx(Ui.DETAILS_WIDTH, 1.0)
+	assert_bool(panel.get_global_rect().grow(0.5).encloses(description.get_global_rect())).is_true()
+	assert_bool(Rect2(Vector2.ZERO, Vector2(WINDOW)).encloses(panel.get_global_rect())).is_true()
+
+
+func test_ac10_a_description_twice_the_panel_width_wraps_in_english() -> void:
+	await _check_a_long_description_wraps("en")
+
+
+func test_ac10_a_description_twice_the_panel_width_wraps_in_hungarian() -> void:
+	await _check_a_long_description_wraps("hu")

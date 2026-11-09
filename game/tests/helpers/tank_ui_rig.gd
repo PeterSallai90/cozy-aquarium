@@ -31,6 +31,7 @@ extends RefCounted
 
 const Rig := preload("res://tests/helpers/room_rig.gd")
 const Table := preload("res://tests/helpers/tank_table.gd")
+const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 
 const CONTROLS_SCENE := "res://ui/tank/tank_controls.tscn"
 const OPEN_BUTTON := "ChangeTankButton"
@@ -274,8 +275,39 @@ static func open_details(suite: Node, controls: Node) -> void:
 	await suite.get_tree().process_frame
 
 
-## Switches the language through the Localization autoload, like the settings screen, so the
-## number format follows too, then waits two frames.
+## Points the live Localization autoload at a LanguageService on a SettingsStore below
+## user://test_saves/<suite>/, so set_language never writes the real user://settings.cfg. The
+## number format follows the swapped service. Call it in before_test and pass the result to
+## end_language_isolation in after_test. Returns {"service", "dir"} for the restore.
+static func begin_language_isolation(suite_name: String) -> Dictionary:
+	var dir: String = SaveFixtures.make_dir(suite_name)
+	var original: LanguageService = Localization.get("_service") as LanguageService
+	var relay: Callable = Callable(Localization, "_on_language_changed")
+	original.language_changed.disconnect(relay)
+	var isolated: LanguageService = LanguageService.new(
+		SettingsStore.new(dir.path_join("settings.cfg"))
+	)
+	isolated.language_changed.connect(relay)
+	isolated.start("en")
+	Localization.set("_service", isolated)
+	return {"service": original, "isolated": isolated, "dir": dir}
+
+
+static func end_language_isolation(state: Dictionary, locale: String) -> void:
+	var relay: Callable = Callable(Localization, "_on_language_changed")
+	var isolated: LanguageService = state["isolated"]
+	if isolated.language_changed.is_connected(relay):
+		isolated.language_changed.disconnect(relay)
+	var original: LanguageService = state["service"]
+	original.language_changed.connect(relay)
+	Localization.set("_service", original)
+	TranslationServer.set_locale(locale)
+	SaveFixtures.remove_dir(state["dir"])
+	SaveFixtures.remove_root_if_empty()
+
+
+## Switches the language through the (isolated) Localization autoload, like the settings screen,
+## so the number format follows too, then waits two frames.
 static func set_language(suite: Node, code: String) -> void:
 	Localization.set_language(code)
 	await suite.get_tree().process_frame

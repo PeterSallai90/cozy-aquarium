@@ -15,7 +15,7 @@ const ModelState := preload("res://tests/helpers/model_state.gd")
 const WINDOW := Vector2i(1280, 720)
 
 var _saved_locale: String = ""
-var _saved_language: String = ""
+var _language_state: Dictionary = {}
 var _model: AquariumModel = null
 var _history: CommandHistory = null
 var _controls: Control = null
@@ -34,15 +34,13 @@ class WorldListener:
 
 func before_test() -> void:
 	_saved_locale = TranslationServer.get_locale()
-	_saved_language = Localization.get_language()
-	Localization.set_language("en")
+	_language_state = Ui.begin_language_isolation("tank_details_controls")
 	_history = CommandHistory.new()
 	_model = Rig.model_with(Table.MEDIUM)
 
 
 func after_test() -> void:
-	Localization.set_language(_saved_language)
-	TranslationServer.set_locale(_saved_locale)
+	Ui.end_language_isolation(_language_state, _saved_locale)
 
 
 func _wait() -> void:
