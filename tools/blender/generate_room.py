@@ -1,40 +1,54 @@
-"""Generate the room corner, the cabinet, the lamp and the shared palette atlas (#22), headless in
-Blender 5.2.
+"""Generate the room corner, the shared palette atlas and, for every tank, its cabinet and lamp
+(#22, #24), headless in Blender 5.2.
 
 Usage (the arguments after ``--`` belong to this script):
 
-    blender --background --python tools/blender/generate_room.py -- --params <file> --out-dir <dir>
+    blender --background --python tools/blender/generate_room.py -- \
+        [--params <file>] [--tank-params <file> ...] [--out-dir <dir>]
 
-- ``--params``: parameter JSON (default ``tools/blender/params/room.json``).
-- ``--out-dir``: folder for ``cabinet_medium_1.glb``, ``room_corner.glb``, ``lamp_medium_1.glb`` and
-  ``room_palette_atlas.png`` (default ``game/assets/room``). The four files are replaced as one
-  group (``blender_common.swap_in_group``): the folder holds the old group or the new group.
-- Running without arguments regenerates the committed files. Defaults are resolved from the
+- ``--params``: room and furniture style JSON (default ``tools/blender/params/room.json``).
+- ``--tank-params``: one or more tank parameter files (``generate_tank`` format); default every
+  ``tools/blender/params/tank_*.json``. The cabinet and lamp of each tank are derived from it.
+- ``--out-dir``: folder for ``room_corner.glb``, ``room_palette_atlas.png`` and, per tank,
+  ``cabinet_<suffix>.glb`` and ``lamp_<suffix>.glb`` (suffix = the tank file stem without
+  ``tank_``, so ``tank_small_1.json`` gives ``cabinet_small_1.glb``); default ``game/assets/room``.
+  All files are replaced as one group (``blender_common.swap_in_group``): the folder holds the old
+  group or the new group.
+- Running without arguments regenerates every committed file. Defaults are resolved from the
   location of this script, so the working directory does not matter.
 
-Spaces and origins (technical plan of #22), glTF frame (1 unit = 1 m, +X right, +Y up, +Z front):
+Furniture follows the tank (#24 plan section 4, BA decision Q5), with the exterior = interior +
+2 x glass on x and z:
 
-- ``cabinet_medium_1.glb``: origin = centre of the cabinet footprint on the floor; the top is at
+    cabinet_width_m    = exterior x + 2 x CABINET_MARGIN_M (0.025)
+    cabinet_depth_m    = exterior z + 2 x CABINET_MARGIN_M
+    lamp_bar_length_m  = exterior x - LAMP_BAR_SHORTER_M (0.03)
+    lamp_foot_span_m   = exterior x - trim_size_m (the centre lines of the side trims)
+
+Spaces and origins (technical plans of #22 and #24), glTF frame (1 unit = 1 m, +X right, +Y up,
++Z front):
+
+- ``cabinet_<suffix>.glb``: origin = centre of the cabinet footprint on the floor; the top is at
   ``cabinet_height_m``. One mesh ``cabinet``: recessed plinth, carcass, top slab with chamfered
   edges, two plain panel doors and two brass knobs. The footprint is exactly
   ``cabinet_width_m`` x ``cabinet_depth_m`` (the top slab); nothing reaches beyond it.
-- ``room_corner.glb``: origin = the floor point under the tank centre (= the cabinet footprint
-  centre). ``Floor`` is a slab whose top face is y = 0; ``BackWall`` and ``SideWall`` are
-  single-sided planes facing into the room (the palette shader culls back faces, so from outside
-  they vanish like a dollhouse cut-away); ``Skirting`` runs along both walls. The back wall's
-  inner face is at z = -(cabinet_depth_m / 2 + wall_gap_m).
-- ``lamp_medium_1.glb``: origin = centre of the plane where the feet rest on the tank trim. ``lamp`` is the
-  bar (``lamp_bar_length_m`` x ``lamp_bar_depth_m``, with a warm LED diffuser underneath that uses
-  the emissive atlas row); ``lamp_brackets`` are the two feet that reach from the bar ends down
-  onto the side trims (BA decision on AC 10). Nothing hangs in front of the bar (no front skirt).
+- ``room_corner.glb``: one fixed asset for every tank. Origin = the room origin on the floor (the
+  footprint centre of the medium cabinet, which stands there). ``Floor`` is a slab whose top face
+  is y = 0; ``BackWall`` and ``SideWall`` are single-sided planes facing into the room (the palette
+  shader culls back faces, so from outside they vanish like a dollhouse cut-away); ``Skirting``
+  runs along both walls. The back wall's inner face is at z = -back_wall_distance_m. Each cabinet
+  stands with its back ``wall_gap_m`` in front of it (the room scene places it).
+- ``lamp_<suffix>.glb``: origin = centre of the plane where the feet rest on the tank trim.
+  ``lamp`` is the bar (``lamp_bar_length_m`` x ``lamp_bar_depth_m``, with a warm LED diffuser
+  underneath that uses the emissive atlas row); ``lamp_brackets`` are the two feet that reach from
+  the bar ends down onto the side trims (BA decision on #22 AC 10). Nothing hangs in front of the
+  bar (no front skirt).
 - Every mesh uses the material ``palette`` (Godot maps it to ``room_palette.tres``), hard edges by
   split normals (smooth by angle at 30 degrees), exactly two UV layers; see ``blender_common``.
 
-Parameter file: a JSON object with exactly these keys, in metres unless stated. Values outside the
-range are rejected with a message that names the key.
+Room parameter file: a JSON object with exactly these keys, in metres unless stated. Values
+outside the range are rejected with a message that names the key.
 
-    cabinet_width_m           0.20 .. 2.50   footprint along X (the top slab)
-    cabinet_depth_m           0.15 .. 1.00   footprint along Z
     cabinet_height_m          0.30 .. 1.20   floor to the top surface
     cabinet_top_thickness_m   0.015 .. 0.06  top slab
     cabinet_side_overhang_m   0.0 .. 0.04    top slab beyond the carcass sides
@@ -46,20 +60,26 @@ range are rejected with a message that names the key.
     plinth_height_m           0.03 .. 0.15   recessed kick board
     plinth_inset_m            0.005 .. 0.08
     wall_gap_m                0.02 .. 0.05   cabinet back to the back wall
+    back_wall_distance_m      0.10 .. 1.00   room origin to the inner face of the back wall
     wall_height_m             2.20 .. 3.00
     side_wall_side            -1 or 1        the side wall stands left (-1) or right (1)
-    side_wall_offset_m        0.40 .. 3.00   tank centre to the side wall
-    room_reach_m              0.80 .. 6.00   tank centre to the open side and to the open front
+    side_wall_offset_m        0.40 .. 3.00   room origin to the side wall
+    room_reach_m              0.80 .. 6.00   room origin to the open side and to the open front
     floor_thickness_m         0.02 .. 0.20   floor slab below y = 0
     skirting_height_m         0.08 .. 0.10
     skirting_thickness_m      0.008 .. 0.03
-    lamp_bar_length_m         0.10 .. 1.50
     lamp_bar_depth_m          0.02 .. 0.20
     lamp_bar_thickness_m      0.006 .. 0.04
     lamp_bar_lift_m           0.008 .. 0.10  trim top to the underside of the bar
-    lamp_foot_span_m          0.10 .. 1.60   centre to centre of the feet (the trim centre lines)
     lamp_foot_width_m         0.003 .. 0.02  along X, so a foot stands on a trim
     lamp_foot_depth_m         0.006 .. 0.10  along Z, at most lamp_bar_depth_m
+
+Derived per tank and range-checked like parameters (a failure names the key):
+
+    cabinet_width_m           0.20 .. 2.50   footprint along X (the top slab)
+    cabinet_depth_m           0.15 .. 1.00   footprint along Z
+    lamp_bar_length_m         0.10 .. 1.50
+    lamp_foot_span_m          0.10 .. 1.60   centre to centre of the feet
 
 Exit code 0 on success, 1 on any error.
 """
@@ -68,26 +88,28 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import blender_common  # noqa: E402
+import generate_tank  # noqa: E402
 import room_palette  # noqa: E402
 from blender_common import GeneratorError, MeshData  # noqa: E402,F401 (re-exported for tests)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PARAMS = REPO_ROOT / "tools" / "blender" / "params" / "room.json"
+PARAMS_DIR = REPO_ROOT / "tools" / "blender" / "params"
+DEFAULT_PARAMS = PARAMS_DIR / "room.json"
 DEFAULT_OUT_DIR = REPO_ROOT / "game" / "assets" / "room"
-CABINET_FILE = "cabinet_medium_1.glb"
 ROOM_FILE = "room_corner.glb"
-LAMP_FILE = "lamp_medium_1.glb"
 ATLAS_FILE = "room_palette_atlas.png"
+CABINET_PREFIX = "cabinet_"
+LAMP_PREFIX = "lamp_"
+TANK_PREFIX = "tank_"
 PALETTE_MATERIAL = "palette"
 
 FLOAT_RANGES: dict[str, tuple[float, float]] = {
-    "cabinet_width_m": (0.20, 2.50),
-    "cabinet_depth_m": (0.15, 1.00),
     "cabinet_height_m": (0.30, 1.20),
     "cabinet_top_thickness_m": (0.015, 0.06),
     "cabinet_side_overhang_m": (0.0, 0.04),
@@ -99,21 +121,31 @@ FLOAT_RANGES: dict[str, tuple[float, float]] = {
     "plinth_height_m": (0.03, 0.15),
     "plinth_inset_m": (0.005, 0.08),
     "wall_gap_m": (0.02, 0.05),
+    "back_wall_distance_m": (0.10, 1.00),
     "wall_height_m": (2.20, 3.00),
     "side_wall_offset_m": (0.40, 3.00),
     "room_reach_m": (0.80, 6.00),
     "floor_thickness_m": (0.02, 0.20),
     "skirting_height_m": (0.08, 0.10),
     "skirting_thickness_m": (0.008, 0.03),
-    "lamp_bar_length_m": (0.10, 1.50),
     "lamp_bar_depth_m": (0.02, 0.20),
     "lamp_bar_thickness_m": (0.006, 0.04),
     "lamp_bar_lift_m": (0.008, 0.10),
-    "lamp_foot_span_m": (0.10, 1.60),
     "lamp_foot_width_m": (0.003, 0.02),
     "lamp_foot_depth_m": (0.006, 0.10),
 }
 CHOICES: dict[str, tuple[int, ...]] = {"side_wall_side": (-1, 1)}
+DERIVED_RANGES: dict[str, tuple[float, float]] = {
+    "cabinet_width_m": (0.20, 2.50),
+    "cabinet_depth_m": (0.15, 1.00),
+    "lamp_bar_length_m": (0.10, 1.50),
+    "lamp_foot_span_m": (0.10, 1.60),
+}
+
+# --- furniture follows the tank (BA decision Q5 on #24) ---
+
+CABINET_MARGIN_M = 0.025  # cabinet top beyond the tank exterior, every side
+LAMP_BAR_SHORTER_M = 0.03  # lamp bar against the tank exterior length
 
 # --- fixed shape constants (not tuning knobs of the parameter file) ---
 
@@ -135,7 +167,8 @@ ARM_THICKNESS = 0.004
 
 
 def load_params(path: Path) -> dict[str, float]:
-    """Reads and validates the parameter file before any Blender work happens."""
+    """Reads and validates the room parameter file before any Blender work happens. Rules that
+    depend on the tank are checked by ``params_for_tank``."""
     p = blender_common.load_ranged(path, FLOAT_RANGES, CHOICES)
     req = blender_common.require
     req(
@@ -144,12 +177,6 @@ def load_params(path: Path) -> dict[str, float]:
         f"{p['knob_depth_m']} must not exceed cabinet_door_setback_m "
         f"({p['cabinet_door_setback_m']}), so the knobs stay inside the footprint",
     )
-    carcass_depth = p["cabinet_depth_m"] - p["cabinet_door_setback_m"] - p["door_thickness_m"]
-    req(
-        carcass_depth > 2.0 * p["plinth_inset_m"] + 0.05,
-        "plinth_inset_m",
-        f"{p['plinth_inset_m']} leaves no plinth inside a carcass {carcass_depth:.3f} m deep",
-    )
     req(
         p["plinth_height_m"] + 2.0 * p["door_gap_m"] + 0.1
         < p["cabinet_height_m"] - p["cabinet_top_thickness_m"],
@@ -157,31 +184,9 @@ def load_params(path: Path) -> dict[str, float]:
         f"{p['plinth_height_m']} leaves no room for the doors",
     )
     req(
-        p["side_wall_offset_m"] >= p["cabinet_width_m"] / 2.0 + 0.1,
-        "side_wall_offset_m",
-        f"{p['side_wall_offset_m']} must keep the side wall at least 10 cm from the cabinet",
-    )
-    req(
-        p["room_reach_m"] >= p["cabinet_width_m"] / 2.0 + 0.3
-        and p["room_reach_m"] >= p["cabinet_depth_m"] / 2.0 + 0.3,
-        "room_reach_m",
-        f"{p['room_reach_m']} must reach at least 30 cm beyond the cabinet",
-    )
-    req(
         p["skirting_thickness_m"] < p["wall_gap_m"],
         "skirting_thickness_m",
         f"{p['skirting_thickness_m']} must be below wall_gap_m, so the cabinet clears it",
-    )
-    foot_inner = (p["lamp_foot_span_m"] - p["lamp_foot_width_m"]) / 2.0
-    req(
-        foot_inner > p["lamp_bar_length_m"] / 2.0,
-        "lamp_foot_span_m",
-        f"{p['lamp_foot_span_m']}: the feet must stand outside the bar ends",
-    )
-    req(
-        foot_inner - ARM_REACH - p["lamp_bar_length_m"] / 2.0 < 0.0,
-        "lamp_foot_span_m",
-        f"{p['lamp_foot_span_m']}: the bracket arms cannot reach under the bar ends",
     )
     req(
         p["lamp_foot_depth_m"] <= p["lamp_bar_depth_m"],
@@ -192,6 +197,56 @@ def load_params(path: Path) -> dict[str, float]:
         p["lamp_bar_lift_m"] > ARM_THICKNESS + 0.002,
         "lamp_bar_lift_m",
         f"{p['lamp_bar_lift_m']} leaves no room for the bracket arms",
+    )
+    return p
+
+
+def params_for_tank(
+    room_params: dict[str, float], tank_params: dict[str, float]
+) -> dict[str, float]:
+    """The room parameters plus the cabinet and lamp sizes of one tank (``tank_params`` as
+    returned by ``generate_tank.load_params``), validated. Raises ``GeneratorError`` naming the key
+    to change."""
+    p = dict(room_params)
+    glass = tank_params["glass_thickness_m"]
+    exterior_x = tank_params["interior_length_m"] + 2.0 * glass
+    exterior_z = tank_params["interior_depth_m"] + 2.0 * glass
+    p["cabinet_width_m"] = exterior_x + 2.0 * CABINET_MARGIN_M
+    p["cabinet_depth_m"] = exterior_z + 2.0 * CABINET_MARGIN_M
+    p["lamp_bar_length_m"] = exterior_x - LAMP_BAR_SHORTER_M
+    p["lamp_foot_span_m"] = exterior_x - tank_params["trim_size_m"]
+    for key, (low, high) in DERIVED_RANGES.items():
+        blender_common.read_float(p, key, low, high)
+    req = blender_common.require
+    req(
+        p["side_wall_offset_m"] >= p["cabinet_width_m"] / 2.0 + 0.1,
+        "side_wall_offset_m",
+        f"{p['side_wall_offset_m']} must keep the side wall at least 10 cm from a cabinet "
+        f"{p['cabinet_width_m']:.3f} m wide",
+    )
+    cabinet_front = -p["back_wall_distance_m"] + p["wall_gap_m"] + p["cabinet_depth_m"]
+    req(
+        p["room_reach_m"] >= p["cabinet_width_m"] / 2.0 + 0.3
+        and p["room_reach_m"] >= cabinet_front + 0.3,
+        "room_reach_m",
+        f"{p['room_reach_m']} must reach at least 30 cm beyond the cabinet",
+    )
+    carcass_depth = p["cabinet_depth_m"] - p["cabinet_door_setback_m"] - p["door_thickness_m"]
+    req(
+        carcass_depth > 2.0 * p["plinth_inset_m"] + 0.05,
+        "plinth_inset_m",
+        f"{p['plinth_inset_m']} leaves no plinth inside a carcass {carcass_depth:.3f} m deep",
+    )
+    foot_inner = (p["lamp_foot_span_m"] - p["lamp_foot_width_m"]) / 2.0
+    req(
+        foot_inner > p["lamp_bar_length_m"] / 2.0,
+        "lamp_foot_span_m",
+        f"{p['lamp_foot_span_m']:.4f}: the feet must stand outside the bar ends",
+    )
+    req(
+        foot_inner - ARM_REACH - p["lamp_bar_length_m"] / 2.0 < 0.0,
+        "lamp_foot_span_m",
+        f"{p['lamp_foot_span_m']:.4f}: the bracket arms cannot reach under the bar ends",
     )
     return p
 
@@ -275,7 +330,7 @@ def room_extent(p: dict[str, float]) -> tuple[float, float, float, float]:
     side = p["side_wall_side"]
     side_x = side * p["side_wall_offset_m"]
     open_x = -side * p["room_reach_m"]
-    back_z = -(p["cabinet_depth_m"] / 2.0 + p["wall_gap_m"])
+    back_z = -p["back_wall_distance_m"]
     return min(side_x, open_x), max(side_x, open_x), back_z, p["room_reach_m"]
 
 
@@ -391,41 +446,63 @@ def build_lamp(p: dict[str, float]) -> dict[str, MeshData]:
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="generate_room.py",
-        description="Generate the room corner, cabinet, lamp and palette atlas (#22).",
+        description="Generate the room corner, palette atlas and per-tank cabinet and lamp.",
     )
     parser.add_argument("--params", type=Path, default=DEFAULT_PARAMS)
+    parser.add_argument("--tank-params", type=Path, nargs="+", default=None)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
     return parser.parse_args(blender_common.script_args(argv))
 
 
+def tank_files(named: list[Path] | None) -> list[Path]:
+    """The tank parameter files: the named ones, or every committed ``tank_*.json``."""
+    files = [path.resolve() for path in named] if named else sorted(PARAMS_DIR.glob("tank_*.json"))
+    if not files:
+        raise GeneratorError(f"no tank_*.json in {PARAMS_DIR}")
+    for path in files:
+        if not path.stem.startswith(TANK_PREFIX):
+            raise GeneratorError(f"a tank parameter file must be named tank_<suffix>.json: {path}")
+    return files
+
+
+def suffix_of(tank_file: Path) -> str:
+    return tank_file.stem[len(TANK_PREFIX) :]
+
+
+def _glb_writer(meshes: dict[str, MeshData]) -> Callable[[Path], None]:
+    """Builds the meshes in a fresh Blender scene and exports them, so the object names of the
+    per-tank files never collide (Blender would rename a second ``cabinet`` to ``cabinet.001``)."""
+
+    def write(path: Path) -> None:
+        blender_common.reset_scene()
+        material = blender_common.new_material(PALETTE_MATERIAL)
+        objects = [
+            blender_common.build_object(name, data, material) for name, data in meshes.items()
+        ]
+        blender_common.export_glb(objects, path)
+
+    return write
+
+
 def run(argv: list[str]) -> None:
     args = parse_args(argv)
-    params = load_params(args.params.resolve())
+    room = load_params(args.params.resolve())
     out_dir: Path = args.out_dir.resolve()
     if not out_dir.is_dir():
         raise GeneratorError(f"--out-dir does not exist: {out_dir}")
-    groups: dict[str, dict[str, MeshData]] = {
-        CABINET_FILE: {"cabinet": build_cabinet(params)},
-        ROOM_FILE: build_room(params),
-        LAMP_FILE: build_lamp(params),
-    }
-
-    blender_common.reset_scene()
-    material = blender_common.new_material(PALETTE_MATERIAL)
-    objects: dict[str, list] = {
-        file_name: [
-            blender_common.build_object(name, data, material) for name, data in meshes.items()
-        ]
-        for file_name, meshes in groups.items()
-    }
-
-    def glb_writer(file_name: str):  # noqa: ANN202
-        return lambda path: blender_common.export_glb(objects[file_name], path)
+    groups: dict[str, dict[str, MeshData]] = {ROOM_FILE: build_room(room)}
+    for tank_file in tank_files(args.tank_params):
+        merged = params_for_tank(room, generate_tank.load_params(tank_file))
+        suffix = suffix_of(tank_file)
+        groups[f"{CABINET_PREFIX}{suffix}.glb"] = {"cabinet": build_cabinet(merged)}
+        groups[f"{LAMP_PREFIX}{suffix}.glb"] = build_lamp(merged)
 
     def atlas_writer(path: Path) -> None:
         path.write_bytes(room_palette.atlas_png())
 
-    outputs = [(name, glb_writer(name), blender_common.GLB_MAGIC) for name in groups]
+    outputs = [
+        (name, _glb_writer(meshes), blender_common.GLB_MAGIC) for name, meshes in groups.items()
+    ]
     outputs.append((ATLAS_FILE, atlas_writer, blender_common.PNG_MAGIC))
     blender_common.write_group(out_dir, outputs)
     for file_name, meshes in groups.items():

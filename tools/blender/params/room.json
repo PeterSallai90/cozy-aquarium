@@ -1,6 +1,4 @@
 {
-  "cabinet_width_m": 0.66,
-  "cabinet_depth_m": 0.36,
   "cabinet_height_m": 0.75,
   "cabinet_top_thickness_m": 0.03,
   "cabinet_side_overhang_m": 0.012,
@@ -12,6 +10,7 @@
   "plinth_height_m": 0.07,
   "plinth_inset_m": 0.03,
   "wall_gap_m": 0.035,
+  "back_wall_distance_m": 0.215,
   "wall_height_m": 2.4,
   "side_wall_side": -1,
   "side_wall_offset_m": 0.85,
@@ -19,11 +18,9 @@
   "floor_thickness_m": 0.05,
   "skirting_height_m": 0.09,
   "skirting_thickness_m": 0.015,
-  "lamp_bar_length_m": 0.58,
   "lamp_bar_depth_m": 0.06,
   "lamp_bar_thickness_m": 0.014,
   "lamp_bar_lift_m": 0.02,
-  "lamp_foot_span_m": 0.6,
   "lamp_foot_width_m": 0.009,
   "lamp_foot_depth_m": 0.024
 }
