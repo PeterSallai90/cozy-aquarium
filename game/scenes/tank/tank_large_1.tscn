@@ -1,14 +1,46 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scenes/tank/tank_water.gd" id="9_water"]
 [ext_resource type="PackedScene" uid="uid://in8aj3xf0vrl" path="res://assets/tank/tank_large_1.glb" id="1_glb"]
+[ext_resource type="Material" path="res://assets/tank/materials/tank_glass.tres" id="2_glass"]
+[ext_resource type="Material" path="res://assets/tank/materials/water_surface.tres" id="3_surface"]
+[ext_resource type="FogMaterial" path="res://assets/tank/materials/water_fog.tres" id="4_fog"]
+[ext_resource type="Material" path="res://assets/tank/materials/water_depth_tint.tres" id="5_tint"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_surface"]
+size = Vector2(1, 0.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tint"]
+size = Vector3(1, 0.5, 0.4)
 
 [node name="TankLarge1" instance=ExtResource("1_glb")]
 
 [node name="Glass" parent="." index="1"]
 cast_shadow = 0
+instance_shader_parameters/glass_interior_size_m = Vector3(1, 0.52, 0.4)
+surface_material_override/0 = ExtResource("2_glass")
 
 [node name="WaterVolume" type="Node3D" parent="." index="2"]
+script = ExtResource("9_water")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+
+[node name="Surface" type="MeshInstance3D" parent="WaterVolume"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+cast_shadow = 0
+instance_shader_parameters/water_size_m = Vector3(1, 0.5, 0.4)
+mesh = SubResource("PlaneMesh_surface")
+material_override = ExtResource("3_surface")
+
+[node name="Fog" type="FogVolume" parent="WaterVolume"]
+size = Vector3(1, 0.5, 0.4)
+shape = 3
+material = ExtResource("4_fog")
+
+[node name="DepthTint" type="MeshInstance3D" parent="WaterVolume"]
+cast_shadow = 0
+instance_shader_parameters/water_size_m = Vector3(1, 0.5, 0.4)
+mesh = SubResource("BoxMesh_tint")
+material_override = ExtResource("5_tint")
 
 [node name="SubstrateAnchor" type="Marker3D" parent="." index="3"]
 

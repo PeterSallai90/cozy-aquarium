@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://shaders/water_depth_tint.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "water_depth_tint"
+render_priority = -2
+shader = ExtResource("1_shader")
+shader_parameter/depth_tint_color = Color(0.55, 0.8, 0.85, 1)
+shader_parameter/depth_tint_strength = 0.25
+shader_parameter/depth_tint_reference_m = 0.35

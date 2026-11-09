@@ -17,10 +17,12 @@ const CAMERA_MAX_KEEP_WIDTH_ASPECT: float = 16.0 / 9.0
 ## ADR 0006: share of the half screen height kept free above and below the framed points.
 const CAMERA_FIT_MARGIN: float = 0.02
 const NO_TANK_PIVOT_HEIGHT_M: float = 0.2
+const FOG_SETTINGS_PATH: String = "res://scenes/tank/water_fog_settings.tres"
 const NO_TANK_EXTERIOR_M: Vector3 = Vector3(0.66, 0.36, 0.36)
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
+var _fog_settings: WaterFogSettings = null
 var _displayed_tank_id: StringName = &""
 var _camera_distance: float = 0.0
 ## The tank instance made while resolving the definition; _show_tank adds it to the room.
@@ -29,11 +31,14 @@ var _resolved_tank: Node3D = null
 @onready var _camera: Camera3D = $PlaceholderCamera
 
 
-## Optional, before the node enters the tree. Without it the room uses a new model and the
-## catalog directory.
-func setup(model: AquariumModel, catalog: TankCatalog) -> void:
+## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
+## directory and the shared default fog settings.
+func setup(
+	model: AquariumModel, catalog: TankCatalog, fog_settings: WaterFogSettings = null
+) -> void:
 	_model = model
 	_catalog = catalog
+	_fog_settings = fog_settings
 
 
 func _ready() -> void:
@@ -41,11 +46,33 @@ func _ready() -> void:
 		_model = AquariumModel.new()
 	if _catalog == null:
 		_catalog = TankCatalog.load_dir()
+	if _fog_settings == null:
+		_fog_settings = load(FOG_SETTINGS_PATH) as WaterFogSettings
+	_setup_fog()
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
 	_show_tank()
 	get_viewport().size_changed.connect(_apply_projection)
 	_apply_projection()
+
+
+## Gives the room its own Environment copy (the shared resource is never changed) and applies the
+## fog settings to it and to the froxel globals; later applications come through the signal.
+func _setup_fog() -> void:
+	if _fog_settings == null:
+		return
+	var holder: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if holder != null and holder.environment != null:
+		holder.environment = holder.environment.duplicate() as Environment
+	_fog_settings.applied.connect(_on_fog_applied)
+	_on_fog_applied()
+
+
+func _on_fog_applied() -> void:
+	var holder: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if holder != null:
+		_fog_settings.apply_to_environment(holder.environment)
+	_fog_settings.apply_to_rendering_server()
 
 
 ## The id of the tank that is shown; empty when no tank is shown.
@@ -77,6 +104,9 @@ func _show_tank() -> void:
 	if tank != null:
 		tank.name = &"Tank"
 		tank.position = Vector3(0.0, CABINET_TOP_HEIGHT_M + definition.glass_thickness_m, stand_z)
+		var water: TankWater = tank.get_node_or_null("WaterVolume") as TankWater
+		if water != null:
+			water.build(definition, _fog_settings)
 		add_child(tank)
 		_displayed_tank_id = definition.id
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)

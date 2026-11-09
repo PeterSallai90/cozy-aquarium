@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://shaders/tank_glass.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "tank_glass"
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/glass_opacity = 0.025
+shader_parameter/glass_edge_tint = Color(0.42, 0.7, 0.56, 1)
+shader_parameter/glass_edge_opacity = 0.6
+shader_parameter/glass_edge_brightness = 0.12
+shader_parameter/glass_reflection_color = Color(0.7, 0.66, 0.8, 1)
+shader_parameter/glass_reflection_strength = 0.22
+shader_parameter/glass_reflection_power = 5.0
+shader_parameter/glass_roughness = 0.3
+shader_parameter/glass_specular = 0.1

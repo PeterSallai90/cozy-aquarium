@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="WaterFogSettings" format=3]
+
+[ext_resource type="Script" path="res://scenes/tank/water_fog_settings.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+volumetric_fog_enabled = true
+density = 0.02
+albedo = Color(0.7, 0.9, 0.95, 1)
+volumetric_fog_length = 8.0
+volumetric_fog_detail_spread = 2.0
+volume_size = 64
+volume_depth = 64
+use_filter = true

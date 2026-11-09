@@ -262,7 +262,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
 | Feeding | Drop food; fish notice and eat it gradually, not all at once; no hunger or overfeeding consequences in Mode 1 | Particle food with simple physics; each fish notices food after its own short random delay, then switches to a seek state |
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification |
-| Water rendering | Cozy, readable water | Glass shader, caustics projected on substrate, volumetric fog tint, bubbles |
+| Water rendering | Cozy, readable water | Glass shader; water surface; in-tank fog as a `FogVolume` bounded to the water, with all fog values in one `WaterFogSettings` resource; depth tint scaled by path length; caustics projected on substrate; bubbles. Water volume contract and fog quality hook: [ADR 0007](adr/0007-water-volume-contract-and-fog-quality-hook.md) |
 | Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`) |
 | Settings | Language (issue 7); audio, graphics quality, controls (issue 9) | One Godot `ConfigFile`, `user://settings.cfg`, written only through `SettingsStore` (`game/systems/settings_store.gd`): one section per area (`[general]` holds `language`; issue 9 adds `[audio]`, `[graphics]`, `[controls]`), the file is read again right before each write so unknown sections and keys survive, it is replaced safely (`.tmp` plus rename), a file that does not parse is copied to `settings.cfg.bak` on the next write, and the game never writes it at startup. Every setting except the language is a typed `SettingKey` (section, key, type, default, optional range; wrong type gives the default, out of range is clamped) read and written through the `Settings` autoload (`game/systems/settings/`), which emits `EventBus.setting_changed` once per real change and reports a failed write through `get_last_save_error()`. The settings screen (`game/ui/settings/`) builds its sections from `settings_sections.tres`; see ADR 0003 |
 | Localization | All visible text; the current language | gettext `.po`, `tr()`/`tr_n()` keys only; the `Localization` autoload (`game/systems/localization/`, registered after `EventBus`) owns the language API and emits `EventBus.language_changed` |
@@ -1293,7 +1293,8 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 9 | Settings system (language, audio, graphics, controls) | E0 Foundation | M0 | feature | S | P1 |
 | 10 | Blender pipeline proof: one generated fish exported and imported | E0 Foundation | M0 | asset | M | P0 |
 | 11 | Cozy room corner with cabinet and medium tank | E1 Tank and room | M1 | feature | M | P0 |
-| 12 | Water and glass shading, basic caustics | E1 Tank and room | M1 | feature | M | P0 |
+| 12a | Water and glass shading: water volume, surface, glass, in-tank fog, depth tint, meniscus (#23) | E1 Tank and room | M1 | feature | M | P0 |
+| 12b | Basic caustics, depends on 12a (#126) | E1 Tank and room | M1 | feature | S to M | P0 |
 | 13 | Choose tank size: small, medium, large | E1 Tank and room | M1 | feature | S | P1 |
 | 14 | Orbit camera with elevation limits and cabinet floor | E2 Camera | M1 | feature | M | P0 |
 | 15 | Camera zoom, pan, collision, reset to front view | E2 Camera | M1 | feature | M | P0 |

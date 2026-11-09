@@ -1,0 +1,9 @@
+[gd_resource type="FogMaterial" format=3]
+
+[resource]
+resource_name = "water_fog"
+density = 0.02
+albedo = Color(0.7, 0.9, 0.95, 1)
+emission = Color(0, 0, 0, 1)
+height_falloff = 0.0
+edge_fade = 0.25

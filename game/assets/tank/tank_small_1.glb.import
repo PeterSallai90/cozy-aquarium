@@ -43,8 +43,8 @@ _subresources={
 "materials": {
 "glass": {
 "use_external/enabled": true,
-"use_external/fallback_path": "res://assets/tank/materials/glass_placeholder.tres",
-"use_external/path": "res://assets/tank/materials/glass_placeholder.tres"
+"use_external/fallback_path": "res://assets/tank/materials/tank_glass.tres",
+"use_external/path": "res://assets/tank/materials/tank_glass.tres"
 },
 "palette": {
 "use_external/enabled": true,
