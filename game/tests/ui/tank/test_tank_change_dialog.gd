@@ -405,6 +405,43 @@ func test_ac26_while_the_dialog_is_open_the_chooser_takes_no_keyboard_focus() ->
 	)
 
 
+func test_ac25_arrow_keys_and_tab_stay_inside_the_change_dialog() -> void:
+	_model = _only_items()
+	if not await _ask():
+		return
+	var keys: Dictionary = {
+		"ui_up": [KEY_UP, false],
+		"ui_down": [KEY_DOWN, false],
+		"ui_left": [KEY_LEFT, false],
+		"ui_right": [KEY_RIGHT, false],
+		"Tab": [KEY_TAB, false],
+		"Shift+Tab": [KEY_TAB, true],
+	}
+	var starts: Array[Button] = [Ui.cancel_button(_controls), Ui.confirm_button(_controls)]
+	var escaped: Array[String] = []
+	for start: Button in starts:
+		for label: String in keys:
+			start.grab_focus()
+			await _wait()
+			var key: Array = keys[label]
+			Ui.tap(_controls, key[0] as Key, key[1] as bool)
+			await _wait()
+			var focused: Control = Ui.focus_owner(_controls)
+			var inside: bool = focused == starts[0] or focused == starts[1]
+			if not inside:
+				escaped.append(
+					(
+						"%s from %s -> %s"
+						% [label, start.name, focused.get_path() if focused else "none"]
+					)
+				)
+	(
+		assert_array(escaped)
+		. override_failure_message("focus left Cancel/Confirm: %s" % [escaped])
+		. is_empty()
+	)
+
+
 func test_ac26_while_the_dialog_is_open_another_panel_cannot_be_opened() -> void:
 	_model = _only_items()
 	if not await _ask():
