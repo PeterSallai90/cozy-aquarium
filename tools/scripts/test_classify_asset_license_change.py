@@ -636,11 +636,17 @@ class TestPlainMaterial(ClassifierCase):
 class TestImportSidecar(ClassifierCase):
     """R7: a sidecar that binds a script, shader or non-plain material gates the added row."""
 
-    def sidecar_verdict(self, sidecar: bytes | str | None, ext: str = ".glb", **extra: Any) -> Any:
+    def sidecar_verdict(
+        self,
+        sidecar: bytes | str | None,
+        ext: str = ".glb",
+        rewrite_source: bool = True,
+        **extra: Any,
+    ) -> Any:
         path = f"assets/test/new_file{ext}"
         files: dict[str, bytes | str] = {path: b"data"}
         if sidecar is not None:
-            if isinstance(sidecar, str):
+            if isinstance(sidecar, str) and rewrite_source:
                 sidecar = re.sub(
                     r'(?m)^source_file="res://[^"]*"$', f'source_file="res://{path}"', sidecar
                 )
@@ -826,7 +832,8 @@ class TestImportSidecar(ClassifierCase):
         for name, changed in cases.items():
             with self.subTest(case=name):
                 self.assertNotEqual(changed, sidecar)
-                self.assert_gate(self.sidecar_verdict(changed))
+                rewrite = name != "other source_file"
+                self.assert_gate(self.sidecar_verdict(changed, rewrite_source=rewrite))
 
     def test_review2_allowlist_keeps_import_files_and_plain_materials_exempt(self) -> None:
         glass = (REPO_ROOT / "game/assets/tank/materials/glass_placeholder.tres").read_bytes()
@@ -838,6 +845,205 @@ class TestImportSidecar(ClassifierCase):
         self.assert_exempt(self.sidecar_verdict(self.real_sidecar("fish/proof_fish.glb.import")))
         png = self.real_sidecar("fish/proof_palette_atlas.png.import")
         self.assert_exempt(self.sidecar_verdict(png, ".png"))
+
+    # ---- review round 3: _subresources, [params] and importer allowlists ----
+
+    PLAIN_GLASS = "assets/tank/materials/glass_placeholder.tres"
+
+    def with_subresources(self, value: str) -> str:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        self.assertIn("_subresources={}", sidecar)
+        return sidecar.replace("_subresources={}", "_subresources=" + value)
+
+    @staticmethod
+    def glass_bytes() -> bytes:
+        return (REPO_ROOT / "game/assets/tank/materials/glass_placeholder.tres").read_bytes()
+
+    def test_review3_nodes_node_type_gates(self) -> None:
+        one_line = '{"nodes": {"PATH:Body": {"node/node_type": "FishBody"}}}'
+        multi_line = '{\n"nodes": {\n"PATH:Body": {\n"node/node_type": "FishBody"\n}\n}\n}'
+        for name, value in (("one-line", one_line), ("multi-line", multi_line)):
+            with self.subTest(form=name):
+                self.assert_gate(self.sidecar_verdict(self.with_subresources(value)))
+
+    def test_review3_any_key_under_nodes_meshes_or_animations_gates(self) -> None:
+        values = {
+            "nodes script": '{"nodes": {"PATH:Body": {"script": "res://a.gd"}}}',
+            "nodes save_to_file": '{"nodes": {"PATH:Body": {"save_to_file/enabled": true}}}',
+            "nodes empty": '{"nodes": {}}',
+            "meshes": '{"meshes": {"Body": {"generate/lods": 0}}}',
+            "meshes empty": '{"meshes": {}}',
+            "animations": '{"animations": {"Swim": {"settings/loop_mode": 1}}}',
+            "animations empty": '{"animations": {}}',
+            "materials and nodes": (
+                '{"materials": {}, "nodes": {"PATH:Body": {"node/node_type": "X"}}}'
+            ),
+            "multi-line meshes": '{\n"meshes": {\n"Body": {\n"generate/lods": 0\n}\n}\n}',
+            "unknown category": '{"scripts": {"a": {"b": 1}}}',
+        }
+        for name, value in values.items():
+            with self.subTest(case=name):
+                self.assert_gate(self.sidecar_verdict(self.with_subresources(value)))
+
+    def test_review3_unknown_key_in_material_entry_gates(self) -> None:
+        mat = self.PLAIN_GLASS
+        path = "res://" + mat
+        entries = {
+            "extra key": (
+                f'{{"use_external/enabled": true, "use_external/path": "{path}", "x": 1}}'
+            ),
+            "script": (
+                f'{{"use_external/enabled": true, "use_external/path": "{path}", '
+                '"script": "res://a.gd"}'
+            ),
+            "save_to_file": '{"save_to_file/enabled": true}',
+            "only unknown key": '{"opaque/mode": 1}',
+        }
+        for name, entry in entries.items():
+            with self.subTest(case=name):
+                one = self.with_subresources('{"materials": {"glass": ' + entry + "}}")
+                self.assert_gate(self.sidecar_verdict(one, **{mat: self.glass_bytes()}))
+                body = entry.replace(", ", ",\n")
+                multi = self.with_subresources('{\n"materials": {\n"glass": ' + body + "\n}\n}")
+                self.assert_gate(self.sidecar_verdict(multi, **{mat: self.glass_bytes()}))
+
+    def test_review3_use_external_enabled_must_be_boolean(self) -> None:
+        mat = self.PLAIN_GLASS
+        for value in ('"true"', "1", "0", "null", '"res://a.tres"', "[true]", "{}"):
+            with self.subTest(enabled=value):
+                entry = f'{{"use_external/enabled": {value}, "use_external/path": "res://{mat}"}}'
+                sidecar = self.with_subresources('{"materials": {"glass": ' + entry + "}}")
+                self.assert_gate(self.sidecar_verdict(sidecar, **{mat: self.glass_bytes()}))
+
+    def test_review3_external_paths_must_be_strings(self) -> None:
+        for key in ("use_external/path", "use_external/fallback_path"):
+            for value in ("1", "true", "null", '["res://a.tres"]'):
+                with self.subTest(key=key, value=value):
+                    entry = f'{{"use_external/enabled": true, "{key}": {value}}}'
+                    sidecar = self.with_subresources('{"materials": {"glass": ' + entry + "}}")
+                    self.assert_gate(self.sidecar_verdict(sidecar))
+
+    def test_review3_subresources_that_is_not_valid_json_gates(self) -> None:
+        values = {
+            "bare word": "nonsense",
+            "single quotes": "{'materials': {}}",
+            "trailing comma": '{"materials": {},}',
+            "unterminated": '{"materials": {',
+            "godot dictionary literal": "Dictionary()",
+            "empty value": "",
+            "array": "[]",
+            "string": '"materials"',
+            "number": "1",
+            "null": "null",
+        }
+        for name, value in values.items():
+            with self.subTest(case=name):
+                self.assert_gate(self.sidecar_verdict(self.with_subresources(value)))
+        broken = self.with_subresources(
+            '{\n"materials": {\n"a": {\n"use_external/enabled": true\n'
+        )
+        self.assert_gate(self.sidecar_verdict(broken))
+
+    def test_review3_empty_and_materials_only_subresources_stay_exempt(self) -> None:
+        for value in ("{}", "{\n}", '{"materials": {}}', '{ "materials" : { } }'):
+            with self.subTest(value=value):
+                self.assert_exempt(self.sidecar_verdict(self.with_subresources(value)))
+
+    def test_review3_cabinet_with_plain_glass_material_is_exempt(self) -> None:
+        mat = self.PLAIN_GLASS
+        cabinet = self.real_sidecar("room/cabinet.glb.import").replace(
+            "res://assets/room/materials/room_palette.tres", "res://" + mat
+        )
+        self.assertNotIn("room_palette", cabinet)
+        self.assert_exempt(self.sidecar_verdict(cabinet, **{mat: self.glass_bytes()}))
+
+    def test_review3_two_plain_materials_like_the_tank_are_exempt(self) -> None:
+        mat1 = self.PLAIN_GLASS
+        mat2 = "assets/test/materials/plain.tres"
+        tank = self.real_sidecar("tank/tank_medium_60l.glb.import").replace(
+            "res://assets/room/materials/room_palette.tres", "res://" + mat2
+        )
+        self.assertIn('"glass"', tank)
+        self.assertIn('"palette"', tank)
+        self.assertNotIn("room_palette", tank)
+        files = {mat1: self.glass_bytes(), mat2: PLAIN_TRES}
+        self.assert_exempt(self.sidecar_verdict(tank, **files))
+
+    def test_review3_two_materials_one_custom_shader_gates(self) -> None:
+        palette = (REPO_ROOT / "game/assets/room/materials/room_palette.tres").read_bytes()
+        mat = "assets/room/materials/room_palette.tres"
+        tank = self.real_sidecar("tank/tank_medium_60l.glb.import")
+        files = {self.PLAIN_GLASS: self.glass_bytes(), mat: palette}
+        self.assert_gate(self.sidecar_verdict(tank, **files))
+
+    def test_review3_real_sidecars_stay_exempt(self) -> None:
+        self.assert_exempt(self.sidecar_verdict(self.real_sidecar("fish/proof_fish.glb.import")))
+        png = self.real_sidecar("fish/proof_palette_atlas.png.import")
+        self.assert_exempt(self.sidecar_verdict(png, ".png"))
+
+    def test_review3_unknown_params_key_gates(self) -> None:
+        cases = {
+            ".glb": (
+                self.real_sidecar("fish/proof_fish.glb.import"),
+                ("nodes/new_option=true", "custom/thing=1", "meshes/unknown_flag=0"),
+            ),
+            ".png": (
+                self.real_sidecar("fish/proof_palette_atlas.png.import"),
+                ("compress/new_option=1", "custom/thing=1", "process/unknown=true"),
+            ),
+        }
+        for ext, (sidecar, extras) in cases.items():
+            for extra in extras:
+                with self.subTest(ext=ext, extra=extra):
+                    self.assert_gate(self.sidecar_verdict(sidecar + extra + "\n", ext))
+                    inserted = sidecar.replace("[params]\n", "[params]\n" + extra + "\n")
+                    self.assertNotEqual(inserted, sidecar)
+                    self.assert_gate(self.sidecar_verdict(inserted, ext))
+
+    def test_review3_every_params_key_of_the_real_scene_sidecars_is_known(self) -> None:
+        plain = "assets/test/materials/plain.tres"
+        for name in (
+            "room/cabinet.glb.import",
+            "room/lamp.glb.import",
+            "room/room_corner.glb.import",
+            "tank/tank_medium_60l.glb.import",
+        ):
+            with self.subTest(sidecar=name):
+                sidecar = self.real_sidecar(name).replace(
+                    "res://assets/room/materials/room_palette.tres", "res://" + plain
+                )
+                files = {plain: PLAIN_TRES, self.PLAIN_GLASS: self.glass_bytes()}
+                self.assert_exempt(self.sidecar_verdict(sidecar, **files))
+
+    def test_review3_importer_must_match_the_extension(self) -> None:
+        scene = self.real_sidecar("fish/proof_fish.glb.import")
+        texture = self.real_sidecar("fish/proof_palette_atlas.png.import")
+        cases = {
+            ".glb": (scene, "scene", ("texture", "wav", "oggvorbisstr", "mp3", "", "scenex")),
+            ".png": (texture, "texture", ("scene", "wav", "oggvorbisstr", "mp3", "", "2d_array")),
+        }
+        for ext, (sidecar, good, bad_values) in cases.items():
+            self.assertIn(f'importer="{good}"', sidecar)
+            for bad in bad_values:
+                with self.subTest(ext=ext, importer=bad):
+                    changed = sidecar.replace(f'importer="{good}"', f'importer="{bad}"')
+                    self.assert_gate(self.sidecar_verdict(changed, ext))
+
+    def test_review3_audio_importer_must_match_the_extension(self) -> None:
+        importers = {".ogg": "oggvorbisstr", ".wav": "wav", ".mp3": "mp3"}
+        for ext, good in importers.items():
+            with self.subTest(ext=ext, importer=good):
+                self.assert_exempt(self.sidecar_verdict(f'[remap]\n\nimporter="{good}"\n', ext))
+            wrong = [v for e, v in importers.items() if e != ext] + ["scene", "texture"]
+            for bad in wrong:
+                with self.subTest(ext=ext, importer=bad):
+                    self.assert_gate(self.sidecar_verdict(f'[remap]\n\nimporter="{bad}"\n', ext))
+
+    def test_review3_missing_importer_gates(self) -> None:
+        sidecar = self.real_sidecar("fish/proof_fish.glb.import")
+        changed = sidecar.replace('importer="scene"\n', "")
+        self.assertNotEqual(changed, sidecar)
+        self.assert_gate(self.sidecar_verdict(changed))
 
     def test_r7_audio_sidecar_with_script_gates(self) -> None:
         sidecar = 'importer="wav"\nimport_script/path="res://x.gd"\n'
