@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="TankDefinition" format=3]
+
+[ext_resource type="Script" path="res://catalog/tank_definition.gd" id="1_def"]
+[ext_resource type="PackedScene" path="res://scenes/tank/tank_large_1.tscn" id="2_scene"]
+[ext_resource type="PackedScene" path="res://assets/room/cabinet_large_1.glb" id="3_cabinet"]
+[ext_resource type="PackedScene" path="res://scenes/room/lamp_large_1.tscn" id="4_lamp"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"tank_large_1"
+name_key = "tank.large_1.name"
+description_key = "tank.large_1.description"
+scene = ExtResource("2_scene")
+interior_size_m = Vector3(1.0, 0.52, 0.4)
+volume_litres = 200
+glass_thickness_m = 0.008
+water_line_height_m = 0.5
+trim_size_m = 0.01
+cabinet_scene = ExtResource("3_cabinet")
+lamp_scene = ExtResource("4_lamp")
+empty_weight_kg = 30.0
+heat_loss_factor = 0.7
+evaporation_l_per_day = 1.1
+heater_slots = 2
+filter_slots = 1
+light_slots = 1
+recommended_heater_watts = 200
+recommended_filter_lph = 800
+has_lid = false

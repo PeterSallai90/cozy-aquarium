@@ -14,6 +14,11 @@ extends Resource
 @export var volume_litres: int = 0
 @export var glass_thickness_m: float = 0.0
 @export var water_line_height_m: float = 0.0
+## Width and height of the rim trim in metres; one value for both.
+@export var trim_size_m: float = 0.0
+## The cabinet and the lamp that go with this tank (presentation only, never saved).
+@export var cabinet_scene: PackedScene = null
+@export var lamp_scene: PackedScene = null
 
 # --- Mode 2 (stored, never shown or used in Mode 1) ---
 @export var empty_weight_kg: float = 0.0
