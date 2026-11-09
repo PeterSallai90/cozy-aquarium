@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/tank/tank_chooser.gd" id="1_script"]
+
+[node name="TankChooser" type="PanelContainer"]
+visible = false
+script = ExtResource("1_script")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Layout"]
+layout_mode = 2
+text = "tank.chooser.title"
+
+[node name="Cards" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="Layout"]
+layout_mode = 2
+text = "settings.close"
