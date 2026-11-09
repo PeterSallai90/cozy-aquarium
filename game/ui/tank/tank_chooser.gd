@@ -7,6 +7,8 @@ extends PanelContainer
 signal picked(tank_id: StringName, card: Button)
 signal close_requested
 
+const CARD_MIN_SIZE: Vector2 = Vector2(340.0, 120.0)
+
 var _displayed_id: StringName = &""
 var _cards: Array[Button] = []
 var _definitions: Dictionary = {}
@@ -77,7 +79,7 @@ static func _is_smaller(a: TankDefinition, b: TankDefinition) -> bool:
 func _make_card(definition: TankDefinition) -> Button:
 	var card: Button = Button.new()
 	card.name = "Card_%s" % definition.id
-	card.custom_minimum_size = Vector2(340.0, 120.0)
+	card.custom_minimum_size = CARD_MIN_SIZE
 	card.pressed.connect(_on_card_pressed.bind(definition.id, card))
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -85,6 +87,7 @@ func _make_card(definition: TankDefinition) -> Button:
 	for side: String in ["left", "top", "right", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 10)
 	card.add_child(margin)
+	margin.minimum_size_changed.connect(_fit_card.bind(card, margin))
 	var rows: VBoxContainer = VBoxContainer.new()
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(rows)
@@ -98,6 +101,13 @@ func _make_card(definition: TankDefinition) -> Button:
 			label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		rows.add_child(label)
 	return card
+
+
+## The card is never shorter than its content, so wrapped text and the marker stay inside it.
+func _fit_card(card: Button, margin: MarginContainer) -> void:
+	var needed: float = maxf(CARD_MIN_SIZE.y, margin.get_combined_minimum_size().y)
+	if not is_equal_approx(card.custom_minimum_size.y, needed):
+		card.custom_minimum_size.y = needed
 
 
 ## Tab and Shift+Tab run through the cards in size order, then Close, and wrap inside the panel.
