@@ -107,8 +107,8 @@ func test_new_model_defaults() -> void:
 
 
 func test_ac03_default_tank_id_constant_is_the_medium_tank() -> void:
-	assert_that(Api.default_tank_id()).is_equal(&"tank_medium_60l")
-	assert_that(_model().get_tank_id()).is_equal(&"tank_medium_60l")
+	assert_that(Api.default_tank_id()).is_equal(&"tank_medium_1")
+	assert_that(_model().get_tank_id()).is_equal(&"tank_medium_1")
 
 
 func test_ac03_every_new_model_starts_with_the_default_tank_id() -> void:

@@ -1,32 +1,46 @@
+# gdlint: disable=max-public-methods
 extends GdUnitTestSuite
-## #22 criteria 9 and 13 (owner: developer): the placeholder camera framing at several aspect
-## ratios (ADR 0005 and the BA decision on AC 9) and a clean load. The room lives in a SubViewport
-## so the aspect ratio can be chosen per test.
+## #22 criteria 9 and 13 and #24 criterion 13 (owner: developer): the placeholder camera framing at
+## several aspect ratios for each tank (ADR 0005, ADR 0006 option A "Camera backs off") and a clean
+## load. The default distance is the larger of the width distance (85% of the screen width) and
+## the vertical-fit distance (tank exterior, rim trim and the front edge of the cabinet top inside
+## the 16:9 vertical field of view with a 2% margin of the half screen height). Medium and large
+## keep 85%; the small tank backs off to about 77% at 16:9 (and keeps that distance at 16:10 and
+## 4:3). The room lives in a SubViewport so the aspect ratio can be chosen per test. The fit is
+## measured on the real camera; the function name in CameraFraming is the developer's choice.
 
 const Api := preload("res://tests/helpers/late_api.gd")
 const Rig := preload("res://tests/helpers/room_rig.gd")
 const Glb := preload("res://tests/helpers/glb_mesh_checks.gd")
+const Table := preload("res://tests/helpers/tank_table.gd")
 const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 
 const WIDE_REFERENCE := 16.0 / 9.0
 const SHARE_TOLERANCE := 0.02
-const CABINET_TOP_FRONT := Vector3(0.33, 0.75, 0.18)
+const FIT_MARGIN := 0.02
+const FIT_TOLERANCE := 0.01
+const SMALL_SHARE_AT_16_9 := 0.77
+const ASPECT_SIZES: Array[Vector2i] = [
+	Vector2i(1920, 1080), Vector2i(1920, 1200), Vector2i(1600, 1200)
+]
 
 var _viewport: SubViewport = null
 var _room: Node3D = null
 
 
-func _open(size: Vector2i) -> void:
+func _open(size: Vector2i, id: StringName = Table.MEDIUM) -> void:
 	(
 		assert_bool(ResourceLoader.exists(Rig.ROOM_SCENE))
 		. override_failure_message("room scene missing: %s" % Rig.ROOM_SCENE)
 		. is_true()
 	)
+	if _viewport != null and is_instance_valid(_viewport):
+		_viewport.free()
 	_viewport = SubViewport.new()
 	_viewport.size = size
 	add_child(_viewport)
 	auto_free(_viewport)
-	_room = Rig.instantiate(AquariumModel.new(), Rig.default_catalog())
+	_room = Rig.instantiate(Rig.model_with(id), Rig.default_catalog())
 	_viewport.add_child(_room)
 	await get_tree().process_frame
 
@@ -47,9 +61,9 @@ func _expected_share(size: Vector2i) -> float:
 
 
 ## Share of the screen width between the front corners of the exterior glass at pivot height.
-func _measured_share(size: Vector2i) -> float:
-	var exterior: Vector3 = Rig.exterior_m()
-	var pivot_y: float = Rig.water_line_m() / 2.0
+func _measured_share(size: Vector2i, id: StringName) -> float:
+	var exterior: Vector3 = Table.exterior(id)
+	var pivot_y: float = Table.water_line(id) / 2.0
 	var left: Vector2 = _camera().unproject_position(
 		_tank().transform * Vector3(-exterior.x / 2.0, pivot_y, exterior.z / 2.0)
 	)
@@ -57,6 +71,31 @@ func _measured_share(size: Vector2i) -> float:
 		_tank().transform * Vector3(exterior.x / 2.0, pivot_y, exterior.z / 2.0)
 	)
 	return absf(right.x - left.x) / float(size.x)
+
+
+## The points that must stay on screen: the eight corners of the tank exterior including the rim
+## trim, and the two front corners of the cabinet top.
+func _framed_points(id: StringName) -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	var exterior: Vector3 = Table.exterior(id)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			for y: float in [-Table.glass(id), Table.interior(id).y + Table.TRIM_M]:
+				var corner: Vector3 = Vector3(sx * exterior.x / 2.0, y, sz * exterior.z / 2.0)
+				points.append(_tank().transform * corner)
+	var cabinet: AABB = Glb.scene_bounds_in(_room.get_node("Cabinet") as Node3D, _room)
+	for sx: float in [-1.0, 1.0]:
+		points.append(Vector3(sx * cabinet.end.x, cabinet.end.y, cabinet.end.z))
+	return points
+
+
+## The largest |y| of the framed points in units of the half screen height (0 = centre, 1 = edge).
+func _worst_vertical(size: Vector2i, id: StringName) -> float:
+	var worst: float = 0.0
+	for point: Vector3 in _framed_points(id):
+		var screen: Vector2 = _camera().unproject_position(point)
+		worst = maxf(worst, absf(screen.y - size.y / 2.0) / (size.y / 2.0))
+	return worst
 
 
 func _assert_on_screen(point: Vector3, size: Vector2i, label: String) -> void:
@@ -75,27 +114,23 @@ func _assert_on_screen(point: Vector3, size: Vector2i, label: String) -> void:
 	)
 
 
-func _assert_framing(size: Vector2i) -> void:
+## All framed points are on screen at this size.
+func _assert_everything_on_screen(size: Vector2i, id: StringName) -> void:
+	for point: Vector3 in _framed_points(id):
+		_assert_on_screen(point, size, "%s point %s" % [id, point])
+
+
+## The #22 rule (medium): the width share of the aspect ratio and everything on screen.
+func _assert_framing(size: Vector2i, id: StringName = Table.MEDIUM) -> void:
 	(
-		assert_float(_measured_share(size))
+		assert_float(_measured_share(size, id))
 		. override_failure_message("width share at %s" % size)
 		. is_equal_approx(_expected_share(size), SHARE_TOLERANCE)
 	)
-	var exterior: Vector3 = Rig.exterior_m()
-	var trim: float = 0.01
-	for sx: float in [-1.0, 1.0]:
-		for sz: float in [-1.0, 1.0]:
-			for y: float in [-Rig.glass_m(), Rig.interior_m().y + trim]:
-				var corner: Vector3 = Vector3(sx * exterior.x / 2.0, y, sz * exterior.z / 2.0)
-				_assert_on_screen(_tank().transform * corner, size, "tank corner %s" % corner)
-		_assert_on_screen(
-			Vector3(sx * CABINET_TOP_FRONT.x, CABINET_TOP_FRONT.y, CABINET_TOP_FRONT.z),
-			size,
-			"cabinet top front corner"
-		)
+	_assert_everything_on_screen(size, id)
 
 
-# --- AC 9: constants ---
+# --- AC 9 (#22): constants ---
 
 
 func test_ac09_named_constants_hold_the_camera_spec_values() -> void:
@@ -107,7 +142,7 @@ func test_ac09_named_constants_hold_the_camera_spec_values() -> void:
 	)
 
 
-# --- AC 9: pivot, elevation, distance ---
+# --- AC 9 (#22): pivot, elevation, distance (medium) ---
 
 
 func test_ac09_camera_looks_at_the_water_centre_from_5_degrees_at_the_computed_distance() -> void:
@@ -119,7 +154,7 @@ func test_ac09_camera_looks_at_the_water_centre_from_5_degrees_at_the_computed_d
 	assert_float(direction.y).is_equal_approx(-sin(deg_to_rad(5.0)), 0.002)
 	assert_float(camera.global_position.x).is_equal_approx(pivot.x, 0.001)
 	assert_float(camera.global_position.z).is_greater(pivot.z)
-	var exterior: Vector3 = Rig.exterior_m()
+	var exterior: Vector3 = Table.exterior(Table.MEDIUM)
 	var distance: float = Api.default_distance(
 		exterior.x,
 		exterior.z,
@@ -133,7 +168,7 @@ func test_ac09_camera_looks_at_the_water_centre_from_5_degrees_at_the_computed_d
 	assert_float(centre.y).is_equal_approx(540.0, 1.5)
 
 
-# --- AC 9: projection rule ---
+# --- AC 9 (#22): projection rule ---
 
 
 func test_ac09_16_9_uses_keep_width_with_the_50_degree_fov() -> void:
@@ -167,7 +202,9 @@ func test_ac09_framing_at_4_3() -> void:
 func test_ac09_framing_at_21_9() -> void:
 	await _open(Vector2i(2560, 1080))
 	_assert_framing(Vector2i(2560, 1080))
-	assert_float(_measured_share(Vector2i(2560, 1080))).is_equal_approx(0.648, SHARE_TOLERANCE)
+	assert_float(_measured_share(Vector2i(2560, 1080), Table.MEDIUM)).is_equal_approx(
+		0.648, SHARE_TOLERANCE
+	)
 
 
 func test_ac09_framing_on_a_wider_ultrawide_screen() -> void:
@@ -189,7 +226,118 @@ func test_ac09_resizing_the_viewport_re_applies_the_rule() -> void:
 		_assert_framing(size)
 
 
-# --- AC 13 ---
+# --- #24 AC 13: each tank, ADR 0006 ---
+
+
+func test_ac13_the_pivot_is_the_centre_of_the_water_volume_for_each_tank() -> void:
+	for id: StringName in Table.IDS:
+		await _open(Vector2i(1920, 1080), id)
+		var pivot: Vector3 = (_tank().get_node("WaterVolume") as Node3D).global_position
+		var camera: Camera3D = _camera()
+		var direction: Vector3 = (pivot - camera.global_position).normalized()
+		assert_float(direction.y).override_failure_message(id).is_equal_approx(
+			-sin(deg_to_rad(5.0)), 0.002
+		)
+		assert_float(camera.global_position.x).is_equal_approx(pivot.x, 0.001)
+		var centre: Vector2 = camera.unproject_position(pivot)
+		assert_float(centre.x).is_equal_approx(960.0, 1.5)
+		assert_float(centre.y).is_equal_approx(540.0, 1.5)
+
+
+func test_ac13_distance_is_never_below_the_width_distance_of_85_percent() -> void:
+	for id: StringName in Table.IDS:
+		await _open(Vector2i(1920, 1080), id)
+		var exterior: Vector3 = Table.exterior(id)
+		var width_distance: float = Api.default_distance(
+			exterior.x,
+			exterior.z,
+			Api.room_constant("CAMERA_HFOV_DEG"),
+			Api.room_constant("CAMERA_ELEVATION_DEG"),
+			Api.room_constant("CAMERA_WIDTH_SHARE")
+		)
+		var pivot: Vector3 = (_tank().get_node("WaterVolume") as Node3D).global_position
+		var distance: float = _camera().global_position.distance_to(pivot)
+		assert_float(distance).override_failure_message(id).is_greater_equal(width_distance - 0.001)
+
+
+func test_ac13_medium_and_large_keep_the_width_distance_exactly() -> void:
+	for id: StringName in [Table.MEDIUM, Table.LARGE]:
+		await _open(Vector2i(1920, 1080), id)
+		var exterior: Vector3 = Table.exterior(id)
+		var width_distance: float = Api.default_distance(
+			exterior.x,
+			exterior.z,
+			Api.room_constant("CAMERA_HFOV_DEG"),
+			Api.room_constant("CAMERA_ELEVATION_DEG"),
+			Api.room_constant("CAMERA_WIDTH_SHARE")
+		)
+		var pivot: Vector3 = (_tank().get_node("WaterVolume") as Node3D).global_position
+		(
+			assert_float(_camera().global_position.distance_to(pivot))
+			. override_failure_message(id)
+			. is_equal_approx(width_distance, 0.001)
+		)
+
+
+func test_ac13_medium_and_large_fill_85_percent_of_the_width_at_16_9_16_10_and_4_3() -> void:
+	for id: StringName in [Table.MEDIUM, Table.LARGE]:
+		for size: Vector2i in ASPECT_SIZES:
+			await _open(size, id)
+			(
+				assert_float(_measured_share(size, id))
+				. override_failure_message("%s width share at %s" % [id, size])
+				. is_equal_approx(0.85, SHARE_TOLERANCE)
+			)
+
+
+func test_ac13_every_tank_trim_and_cabinet_front_edge_are_on_screen_at_16_9_16_10_and_4_3() -> void:
+	for id: StringName in Table.IDS:
+		for size: Vector2i in ASPECT_SIZES:
+			await _open(size, id)
+			_assert_everything_on_screen(size, id)
+
+
+func test_ac13_every_tank_keeps_the_2_percent_margin_at_16_9() -> void:
+	for id: StringName in Table.IDS:
+		await _open(Vector2i(1920, 1080), id)
+		(
+			assert_float(_worst_vertical(Vector2i(1920, 1080), id))
+			. override_failure_message("%s is closer than 2%% to the top or bottom edge" % id)
+			. is_less_equal(1.0 - FIT_MARGIN + 0.002)
+		)
+
+
+func test_ac13_the_small_tank_backs_off_below_85_percent_to_about_77_percent_at_16_9() -> void:
+	await _open(Vector2i(1920, 1080), Table.SMALL)
+	var share: float = _measured_share(Vector2i(1920, 1080), Table.SMALL)
+	assert_float(share).is_less(0.85 - 0.01)
+	assert_float(share).is_equal_approx(SMALL_SHARE_AT_16_9, SHARE_TOLERANCE)
+
+
+func test_ac13_the_small_tank_backs_off_no_further_than_needed_it_touches_the_margin() -> void:
+	await _open(Vector2i(1920, 1080), Table.SMALL)
+	(
+		assert_float(_worst_vertical(Vector2i(1920, 1080), Table.SMALL))
+		. override_failure_message(
+			"the trim top or the cabinet front edge must sit on the 2% margin"
+		)
+		. is_equal_approx(1.0 - FIT_MARGIN, FIT_TOLERANCE)
+	)
+
+
+func test_ac13_the_small_tank_keeps_its_16_9_distance_at_16_10_and_4_3() -> void:
+	await _open(Vector2i(1920, 1080), Table.SMALL)
+	var reference: float = _measured_share(Vector2i(1920, 1080), Table.SMALL)
+	for size: Vector2i in [Vector2i(1920, 1200), Vector2i(1600, 1200)]:
+		await _open(size, Table.SMALL)
+		(
+			assert_float(_measured_share(size, Table.SMALL))
+			. override_failure_message("small share at %s" % size)
+			. is_equal_approx(reference, 0.005)
+		)
+
+
+# --- AC 13 (#22): a clean load ---
 
 
 func test_ac13_entering_the_tree_logs_no_error_or_warning() -> void:
@@ -203,9 +351,25 @@ func test_ac13_entering_the_tree_logs_no_error_or_warning() -> void:
 	)
 	auto_free(made[0])
 	assert_bool(ResourceLoader.exists(Rig.ROOM_SCENE)).is_true()
-	assert_that(Rig.displayed_id(made[0])).is_equal(&"tank_medium_60l")
+	assert_that(Rig.displayed_id(made[0])).is_equal(Table.MEDIUM)
 	assert_dict(seen["errors"]).is_empty()
 	assert_dict(seen["warnings"]).is_empty()
+
+
+func test_ac13_every_tank_enters_the_tree_without_logging() -> void:
+	for id: StringName in Table.IDS:
+		var made: Array[Node3D] = []
+		var seen: Dictionary = await EngineOutput.capture(
+			func() -> void:
+				var room: Node3D = Rig.instantiate(Rig.model_with(id), Rig.default_catalog())
+				add_child(room)
+				made.append(room)
+				await get_tree().process_frame
+		)
+		auto_free(made[0])
+		assert_that(Rig.displayed_id(made[0])).is_equal(id)
+		assert_dict(seen["errors"]).is_empty()
+		assert_dict(seen["warnings"]).is_empty()
 
 
 func test_ac13_room_without_setup_builds_from_the_defaults_without_logging() -> void:
@@ -221,7 +385,7 @@ func test_ac13_room_without_setup_builds_from_the_defaults_without_logging() -> 
 	auto_free(made[0])
 	assert_dict(seen["errors"]).is_empty()
 	assert_dict(seen["warnings"]).is_empty()
-	assert_that(Rig.displayed_id(made[0])).is_equal(&"tank_medium_60l")
+	assert_that(Rig.displayed_id(made[0])).is_equal(Table.MEDIUM)
 
 
 func test_ac13_exactly_one_camera_is_active_and_it_is_the_placeholder() -> void:

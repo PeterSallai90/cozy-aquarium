@@ -1,13 +1,15 @@
 extends GdUnitTestSuite
-## #22 criteria 4 and 5 (owner: developer): unknown, empty and broken tanks fall back to the default
-## tank, the model is never written, and a broken default still shows the room. Fixtures are built
-## in code; the expected texts are the contract of the technical plan (ADR 0004, exact counts).
+## #22 criteria 4 and 5 and #24 criterion 27 second half (owner: developer): unknown, empty and
+## broken tanks fall back to the default tank, the model is never written, and a broken default
+## still shows the room. Fixtures are built in code; the expected texts are the contract of the
+## technical plan (ADR 0004, exact counts).
 
 const Api := preload("res://tests/helpers/late_api.gd")
 const Rig := preload("res://tests/helpers/room_rig.gd")
 const EngineOutput := preload("res://tests/helpers/engine_output.gd")
+const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 
-const DEFAULT := &"tank_medium_60l"
+const DEFAULT := &"tank_medium_1"
 const STAMP := "2026-11-01T12:00:00Z"
 
 
@@ -198,3 +200,31 @@ func test_ac05_unknown_id_and_missing_default_logs_the_warning_and_the_default_e
 	assert_dict(seen["errors"]).is_equal({_default_error(): 1})
 	_assert_room_without_tank(built["room"])
 	_assert_model_untouched(model, &"tank_60")
+
+
+# --- #24 AC 27: a save from before the rename ---
+
+
+func test_ac27_a_save_holding_the_old_medium_id_shows_medium_with_one_warning_and_keeps_the_id(
+) -> void:
+	var dir: String = SaveFixtures.make_dir("tank_old_id")
+	var path: String = dir.path_join("old.json")
+	var store: SaveStore = SaveStore.new()
+	var old_model: AquariumModel = Rig.model_with(&"tank_medium_60l")
+	assert_bool(store.save(old_model, path).is_ok()).is_true()
+	var loaded: AquariumModel = AquariumModel.new(STAMP)
+	assert_bool(store.load_into(path, loaded, CommandHistory.new()).is_ok()).is_true()
+	assert_that(loaded.get_tank_id()).is_equal(&"tank_medium_60l")
+	var built: Dictionary = await _build(loaded, Rig.default_catalog())
+	var seen: Dictionary = built["seen"]
+	# No alias (owner decision 2026-11-09): the #22 unknown-id rule, one warning, not an error.
+	assert_dict(seen["warnings"]).is_equal({_warning_for("tank_medium_60l"): 1})
+	assert_dict(seen["errors"]).is_empty()
+	_assert_default_tank_shown(built["room"])
+	_assert_model_untouched(loaded, &"tank_medium_60l")
+	SaveFixtures.remove_dir(dir)
+	SaveFixtures.remove_root_if_empty()
+
+
+func test_ac27_the_old_id_is_not_in_the_catalog_so_nothing_aliases_it() -> void:
+	assert_object(Api.definition_of(Rig.default_catalog(), &"tank_medium_60l")).is_null()

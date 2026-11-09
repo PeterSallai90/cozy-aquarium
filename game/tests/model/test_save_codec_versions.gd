@@ -236,7 +236,7 @@ func test_ac03_decoded_golden_file_keeps_its_own_tank_id_not_the_default() -> vo
 	var bytes: PackedByteArray = SaveFixtures.read_bytes(SaveFixtures.GOLDEN_PATH)
 	var model: AquariumModel = SaveFixtures.model_of(SaveCodec.new().decode_bytes(bytes, NOW))
 	assert_that(model.get_tank_id()).is_equal(&"tank_60")
-	assert_that(Api.default_tank_id()).is_equal(&"tank_medium_60l")
+	assert_that(Api.default_tank_id()).is_equal(&"tank_medium_1")
 	assert_that(model.get_tank_id()).is_not_equal(Api.default_tank_id())
 
 
