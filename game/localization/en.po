@@ -49,6 +49,36 @@ msgstr "Change tank"
 msgid "tank.chooser.title"
 msgstr "Choose your tank"
 
+msgid "tank.details.close"
+msgstr "Close"
+
+msgid "tank.details.fallback"
+msgstr "The tank in your save was not found, so the default tank is shown."
+
+msgid "tank.details.glass_thickness"
+msgstr "Glass thickness"
+
+msgid "tank.details.height"
+msgstr "Height"
+
+msgid "tank.details.length"
+msgstr "Length"
+
+msgid "tank.details.open"
+msgstr "Tank details"
+
+msgid "tank.details.title"
+msgstr "Tank details"
+
+msgid "tank.details.water_level"
+msgstr "Water level"
+
+msgid "tank.details.water_volume"
+msgstr "Water volume"
+
+msgid "tank.details.width"
+msgstr "Width"
+
 msgid "tank.large_1.description"
 msgstr "A roomy tank with space for a big, lively community."
 
@@ -66,6 +96,9 @@ msgstr "A small, quiet tank for a few tiny fish."
 
 msgid "tank.small_1.name"
 msgstr "Small tank"
+
+msgid "unit.cm"
+msgstr "%s cm"
 
 msgid "unit.litre"
 msgstr "%s L"

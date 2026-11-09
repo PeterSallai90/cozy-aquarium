@@ -48,6 +48,36 @@ msgstr ""
 msgid "tank.chooser.title"
 msgstr ""
 
+msgid "tank.details.close"
+msgstr ""
+
+msgid "tank.details.fallback"
+msgstr ""
+
+msgid "tank.details.glass_thickness"
+msgstr ""
+
+msgid "tank.details.height"
+msgstr ""
+
+msgid "tank.details.length"
+msgstr ""
+
+msgid "tank.details.open"
+msgstr ""
+
+msgid "tank.details.title"
+msgstr ""
+
+msgid "tank.details.water_level"
+msgstr ""
+
+msgid "tank.details.water_volume"
+msgstr ""
+
+msgid "tank.details.width"
+msgstr ""
+
 msgid "tank.large_1.description"
 msgstr ""
 
@@ -64,6 +94,9 @@ msgid "tank.small_1.description"
 msgstr ""
 
 msgid "tank.small_1.name"
+msgstr ""
+
+msgid "unit.cm"
 msgstr ""
 
 msgid "unit.litre"

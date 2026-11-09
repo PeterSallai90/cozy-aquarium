@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://ui/tank/tank_controls.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/tank/tank_chooser.tscn" id="2_chooser"]
 [ext_resource type="PackedScene" path="res://ui/tank/tank_change_dialog.tscn" id="3_dialog"]
+[ext_resource type="PackedScene" path="res://ui/tank/tank_details.tscn" id="4_details"]
 
 [node name="TankControls" type="Control"]
 layout_mode = 3
@@ -22,12 +23,25 @@ offset_right = 16.0
 offset_bottom = 16.0
 mouse_filter = 2
 
-[node name="ChangeTankButton" type="Button" parent="Group"]
+[node name="Buttons" type="HBoxContainer" parent="Group"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ChangeTankButton" type="Button" parent="Group/Buttons"]
 layout_mode = 2
 size_flags_horizontal = 0
 text = "tank.chooser.open"
 
+[node name="TankDetailsButton" type="Button" parent="Group/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "tank.details.open"
+
 [node name="TankChooser" parent="Group" instance=ExtResource("2_chooser")]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="TankDetails" parent="Group" instance=ExtResource("4_details")]
 layout_mode = 2
 size_flags_horizontal = 0
 
