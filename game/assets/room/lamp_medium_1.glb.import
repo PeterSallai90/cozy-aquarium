@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://7ym8p2ucg0pj"
-path="res://.godot/imported/tank_medium_60l.glb-c027f8a5663d599f29263172e08d946d.scn"
+uid="uid://0tfueog8est5"
+path="res://.godot/imported/lamp_medium_1.glb-a81f7c5f9271dd1926b2a8284d97ebc2.scn"
 
 [deps]
 
-source_file="res://assets/tank/tank_medium_60l.glb"
-dest_files=["res://.godot/imported/tank_medium_60l.glb-c027f8a5663d599f29263172e08d946d.scn"]
+source_file="res://assets/room/lamp_medium_1.glb"
+dest_files=["res://.godot/imported/lamp_medium_1.glb-a81f7c5f9271dd1926b2a8284d97ebc2.scn"]
 
 [params]
 
@@ -41,11 +41,6 @@ materials/extract_format=0
 materials/extract_path=""
 _subresources={
 "materials": {
-"glass": {
-"use_external/enabled": true,
-"use_external/fallback_path": "res://assets/tank/materials/glass_placeholder.tres",
-"use_external/path": "res://assets/tank/materials/glass_placeholder.tres"
-},
 "palette": {
 "use_external/enabled": true,
 "use_external/fallback_path": "res://assets/room/materials/room_palette.tres",

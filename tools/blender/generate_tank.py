@@ -4,8 +4,8 @@ Usage (the arguments after ``--`` belong to this script):
 
     blender --background --python tools/blender/generate_tank.py -- --params <file> --out <path>
 
-- ``--params``: parameter JSON (default ``tools/blender/params/tank_medium_60l.json``).
-- ``--out``: the ``.glb`` to write (default ``game/assets/tank/tank_medium_60l.glb``).
+- ``--params``: parameter JSON (default ``tools/blender/params/tank_medium_1.json``).
+- ``--out``: the ``.glb`` to write (default ``game/assets/tank/tank_medium_1.glb``).
 - Running without arguments regenerates the committed medium tank. Defaults are resolved from the
   location of this script, so the working directory does not matter.
 
@@ -50,8 +50,8 @@ import room_palette  # noqa: E402
 from blender_common import GeneratorError, MeshData  # noqa: E402,F401 (re-exported for tests)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PARAMS = REPO_ROOT / "tools" / "blender" / "params" / "tank_medium_60l.json"
-DEFAULT_OUT = REPO_ROOT / "game" / "assets" / "tank" / "tank_medium_60l.glb"
+DEFAULT_PARAMS = REPO_ROOT / "tools" / "blender" / "params" / "tank_medium_1.json"
+DEFAULT_OUT = REPO_ROOT / "game" / "assets" / "tank" / "tank_medium_1.glb"
 
 FLOAT_RANGES: dict[str, tuple[float, float]] = {
     "interior_length_m": (0.10, 3.00),

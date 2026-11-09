@@ -219,7 +219,7 @@ The sample is shown compact; the game writes the same keys in the same order, in
 {
   "format_version": 1,
   "name": "My first tank",
-  "tank_id": "tank_medium_60l",
+  "tank_id": "tank_medium_1",
   "substrate": {
     "id": "sand_fine",
     "colour": "#E8D9B0",

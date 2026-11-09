@@ -12,7 +12,7 @@ Writes PNG files (1600 x 1000 px by default) into ``--out-dir``:
   ``composed_three_quarter.png``, ``composed_back_cutaway.png`` and ``composed_scale_4cm.png``
   (a 4 cm reference cube on the inner tank floor, fish size).
 
-These are asset previews only. The lighting lives in Godot (KeyLight in lamp.tscn, the room
+These are asset previews only. The lighting lives in Godot (KeyLight in lamp_medium_1.tscn, the room
 environment), so this script only approximates it: a warm spot at the lamp, a dim dusk-violet world,
 AgX. The palette is read from the atlas through UV1 with a closest filter; the bottom atlas row
 emits, like ``palette_atlas.gdshader``. The 4 cm cube exists only inside this script. Previews are
@@ -34,13 +34,13 @@ import room_palette  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ROOM_DIR = REPO_ROOT / "game" / "assets" / "room"
-TANK_GLB = REPO_ROOT / "game" / "assets" / "tank" / "tank_medium_60l.glb"
+TANK_GLB = REPO_ROOT / "game" / "assets" / "tank" / "tank_medium_1.glb"
 ATLAS = ROOM_DIR / "room_palette_atlas.png"
 
 CABINET_TOP = 0.75
 GLASS = 0.005
 TANK_Y = CABINET_TOP + GLASS  # tank root height in the room (glTF Y = Blender Z)
-LAMP_MOUNT = (0.0, 0.36, -0.03)  # tank space, glTF frame (as in tank_medium_60l.tscn)
+LAMP_MOUNT = (0.0, 0.36, -0.03)  # tank space, glTF frame (as in tank_medium_1.tscn)
 PIVOT_Y = 0.165  # centre of the water volume, tank space
 HFOV_DEG = 50.0
 ELEVATION_DEG = 5.0
@@ -209,8 +209,8 @@ def run(argv: list[str]) -> None:
     _studio_light(bpy, scene)
     singles = (
         ("tank", TANK_GLB, (0.0, 0.0, 0.18), 0.8),
-        ("cabinet", ROOM_DIR / "cabinet.glb", (0.0, 0.0, 0.375), 1.4),
-        ("lamp", ROOM_DIR / "lamp.glb", (0.0, 0.0, 0.02), 0.68),
+        ("cabinet", ROOM_DIR / "cabinet_medium_1.glb", (0.0, 0.0, 0.375), 1.4),
+        ("lamp", ROOM_DIR / "lamp_medium_1.glb", (0.0, 0.0, 0.02), 0.68),
         ("room", ROOM_DIR / "room_corner.glb", (0.4, 0.4, 1.15), 4.4),
     )
     for name, path, centre, size in singles:
@@ -233,10 +233,10 @@ def run(argv: list[str]) -> None:
             bpy.data.objects.remove(obj, do_unlink=True)
     _clear_meshes(bpy)
     _import(bpy, ROOM_DIR / "room_corner.glb", palette, glass)
-    _import(bpy, ROOM_DIR / "cabinet.glb", palette, glass)
+    _import(bpy, ROOM_DIR / "cabinet_medium_1.glb", palette, glass)
     _import(bpy, TANK_GLB, palette, glass, (0.0, TANK_Y, 0.0))
     mount = (LAMP_MOUNT[0], TANK_Y + LAMP_MOUNT[1], LAMP_MOUNT[2])
-    _import(bpy, ROOM_DIR / "lamp.glb", palette, glass, mount)
+    _import(bpy, ROOM_DIR / "lamp_medium_1.glb", palette, glass, mount)
     _key_light(bpy, scene)
 
     pivot = (0.0, TANK_Y + PIVOT_Y, 0.0)

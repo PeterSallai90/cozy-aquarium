@@ -28,8 +28,8 @@ msgstr "Language"
 msgid "settings.title"
 msgstr "Settings"
 
-msgid "tank.medium_60l.description"
+msgid "tank.medium_1.description"
 msgstr "A cozy 60 litre tank for a small community."
 
-msgid "tank.medium_60l.name"
+msgid "tank.medium_1.name"
 msgstr "Medium tank"

@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="PackedScene" uid="uid://0tfueog8est5" path="res://assets/room/lamp.glb" id="1_glb"]
+[ext_resource type="PackedScene" uid="uid://0tfueog8est5" path="res://assets/room/lamp_medium_1.glb" id="1_glb"]
 
 [node name="Lamp" instance=ExtResource("1_glb")]
 

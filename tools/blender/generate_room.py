@@ -6,7 +6,7 @@ Usage (the arguments after ``--`` belong to this script):
     blender --background --python tools/blender/generate_room.py -- --params <file> --out-dir <dir>
 
 - ``--params``: parameter JSON (default ``tools/blender/params/room.json``).
-- ``--out-dir``: folder for ``cabinet.glb``, ``room_corner.glb``, ``lamp.glb`` and
+- ``--out-dir``: folder for ``cabinet_medium_1.glb``, ``room_corner.glb``, ``lamp_medium_1.glb`` and
   ``room_palette_atlas.png`` (default ``game/assets/room``). The four files are replaced as one
   group (``blender_common.swap_in_group``): the folder holds the old group or the new group.
 - Running without arguments regenerates the committed files. Defaults are resolved from the
@@ -14,7 +14,7 @@ Usage (the arguments after ``--`` belong to this script):
 
 Spaces and origins (technical plan of #22), glTF frame (1 unit = 1 m, +X right, +Y up, +Z front):
 
-- ``cabinet.glb``: origin = centre of the cabinet footprint on the floor; the top is at
+- ``cabinet_medium_1.glb``: origin = centre of the cabinet footprint on the floor; the top is at
   ``cabinet_height_m``. One mesh ``cabinet``: recessed plinth, carcass, top slab with chamfered
   edges, two plain panel doors and two brass knobs. The footprint is exactly
   ``cabinet_width_m`` x ``cabinet_depth_m`` (the top slab); nothing reaches beyond it.
@@ -23,7 +23,7 @@ Spaces and origins (technical plan of #22), glTF frame (1 unit = 1 m, +X right, 
   single-sided planes facing into the room (the palette shader culls back faces, so from outside
   they vanish like a dollhouse cut-away); ``Skirting`` runs along both walls. The back wall's
   inner face is at z = -(cabinet_depth_m / 2 + wall_gap_m).
-- ``lamp.glb``: origin = centre of the plane where the feet rest on the tank trim. ``lamp`` is the
+- ``lamp_medium_1.glb``: origin = centre of the plane where the feet rest on the tank trim. ``lamp`` is the
   bar (``lamp_bar_length_m`` x ``lamp_bar_depth_m``, with a warm LED diffuser underneath that uses
   the emissive atlas row); ``lamp_brackets`` are the two feet that reach from the bar ends down
   onto the side trims (BA decision on AC 10). Nothing hangs in front of the bar (no front skirt).
@@ -79,9 +79,9 @@ from blender_common import GeneratorError, MeshData  # noqa: E402,F401 (re-expor
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PARAMS = REPO_ROOT / "tools" / "blender" / "params" / "room.json"
 DEFAULT_OUT_DIR = REPO_ROOT / "game" / "assets" / "room"
-CABINET_FILE = "cabinet.glb"
+CABINET_FILE = "cabinet_medium_1.glb"
 ROOM_FILE = "room_corner.glb"
-LAMP_FILE = "lamp.glb"
+LAMP_FILE = "lamp_medium_1.glb"
 ATLAS_FILE = "room_palette_atlas.png"
 PALETTE_MATERIAL = "palette"
 

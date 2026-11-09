@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" path="res://scenes/room/room_corner.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://assets/room/room_corner.glb" id="2_room"]
-[ext_resource type="PackedScene" path="res://assets/room/cabinet.glb" id="3_cabinet"]
-[ext_resource type="PackedScene" path="res://scenes/room/lamp.tscn" id="4_lamp"]
+[ext_resource type="PackedScene" path="res://assets/room/cabinet_medium_1.glb" id="3_cabinet"]
+[ext_resource type="PackedScene" path="res://scenes/room/lamp_medium_1.tscn" id="4_lamp"]
 [ext_resource type="Environment" path="res://scenes/room/room_environment.tres" id="5_env"]
 
 [node name="RoomCorner" type="Node3D"]
