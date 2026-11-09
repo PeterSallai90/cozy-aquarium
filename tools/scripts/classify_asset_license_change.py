@@ -70,8 +70,11 @@ SOURCE_MARKERS = (
 MATERIAL_TYPES = ("StandardMaterial3D", "ORMMaterial3D")
 TRES_FORBIDDEN = ("script", "shader", '.gd"', ".gdshader")
 KEY_VALUE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_/]* = .+")
-RES_REF_RE = re.compile(r"res://[^\"'\s,\]\)]+")
-SAFE_REF_RE = re.compile(r"[A-Za-z0-9_./-]+")
+MATERIAL_PATH_RE = re.compile(r"res://assets/[A-Za-z0-9_./-]+\.tres")
+IMPORTED_PATH_RE = re.compile(r"res://\.godot/imported/[A-Za-z0-9_.-]+")
+QUOTED_RE = re.compile(r'"[^"\n]*"')
+IMPORTED_KEYS = (("[remap]", "path"), ("[deps]", "dest_files"))
+MULTI_LINE_KEYS = (("[params]", "_subresources"), ("[remap]", "metadata"))
 TEXTURE_EXT_RE = re.compile(
     r'\[ext_resource type="(Texture2D|CompressedTexture2D)"( uid="uid://[a-z0-9]+")?'
     r' path="res://assets/[A-Za-z0-9_./-]+\.png"( id="[A-Za-z0-9_]+")?\]'
@@ -243,9 +246,14 @@ def plain_material_problem(data: bytes | None) -> str | None:
 # --- R7: import sidecar ----------------------------------------------------------------------
 
 
-def bracket_depth(fragment: str) -> int:
-    """Net count of opening minus closing brackets outside double-quoted strings."""
+def scan_fragment(fragment: str) -> tuple[int, bool, bool]:
+    """Scan one line of a sidecar value.
+
+    Returns (net opening minus closing brackets outside double-quoted strings, whether a
+    ; or # comment marker appears outside a string, whether the line ends inside a string).
+    """
     depth = 0
+    comment = False
     in_string = False
     escaped = False
     for char in fragment:
@@ -258,14 +266,16 @@ def bracket_depth(fragment: str) -> int:
                 in_string = False
         elif char == '"':
             in_string = True
+        elif char in ";#":
+            comment = True
         elif char in "{[(":
             depth += 1
         elif char in "}])":
             depth -= 1
-    return depth
+    return depth, comment, in_string
 
 
-def subresources_problem(value: str) -> str | None:
+def subresources_problem(value: str, read_new: Reader) -> str | None:
     """None when the _subresources value is {} or only external plain-material bindings."""
     if "\\" in value:
         return "import sidecar _subresources contains an escape sequence"
@@ -296,12 +306,29 @@ def subresources_problem(value: str) -> str | None:
             expected = MATERIAL_ENTRY_KEYS.get(key)
             if expected is None or type(item) is not expected:
                 return f"import sidecar _subresources material option {key} is not allowed"
-            if expected is str and item and not item.startswith("res://"):
-                return f"import sidecar _subresources {key} is not a res:// path"
+            if expected is str and item:
+                problem = material_path_problem(item, read_new)
+                if problem is not None:
+                    return f"import sidecar _subresources {key}: {problem}"
+    for name in materials:
+        if "res://" in name or "uid://" in name:
+            return "import sidecar _subresources has a material name that looks like a path"
     return None
 
 
-def allowlist_problem(game_path: str, values: dict[tuple[str, str], str]) -> str | None:
+def material_path_problem(path: str, read_new: Reader) -> str | None:
+    """None when path is, as a whole string, a plain material .tres under res://assets/."""
+    if MATERIAL_PATH_RE.fullmatch(path) is None or ".." in path:
+        return f"{path} is not a plain res://assets/ material path"
+    problem = plain_material_problem(read_new("game/" + path[len("res://") :]))
+    if problem is not None:
+        return f"{path}: {problem}"
+    return None
+
+
+def allowlist_problem(
+    game_path: str, values: dict[tuple[str, str], str], read_new: Reader
+) -> str | None:
     """Check importer, [params] keys and _subresources against the known, safe set."""
     importer, allowed = IMPORTERS[os.path.splitext(game_path)[1]]
     if values.get(("[remap]", "importer")) != f'"{importer}"':
@@ -312,7 +339,7 @@ def allowlist_problem(game_path: str, values: dict[tuple[str, str], str]) -> str
         if name == "_subresources":
             if section != "[params]":
                 return "import sidecar has _subresources outside [params]"
-            problem = subresources_problem(value)
+            problem = subresources_problem(value, read_new)
             if problem is not None:
                 return problem
     return None
@@ -322,7 +349,8 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
     """None when the .import sidecar binds no script, shader or non-plain material.
 
     The sidecar is parsed strictly: only the exact format Godot writes is accepted (sections,
-    unquoted keys without spaces, single-line values, no repeated keys). Anything else gates,
+    unquoted keys without spaces, no comments, no repeated keys, multi-line values only for
+    [params] _subresources and [remap] metadata). Anything else gates,
     because Godot's parser accepts many more spellings than it writes.
     """
     data = read_new(game_path + ".import")
@@ -340,7 +368,10 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
     current: tuple[str, str] = ("", "")
     for line in text.split("\n"):
         if depth > 0:
-            depth += bracket_depth(line)
+            delta, comment, open_string = scan_fragment(line)
+            if comment or open_string:
+                return "import sidecar has a comment marker or an unterminated string"
+            depth += delta
             if depth < 0:
                 return "import sidecar has unbalanced brackets"
             values[current] += "\n" + line
@@ -358,12 +389,16 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
             return f"import sidecar repeats the key {match.group(1)}"
         values[key] = match.group(2)
         current = key
-        depth = bracket_depth(match.group(2))
+        depth, comment, open_string = scan_fragment(match.group(2))
+        if comment or open_string:
+            return "import sidecar has a comment marker or an unterminated string"
         if depth < 0:
             return "import sidecar has unbalanced brackets"
+        if depth > 0 and key not in MULTI_LINE_KEYS:
+            return f"import sidecar has a multi-line value for {match.group(1)}"
     if depth != 0:
         return "import sidecar has unbalanced brackets"
-    problem = allowlist_problem(game_path, values)
+    problem = allowlist_problem(game_path, values, read_new)
     if problem is not None:
         return problem
     exact = {"nodes/root_type": '""', "nodes/root_script": "null", "import_script/path": '""'}
@@ -384,21 +419,29 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
     if "uid://" in rest:
         return "import sidecar references a resource by uid"
     own_source = "res://" + game_path[len("game/") :]
-    for ref in RES_REF_RE.findall(text):
-        if ".." in ref:
-            return f"import sidecar has an unusual reference {ref}"
-        if ref.startswith("res://.godot/imported/") or ref == own_source:
+    leftovers = rest
+    for (key_section, name), value in values.items():
+        if name == "_subresources":
+            leftovers = leftovers.replace(value, "")
             continue
-        rel = ref[len("res://") :]
-        if rel.endswith(".tres") and SAFE_REF_RE.fullmatch(rel) is not None:
-            problem = plain_material_problem(read_new("game/" + rel))
-            if problem is not None:
-                return f"import sidecar binds {ref}: {problem}"
-            continue
-        return f"import sidecar references {ref}"
-    leftovers = re.sub(RES_REF_RE, "", rest)
-    if "://" in leftovers:
-        return "import sidecar uses another resource scheme"
+        for string in QUOTED_RE.findall(value):
+            inner = string[1:-1]
+            if "res://" not in inner:
+                continue
+            if "\\" in inner or ".." in inner:
+                return f"import sidecar has an unusual reference {inner}"
+            if inner == own_source:
+                continue
+            imported = any(
+                key_section == sec and name.startswith(base) for sec, base in IMPORTED_KEYS
+            )
+            if imported and IMPORTED_PATH_RE.fullmatch(inner) is not None:
+                continue
+            return f"import sidecar references {inner}"
+    if "res://" in QUOTED_RE.sub("", leftovers.replace("\\", "")) or "://" in leftovers.replace(
+        "res://", ""
+    ):
+        return "import sidecar uses an unexpected resource reference or scheme"
     return None
 
 
