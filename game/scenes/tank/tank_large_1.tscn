@@ -1,5 +1,6 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scenes/tank/tank_water.gd" id="9_water"]
 [ext_resource type="PackedScene" uid="uid://in8aj3xf0vrl" path="res://assets/tank/tank_large_1.glb" id="1_glb"]
 [ext_resource type="Material" path="res://assets/tank/materials/tank_glass.tres" id="2_glass"]
 [ext_resource type="Material" path="res://assets/tank/materials/water_surface.tres" id="3_surface"]
@@ -20,6 +21,7 @@ instance_shader_parameters/glass_interior_size_m = Vector3(1, 0.52, 0.4)
 surface_material_override/0 = ExtResource("2_glass")
 
 [node name="WaterVolume" type="Node3D" parent="." index="2"]
+script = ExtResource("9_water")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 
 [node name="Surface" type="MeshInstance3D" parent="WaterVolume"]
