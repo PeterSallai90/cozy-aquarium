@@ -122,7 +122,9 @@ func test_ac11_each_root_node_is_named_after_its_tank() -> void:
 			assert_str(String(_root.name)).is_equal(names[id])
 
 
-func test_ac11_glass_uses_a_plain_very_transparent_placeholder_material() -> void:
+## Superseded by #23: the plain placeholder material is gone; the glass is the tank_glass shader
+## material (its parameters are tested in test_water_shaders.gd).
+func test_ac11_glass_uses_the_transparent_tank_glass_shader_material() -> void:
 	for id: StringName in Table.IDS:
 		if not _open_scene(id):
 			continue
@@ -132,14 +134,13 @@ func test_ac11_glass_uses_a_plain_very_transparent_placeholder_material() -> voi
 			continue
 		assert_int(glass.mesh.get_surface_count()).is_greater(0)
 		for surface: int in glass.mesh.get_surface_count():
-			var material: StandardMaterial3D = (
-				glass.get_active_material(surface) as StandardMaterial3D
-			)
-			assert_object(material).is_not_null()
+			var material: ShaderMaterial = glass.get_active_material(surface) as ShaderMaterial
+			assert_object(material).override_failure_message(id).is_not_null()
 			if material == null:
 				continue
-			assert_int(material.transparency).is_not_equal(BaseMaterial3D.TRANSPARENCY_DISABLED)
-			assert_float(material.albedo_color.a).is_between(0.05, 0.25)
+			assert_str(material.resource_path).is_equal(
+				"res://assets/tank/materials/tank_glass.tres"
+			)
 
 
 func test_ac11_glass_does_not_cast_shadows() -> void:
@@ -154,7 +155,7 @@ func test_ac11_glass_does_not_cast_shadows() -> void:
 			)
 
 
-func test_ac11_water_volume_is_an_invisible_node_without_mesh_at_half_the_water_line() -> void:
+func test_ac11_water_volume_is_a_node3d_at_half_the_water_line() -> void:
 	for id: StringName in Table.IDS:
 		if not _open_scene(id):
 			continue
@@ -162,7 +163,6 @@ func test_ac11_water_volume_is_an_invisible_node_without_mesh_at_half_the_water_
 		assert_object(water).is_not_null()
 		if water == null:
 			continue
-		assert_int(Glb.mesh_instances(water).size()).is_equal(0)
 		assert_str(water.get_class()).is_equal("Node3D")
 		assert_float(water.position.y).override_failure_message(id).is_equal_approx(
 			Table.water_line(id) / 2.0, Glb.MM
