@@ -23,6 +23,7 @@ Rules R1 to R9 are described in the technical plan of issue #122 and in docs/ass
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -67,7 +68,6 @@ SOURCE_MARKERS = (
     "quaternius",
 )
 MATERIAL_TYPES = ("StandardMaterial3D", "ORMMaterial3D")
-TEXTURE_TYPES = ("Texture2D", "CompressedTexture2D")
 TRES_FORBIDDEN = ("script", "shader", '.gd"', ".gdshader")
 KEY_VALUE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_/]* = .+")
 RES_REF_RE = re.compile(r"res://[^\"'\s,\]\)]+")
@@ -78,6 +78,46 @@ TEXTURE_EXT_RE = re.compile(
 )
 SECTION_RE = re.compile(r"\[[a-z_]+\]")
 SIDECAR_LINE_RE = re.compile(r"([A-Za-z0-9_./-]+)=(.*)")
+
+SCENE_PARAMS = frozenset(
+    """nodes/root_type nodes/root_name nodes/root_script
+    mesh_library/use_node_names_as_mesh_names array_mesh/deduplicate_surfaces
+    nodes/apply_root_scale nodes/root_scale nodes/import_as_skeleton_bones
+    nodes/use_name_suffixes nodes/use_node_type_suffixes meshes/ensure_tangents
+    meshes/generate_lods meshes/create_shadow_meshes meshes/light_baking
+    meshes/lightmap_texel_size meshes/force_disable_compression skins/use_named_skins
+    animation/import animation/fps animation/trimming animation/remove_immutable_tracks
+    animation/import_rest_as_RESET import_script/path materials/extract
+    materials/extract_format materials/extract_path _subresources gltf/naming_version
+    gltf/embedded_image_handling gltf/texture_map_mode""".split()
+)
+TEXTURE_PARAMS = frozenset(
+    """compress/mode compress/high_quality compress/lossy_quality compress/uastc_level
+    compress/rdo_quality_loss compress/hdr_compression compress/normal_map
+    compress/channel_pack mipmaps/generate mipmaps/limit roughness/mode roughness/src_normal
+    process/channel_remap/red process/channel_remap/green process/channel_remap/blue
+    process/channel_remap/alpha process/fix_alpha_border process/premult_alpha
+    process/normal_map_invert_y process/hdr_as_srgb process/hdr_clamp_exposure
+    process/size_limit detect_3d/compress_to""".split()
+)
+OGG_PARAMS = frozenset("loop loop_offset bpm beat_count bar_beats".split())
+WAV_PARAMS = frozenset(
+    """force/8_bit force/mono force/max_rate force/max_rate_hz edit/trim edit/normalize
+    edit/loop_mode edit/loop_begin edit/loop_end compress/mode""".split()
+)
+# extension -> (expected importer, allowed [params] keys)
+IMPORTERS: dict[str, tuple[str, frozenset[str]]] = {
+    ".glb": ("scene", SCENE_PARAMS),
+    ".png": ("texture", TEXTURE_PARAMS),
+    ".ogg": ("oggvorbisstr", OGG_PARAMS),
+    ".wav": ("wav", WAV_PARAMS),
+    ".mp3": ("mp3", OGG_PARAMS),
+}
+MATERIAL_ENTRY_KEYS = {
+    "use_external/enabled": bool,
+    "use_external/path": str,
+    "use_external/fallback_path": str,
+}
 
 Reader = Callable[[str], bytes | None]
 
@@ -225,6 +265,59 @@ def bracket_depth(fragment: str) -> int:
     return depth
 
 
+def subresources_problem(value: str) -> str | None:
+    """None when the _subresources value is {} or only external plain-material bindings."""
+    if "\\" in value:
+        return "import sidecar _subresources contains an escape sequence"
+
+    def no_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = dict(pairs)
+        if len(result) != len(pairs):
+            raise ValueError("duplicate key")
+        return result
+
+    try:
+        parsed = json.loads(value, object_pairs_hook=no_duplicates)
+    except ValueError:
+        return "import sidecar _subresources is not valid JSON"
+    if not isinstance(parsed, dict):
+        return "import sidecar _subresources is not a dictionary"
+    if not parsed:
+        return None
+    if list(parsed) != ["materials"]:
+        return "import sidecar _subresources has a category other than materials"
+    materials = parsed["materials"]
+    if not isinstance(materials, dict):
+        return "import sidecar _subresources materials is not a dictionary"
+    for entry in materials.values():
+        if not isinstance(entry, dict):
+            return "import sidecar _subresources has a material entry that is not a dictionary"
+        for key, item in entry.items():
+            expected = MATERIAL_ENTRY_KEYS.get(key)
+            if expected is None or type(item) is not expected:
+                return f"import sidecar _subresources material option {key} is not allowed"
+            if expected is str and item and not item.startswith("res://"):
+                return f"import sidecar _subresources {key} is not a res:// path"
+    return None
+
+
+def allowlist_problem(game_path: str, values: dict[tuple[str, str], str]) -> str | None:
+    """Check importer, [params] keys and _subresources against the known, safe set."""
+    importer, allowed = IMPORTERS[os.path.splitext(game_path)[1]]
+    if values.get(("[remap]", "importer")) != f'"{importer}"':
+        return f"import sidecar has no importer={importer}"
+    for (section, name), value in values.items():
+        if section == "[params]" and name not in allowed:
+            return f"import sidecar has the unknown param {name}"
+        if name == "_subresources":
+            if section != "[params]":
+                return "import sidecar has _subresources outside [params]"
+            problem = subresources_problem(value)
+            if problem is not None:
+                return problem
+    return None
+
+
 def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
     """None when the .import sidecar binds no script, shader or non-plain material.
 
@@ -244,11 +337,13 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
     values: dict[tuple[str, str], str] = {}
     section = ""
     depth = 0
+    current: tuple[str, str] = ("", "")
     for line in text.split("\n"):
         if depth > 0:
             depth += bracket_depth(line)
             if depth < 0:
                 return "import sidecar has unbalanced brackets"
+            values[current] += "\n" + line
             continue
         if not line:
             continue
@@ -262,11 +357,15 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
         if key in values:
             return f"import sidecar repeats the key {match.group(1)}"
         values[key] = match.group(2)
+        current = key
         depth = bracket_depth(match.group(2))
         if depth < 0:
             return "import sidecar has unbalanced brackets"
     if depth != 0:
         return "import sidecar has unbalanced brackets"
+    problem = allowlist_problem(game_path, values)
+    if problem is not None:
+        return problem
     exact = {"nodes/root_type": '""', "nodes/root_script": "null", "import_script/path": '""'}
     for (_, name), value in values.items():
         if name in exact and value != exact[name]:
