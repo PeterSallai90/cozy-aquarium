@@ -13,6 +13,8 @@ const Recorder := preload("res://tests/helpers/signal_recorder.gd")
 const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 
 const WINDOW := Vector2i(1280, 720)
+## The card keeps this much room around its text on every side (the scene uses 10).
+const CARD_PADDING := 10.0
 
 var _saved_locale: String = ""
 var _model: AquariumModel = null
@@ -636,3 +638,55 @@ func test_ac20_close_panels_closes_everything() -> void:
 	_controls.call("close_panels")
 	await _wait()
 	assert_bool(Ui.is_open(_controls)).is_false()
+
+
+# --- layout: the cards contain their text ---
+
+
+func _check_cards_contain_their_text(locale: String) -> void:
+	TranslationServer.set_locale(locale)
+	var holder: Node = Node.new()
+	_window().add_child(holder)
+	if not await _open_chooser(holder):
+		return
+	assert_vector(_controls.get_viewport().get_visible_rect().size).is_equal(Vector2(WINDOW))
+	var rects: Array[Rect2] = []
+	for button: Button in Ui.cards(_controls):
+		var card_rect: Rect2 = button.get_global_rect()
+		var padded: Rect2 = card_rect.grow(-CARD_PADDING)
+		for node: Node in button.find_children("*", "Label", true, false):
+			var label: Label = node as Label
+			if not label.is_visible_in_tree():
+				continue
+			var rect: Rect2 = label.get_global_rect()
+			(
+				assert_bool(padded.grow(0.5).encloses(rect))
+				. override_failure_message(
+					(
+						"%s (%s): %s %s sticks out of its padded card %s"
+						% [locale, button.name, label.name, rect, padded]
+					)
+				)
+				. is_true()
+			)
+		rects.append(card_rect)
+	for first: int in rects.size():
+		for second: int in range(first + 1, rects.size()):
+			(
+				assert_bool(rects[first].intersects(rects[second]))
+				. override_failure_message(
+					(
+						"%s: cards %d and %d overlap: %s %s"
+						% [locale, first, second, rects[first], rects[second]]
+					)
+				)
+				. is_false()
+			)
+
+
+func test_chooser_cards_contain_their_text_at_1280x720_in_english() -> void:
+	await _check_cards_contain_their_text("en")
+
+
+func test_chooser_cards_contain_their_text_at_1280x720_in_hungarian() -> void:
+	await _check_cards_contain_their_text("hu")
