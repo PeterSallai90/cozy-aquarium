@@ -21,12 +21,17 @@ var _root: Node3D = null
 
 
 func after_test() -> void:
+	_free_root()
+
+
+func _free_root() -> void:
 	if _root != null and is_instance_valid(_root):
 		_root.free()
 	_root = null
 
 
 func _open(path: String) -> bool:
+	_free_root()
 	var opened: Dictionary = Glb.open_glb(path)
 	assert_str(String(opened["problem"])).is_empty()
 	_root = opened["root"]

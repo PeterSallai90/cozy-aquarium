@@ -62,7 +62,7 @@ func test_ac23_there_is_one_parameter_file_per_catalog_tank_and_no_extra() -> vo
 	var expected: Array[String] = []
 	for id: StringName in Table.IDS:
 		expected.append("%s.json" % id)
-	assert_array(_param_files()).contains_exactly(expected)
+	assert_array(_param_files()).contains_exactly_in_any_order(expected)
 
 
 func test_ac23_each_parameter_file_has_exactly_the_documented_keys() -> void:
