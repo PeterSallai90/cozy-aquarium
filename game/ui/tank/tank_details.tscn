@@ -1,0 +1,127 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/tank/tank_details.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+bg_color = Color(0.08, 0.12, 0.16, 0.85)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+
+[node name="TankDetails" type="PanelContainer"]
+visible = false
+custom_minimum_size = Vector2(360, 0)
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+script = ExtResource("1_script")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Layout"]
+layout_mode = 2
+text = "tank.details.title"
+
+[node name="Rows" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="NameRow" type="VBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/NameRow"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="DescriptionRow" type="VBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/DescriptionRow"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LengthRow" type="HBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="KeyLabel" type="Label" parent="Layout/Rows/LengthRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "tank.details.length"
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/LengthRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="WidthRow" type="HBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="KeyLabel" type="Label" parent="Layout/Rows/WidthRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "tank.details.width"
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/WidthRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="HeightRow" type="HBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="KeyLabel" type="Label" parent="Layout/Rows/HeightRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "tank.details.height"
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/HeightRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="WaterLevelRow" type="HBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="KeyLabel" type="Label" parent="Layout/Rows/WaterLevelRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "tank.details.water_level"
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/WaterLevelRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="WaterVolumeRow" type="HBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="KeyLabel" type="Label" parent="Layout/Rows/WaterVolumeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "tank.details.water_volume"
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/WaterVolumeRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="GlassThicknessRow" type="HBoxContainer" parent="Layout/Rows"]
+layout_mode = 2
+
+[node name="KeyLabel" type="Label" parent="Layout/Rows/GlassThicknessRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "tank.details.glass_thickness"
+
+[node name="ValueLabel" type="Label" parent="Layout/Rows/GlassThicknessRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="FallbackLabel" type="Label" parent="Layout"]
+visible = false
+layout_mode = 2
+text = "tank.details.fallback"
+autowrap_mode = 3
+
+[node name="CloseButton" type="Button" parent="Layout"]
+layout_mode = 2
+text = "tank.details.close"

@@ -1,19 +1,23 @@
 class_name TankControls
 extends Control
-## The tank-control group of the HUD: the Change tank button, the chooser and the confirmation
-## dialog. It is also the panel group: only one panel is open at a time (open_panel, close_panels),
-## and no panel opens while the dialog is open. It runs the change-tank Command; the chooser and
-## the dialog only report what the player did.
+## The tank-control group of the HUD: the Change tank and Tank details buttons, the chooser, the
+## details panel and the confirmation dialog. Closing a panel puts the focus back on the button
+## that opens it. It is also the panel group: only one panel is open at a time (open_panel,
+## close_panels), and no panel opens while the dialog is open. It runs the change-tank Command; the
+## chooser and the dialog only report what the player did.
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
 var _history: CommandHistory = null
 var _panels: Array[Control] = []
+var _openers: Dictionary[Control, Button] = {}
 var _asked_id: StringName = &""
 var _asked_card: Button = null
 
-@onready var _open_button: Button = $Group/ChangeTankButton
+@onready var _open_button: Button = $Group/Buttons/ChangeTankButton
+@onready var _details_button: Button = $Group/Buttons/TankDetailsButton
 @onready var _chooser: TankChooser = $Group/TankChooser
+@onready var _details: TankDetails = $Group/TankDetails
 @onready var _dialog: TankChangeDialog = $TankChangeDialog
 
 
@@ -33,7 +37,13 @@ func _ready() -> void:
 		_history = CommandHistory.new()
 	_panels.append(_chooser)
 	_chooser.build(_catalog)
+	_panels.append(_details)
+	_openers[_chooser] = _open_button
+	_openers[_details] = _details_button
+	_details.setup(_model, _catalog)
 	_open_button.pressed.connect(_on_open_pressed)
+	_details_button.pressed.connect(_on_details_pressed)
+	_details.close_requested.connect(close_panels)
 	_chooser.picked.connect(_on_picked)
 	_chooser.close_requested.connect(close_panels)
 	_dialog.confirmed.connect(_on_confirmed)
@@ -42,9 +52,12 @@ func _ready() -> void:
 
 
 ## Shows the panel and closes the other panels of the group. Refused while the dialog is open.
-func open_panel(panel: Control) -> void:
+## The optional opener is the button the focus returns to when the panel closes.
+func open_panel(panel: Control, opener: Button = null) -> void:
 	if _dialog.is_active():
 		return
+	if opener != null:
+		_openers[panel] = opener
 	if not _panels.has(panel):
 		_panels.append(panel)
 	for other: Control in _panels:
@@ -53,12 +66,18 @@ func open_panel(panel: Control) -> void:
 	panel.show()
 	if panel == _chooser:
 		_chooser.focus_current()
+	elif panel == _details:
+		_details.focus_start()
 
 
-## Closes every panel and the dialog; the focus goes back to the Change tank button when
-## something was open.
+## Closes every panel and the dialog; the focus goes back to the button of the panel that was
+## open (Change tank when there was none).
 func close_panels() -> void:
 	var was_open: bool = _dialog.is_active()
+	var target: Button = _open_button
+	for open_one: Control in _panels:
+		if open_one.visible:
+			target = _openers.get(open_one, _open_button)
 	_dialog.dismiss()
 	_asked_id = &""
 	_asked_card = null
@@ -66,7 +85,7 @@ func close_panels() -> void:
 		was_open = was_open or panel.visible
 		panel.hide()
 	if was_open:
-		_open_button.grab_focus()
+		target.grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -94,6 +113,15 @@ func _on_open_pressed() -> void:
 		close_panels()
 	else:
 		open_panel(_chooser)
+
+
+func _on_details_pressed() -> void:
+	if _dialog.is_active():
+		return
+	if _details.visible:
+		close_panels()
+	else:
+		open_panel(_details)
 
 
 func _on_picked(tank_id: StringName, card: Button) -> void:

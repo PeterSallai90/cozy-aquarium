@@ -10,7 +10,9 @@ extends Resource
 @export var scene: PackedScene = null
 ## Interior size in metres: x length, y height, z depth.
 @export var interior_size_m: Vector3 = Vector3.ZERO
-## Nominal capacity shown to the player (Mode 1 info and Mode 2 base).
+## Nominal water volume in litres at the water line, rounded; not the gross glass capacity. Shown to
+## the player (Mode 1) and the Mode 2 base. Mode 2 must not redefine it: derive gross litres from
+## interior_size_m or add a new field.
 @export var volume_litres: int = 0
 @export var glass_thickness_m: float = 0.0
 @export var water_line_height_m: float = 0.0

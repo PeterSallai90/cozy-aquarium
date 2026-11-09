@@ -19,8 +19,19 @@ extends RefCounted
 ##   the only emitter. The rig seeds it once after the room is ready, as Main does.
 ## TankControls and EventBus.tank_displayed do not exist before the implementation, so they are
 ## reached by path and by name (a direct member reference would be a parse error).
+##
+## The tank details panel (#117, plan section 3), also found with find_child by name:
+## - Button "TankDetailsButton", in the same HBox as "ChangeTankButton" (Group/Buttons).
+## - The panel "TankDetails" (hidden until opened) with a Label "TitleLabel", a VBox "Rows" with
+##   exactly 8 children named ROW_NAMES in that order, a Label "FallbackLabel" (visible only when
+##   the note is shown) and a Button "CloseButton". Every row holds a Label "ValueLabel"; the six
+##   rows after the name and description also hold a Label "KeyLabel".
+## - DETAILS_WIDTH mirrors TankDetails.PANEL_WIDTH; if the layout changes, both change together.
+## TankDetails is reached by path and name only, never by class name, like the rest of this rig.
 
 const Rig := preload("res://tests/helpers/room_rig.gd")
+const Table := preload("res://tests/helpers/tank_table.gd")
+const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 
 const CONTROLS_SCENE := "res://ui/tank/tank_controls.tscn"
 const OPEN_BUTTON := "ChangeTankButton"
@@ -32,6 +43,23 @@ const CONFIRM_BUTTON := "ConfirmButton"
 const DIMMER := "Dimmer"
 const TITLE := "TitleLabel"
 const BODY := "BodyLabel"
+const DETAILS_BUTTON := "TankDetailsButton"
+const DETAILS := "TankDetails"
+const ROWS := "Rows"
+const ROW_NAMES: Array[String] = [
+	"NameRow",
+	"DescriptionRow",
+	"LengthRow",
+	"WidthRow",
+	"HeightRow",
+	"WaterLevelRow",
+	"WaterVolumeRow",
+	"GlassThicknessRow",
+]
+const KEY_LABEL := "KeyLabel"
+const VALUE_LABEL := "ValueLabel"
+const FALLBACK := "FallbackLabel"
+const DETAILS_WIDTH := 360.0
 
 
 ## Room and controls on the given model, catalog and history, added below `suite`, with the
@@ -174,3 +202,159 @@ static func furnished_model(tank_id: StringName) -> AquariumModel:
 	fish.species_id = &"neon_tetra"
 	model.apply_insert_fish(fish, 0)
 	return model
+
+
+# --- the tank details panel (#117) ---
+
+
+static func details_button(controls: Node) -> Button:
+	return part(controls, DETAILS_BUTTON) as Button
+
+
+static func details(controls: Node) -> Control:
+	return part(controls, DETAILS) as Control
+
+
+## Scoped to the details panel: close_button() belongs to the chooser.
+static func details_close_button(controls: Node) -> Button:
+	var panel: Control = details(controls)
+	return null if panel == null else panel.find_child(CLOSE_BUTTON, true, false) as Button
+
+
+## The children of Rows in tree order; empty while the panel is missing.
+static func details_rows(controls: Node) -> Array[Control]:
+	var rows: Array[Control] = []
+	var panel: Control = details(controls)
+	var holder: Node = null if panel == null else panel.find_child(ROWS, true, false)
+	if holder == null:
+		return rows
+	for child: Node in holder.get_children():
+		rows.append(child as Control)
+	return rows
+
+
+static func row(controls: Node, row_name: String) -> Control:
+	var panel: Control = details(controls)
+	return null if panel == null else panel.find_child(row_name, true, false) as Control
+
+
+static func row_value(controls: Node, row_name: String) -> String:
+	var holder: Control = row(controls, row_name)
+	return shown(null if holder == null else holder.find_child(VALUE_LABEL, true, false) as Label)
+
+
+static func row_key(controls: Node, row_name: String) -> String:
+	var holder: Control = row(controls, row_name)
+	return shown(null if holder == null else holder.find_child(KEY_LABEL, true, false) as Label)
+
+
+## The eight value texts in ROW_NAMES order.
+static func row_values(controls: Node) -> Array[String]:
+	var values: Array[String] = []
+	for row_name: String in ROW_NAMES:
+		values.append(row_value(controls, row_name))
+	return values
+
+
+static func fallback_shown(controls: Node) -> bool:
+	var panel: Control = details(controls)
+	var note: Control = (
+		null if panel == null else panel.find_child(FALLBACK, true, false) as Control
+	)
+	return note != null and note.is_visible_in_tree()
+
+
+static func details_open(controls: Node) -> bool:
+	var panel: Control = details(controls)
+	return panel != null and panel.is_visible_in_tree()
+
+
+static func open_details(suite: Node, controls: Node) -> void:
+	details_button(controls).pressed.emit()
+	await suite.get_tree().process_frame
+	await suite.get_tree().process_frame
+
+
+## Points the live Localization autoload at a LanguageService on a SettingsStore below
+## user://test_saves/<suite>/, so set_language never writes the real user://settings.cfg. The
+## number format follows the swapped service. Call it in before_test and pass the result to
+## end_language_isolation in after_test. Returns {"service", "dir"} for the restore.
+static func begin_language_isolation(suite_name: String) -> Dictionary:
+	var dir: String = SaveFixtures.make_dir(suite_name)
+	var original: LanguageService = Localization.get("_service") as LanguageService
+	var relay: Callable = Callable(Localization, "_on_language_changed")
+	original.language_changed.disconnect(relay)
+	var isolated: LanguageService = LanguageService.new(
+		SettingsStore.new(dir.path_join("settings.cfg"))
+	)
+	isolated.language_changed.connect(relay)
+	isolated.start("en")
+	Localization.set("_service", isolated)
+	return {"service": original, "isolated": isolated, "dir": dir}
+
+
+static func end_language_isolation(state: Dictionary, locale: String) -> void:
+	var relay: Callable = Callable(Localization, "_on_language_changed")
+	var isolated: LanguageService = state["isolated"]
+	if isolated.language_changed.is_connected(relay):
+		isolated.language_changed.disconnect(relay)
+	var original: LanguageService = state["service"]
+	original.language_changed.connect(relay)
+	Localization.set("_service", original)
+	TranslationServer.set_locale(locale)
+	SaveFixtures.remove_dir(state["dir"])
+	SaveFixtures.remove_root_if_empty()
+
+
+## Switches the language through the (isolated) Localization autoload, like the settings screen,
+## so the number format follows too, then waits two frames.
+static func set_language(suite: Node, code: String) -> void:
+	Localization.set_language(code)
+	await suite.get_tree().process_frame
+	await suite.get_tree().process_frame
+
+
+## TankControls without a room, added below `parent`, on `model`, `catalog` and `history`, with
+## the displayed tank announced as `displayed_id` (as the room would). Use it for fixture catalogs:
+## the room would log errors for definitions without a scene. The caller owns the node.
+static func open_controls_only(
+	parent: Node,
+	model: AquariumModel,
+	catalog: RefCounted,
+	history: CommandHistory,
+	displayed_id: StringName
+) -> Control:
+	if not ResourceLoader.exists(CONTROLS_SCENE):
+		return null
+	var scene: PackedScene = load(CONTROLS_SCENE) as PackedScene
+	var controls: Control = scene.instantiate() as Control
+	if controls == null:
+		return null
+	controls.call("setup", model, catalog, history)
+	parent.add_child(controls)
+	await parent.get_tree().process_frame
+	if EventBus.has_signal("tank_displayed"):
+		EventBus.emit_signal("tank_displayed", displayed_id)
+	await parent.get_tree().process_frame
+	return controls
+
+
+## A definition with the tank_medium_1 values (id, text keys, sizes) from the issue table, the
+## given overrides applied (property name -> value) and no scene.
+static func fixture_definition(overrides: Dictionary = {}) -> TankDefinition:
+	var definition: TankDefinition = TankDefinition.new()
+	definition.id = Table.MEDIUM
+	definition.name_key = "tank.medium_1.name"
+	definition.description_key = "tank.medium_1.description"
+	definition.interior_size_m = Table.interior(Table.MEDIUM)
+	definition.glass_thickness_m = Table.glass(Table.MEDIUM)
+	definition.water_line_height_m = Table.water_line(Table.MEDIUM)
+	definition.volume_litres = Table.row(Table.MEDIUM)["litres"]
+	definition.scene = null
+	for property: Variant in overrides:
+		definition.set(property, overrides[property])
+	return definition
+
+
+static func fixture_catalog(definitions: Array[TankDefinition]) -> TankCatalog:
+	return TankCatalog.from_definitions(definitions)
