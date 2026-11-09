@@ -58,8 +58,11 @@ func undo() -> bool:
 	_model.apply_set_tank_id(_old_id)
 	if _heightmap_cleared:
 		_model.apply_set_heightmap(_old_heightmap, _old_heightmap_size)
+	var ok: bool = true
 	for index: int in _old_items.size():
-		_model.apply_insert_item(_old_items[index], index)
+		if not _model.apply_insert_item(_old_items[index], index):
+			ok = false
 	for index: int in _old_fish.size():
-		_model.apply_insert_fish(_old_fish[index], index)
-	return true
+		if not _model.apply_insert_fish(_old_fish[index], index):
+			ok = false
+	return ok

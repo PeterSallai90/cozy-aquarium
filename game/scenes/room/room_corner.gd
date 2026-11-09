@@ -23,6 +23,8 @@ var _model: AquariumModel = null
 var _catalog: TankCatalog = null
 var _displayed_tank_id: StringName = &""
 var _camera_distance: float = 0.0
+## The tank instance made while resolving the definition; _show_tank adds it to the room.
+var _resolved_tank: Node3D = null
 
 @onready var _camera: Camera3D = $PlaceholderCamera
 
@@ -63,15 +65,15 @@ func _show_tank() -> void:
 		if old != null:
 			remove_child(old)
 			old.queue_free()
+	_resolved_tank = null
 	var definition: TankDefinition = _resolve_tank()
 	var stand_z: float = 0.0
 	if definition != null:
 		stand_z = _stand_z(definition)
 	_add_furniture(&"Cabinet", definition, stand_z)
 	_displayed_tank_id = &""
-	var tank: Node3D = null
-	if definition != null:
-		tank = _instantiate(definition.scene)
+	var tank: Node3D = _resolved_tank
+	_resolved_tank = null
 	if tank != null:
 		tank.name = &"Tank"
 		tank.position = Vector3(0.0, CABINET_TOP_HEIGHT_M + definition.glass_thickness_m, stand_z)
@@ -83,6 +85,8 @@ func _show_tank() -> void:
 		mount = tank.get_node_or_null("lamp_mount") as Node3D
 	if mount != null:
 		lamp.global_transform = mount.global_transform
+	elif tank == null:
+		lamp.position = Vector3(0.0, 0.0, stand_z)
 	_frame_camera(definition, stand_z)
 	EventBus.tank_displayed.emit(_displayed_tank_id)
 
@@ -127,10 +131,10 @@ func _resolve_tank() -> TankDefinition:
 func _can_instantiate(definition: TankDefinition) -> bool:
 	if definition == null:
 		return false
-	var probe: Node3D = _instantiate(definition.scene)
-	if probe == null:
+	var instance: Node3D = _instantiate(definition.scene)
+	if instance == null:
 		return false
-	probe.free()
+	_resolved_tank = instance
 	return true
 
 

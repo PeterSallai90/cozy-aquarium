@@ -23,6 +23,16 @@ func _ready() -> void:
 	_cancel.focus_previous = _cancel.get_path_to(_confirm)
 	_confirm.focus_next = _confirm.get_path_to(_cancel)
 	_confirm.focus_previous = _confirm.get_path_to(_cancel)
+	# Arrows keep the focus on the two buttons; the controls behind the dimmer are out of reach.
+	var own: Array[Button] = [_cancel, _confirm]
+	for button: Button in own:
+		var self_path: NodePath = button.get_path_to(button)
+		button.focus_neighbor_top = self_path
+		button.focus_neighbor_bottom = self_path
+	_cancel.focus_neighbor_left = _cancel.get_path_to(_cancel)
+	_cancel.focus_neighbor_right = _cancel.get_path_to(_confirm)
+	_confirm.focus_neighbor_left = _confirm.get_path_to(_cancel)
+	_confirm.focus_neighbor_right = _confirm.get_path_to(_confirm)
 	EventBus.language_changed.connect(_on_language_changed)
 
 
