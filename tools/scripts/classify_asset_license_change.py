@@ -202,6 +202,28 @@ def parse_row(line: str) -> list[str] | None:
     return cells
 
 
+STRING_RE = re.compile(r'"(?:[^"\\]|\\.)*"', re.DOTALL)
+NUMBER_RE = re.compile(
+    r"0[xX][0-9a-fA-F]+|[0-9]+\.?[0-9]*(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?"
+)
+TOKEN_RE = re.compile(NUMBER_RE.pattern + r"|[A-Za-z_][A-Za-z0-9_]*")
+SIDECAR_WORDS = frozenset({"true", "false", "null"})
+MATERIAL_WORDS = SIDECAR_WORDS | {"Color", "Vector2", "Vector3", "Vector4", "ExtResource"}
+
+
+def bare_word_problem(value: str, allowed: frozenset[str] | set[str]) -> str | None:
+    """None when outside double-quoted strings value holds only allowed bare words."""
+    rest = STRING_RE.sub('""', value)
+    if '"' in rest.replace('""', ""):
+        return "value has an unterminated string"
+    for word in TOKEN_RE.findall(rest):
+        if not word[0].isalpha() and word[0] != "_":
+            continue
+        if word not in allowed:
+            return f"value uses the bare word {word}"
+    return None
+
+
 # --- R6: plain material .tres ----------------------------------------------------------------
 
 
@@ -238,6 +260,10 @@ def plain_material_problem(data: bytes | None) -> str | None:
                 return "material file has an unexpected section"
         elif KEY_VALUE_RE.fullmatch(line) is None:
             return "material file has a line that is not a section or key = value"
+        else:
+            problem = bare_word_problem(line.split(" = ", 1)[1], MATERIAL_WORDS)
+            if problem is not None:
+                return f"material file: {problem}"
         if "res://" in line or "uid://" in line:
             return "material file references a resource outside its ext_resource lines"
     return None
@@ -398,6 +424,10 @@ def sidecar_problem(game_path: str, read_new: Reader) -> str | None:
             return f"import sidecar has a multi-line value for {match.group(1)}"
     if depth != 0:
         return "import sidecar has unbalanced brackets"
+    for value in values.values():
+        word_problem = bare_word_problem(value, SIDECAR_WORDS)
+        if word_problem is not None:
+            return f"import sidecar: {word_problem}"
     problem = allowlist_problem(game_path, values, read_new)
     if problem is not None:
         return problem
