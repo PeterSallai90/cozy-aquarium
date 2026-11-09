@@ -1190,6 +1190,188 @@ class TestImportSidecar(ClassifierCase):
         self.assert_exempt(self.sidecar_verdict(png, ".png"))
 
 
+class TestBareWordAllowlist(ClassifierCase):
+    """Review round 5: outside double-quoted strings only a few bare words may appear.
+
+    Godot's value parser accepts Resource("relative/path") (loaded as res://relative/path) and
+    Object(Class, "prop": value) in .import sidecars and .tres files. Sidecars allow only
+    true, false and null outside strings; materials also allow Color, Vector2, Vector3, Vector4
+    and ExtResource.
+    """
+
+    EVIL_OBJECT = 'Object(RefCounted,"script":Resource("assets/evil_script.tres"))'
+    PALETTE_REF = 'Resource("assets/room/materials/room_palette.tres")'
+    MAT_PATH = "assets/tank/materials/glass_placeholder.tres"
+    ROOT_SCALE = r"(?m)^nodes/apply_root_scale=.*$"
+
+    def sidecar_verdict(self, sidecar: str, ext: str = ".glb", **extra: bytes) -> Any:
+        path = f"assets/test/new_file{ext}"
+        sidecar = re.sub(r'(?m)^source_file="res://[^"]*"$', f'source_file="res://{path}"', sidecar)
+        files: dict[str, bytes | str] = {
+            path: b"data",
+            path + ".import": sidecar,
+            "assets/evil_script.tres": b"payload",
+            "other/payload.tres": b"payload",
+        }
+        files.update(extra)
+        return self.add_row(own_row(path), files)
+
+    def tres_verdict(self, content: str) -> Any:
+        path = "assets/tank/materials/mat.tres"
+        return self.add_row(own_row(path, HAND_SOURCE), {path: content})
+
+    @staticmethod
+    def real(name: str) -> str:
+        return (REPO_ROOT / "game/assets" / name).read_text(encoding="utf-8")
+
+    def fish(self) -> str:
+        return self.real("fish/proof_fish.glb.import")
+
+    def png(self) -> str:
+        return self.real("fish/proof_palette_atlas.png.import")
+
+    def fish_with_scale(self, value: str) -> str:
+        sidecar = self.fish()
+        changed = re.sub(self.ROOT_SCALE, lambda _m: f"nodes/apply_root_scale={value}", sidecar)
+        self.assertNotEqual(changed, sidecar)
+        return changed
+
+    # ---- sidecars that must gate ----
+
+    def test_r5_png_multi_line_metadata_with_object_gates(self) -> None:
+        png = self.png()
+        changed = png.replace(
+            '"vram_texture": false\n', f'"vram_texture": false,\n"x": {self.EVIL_OBJECT}\n'
+        )
+        self.assertNotEqual(changed, png)
+        self.assert_gate(self.sidecar_verdict(changed, ".png"))
+
+    def test_r5_png_single_line_metadata_object_gates(self) -> None:
+        png = self.png()
+        changed = png.replace(
+            'metadata={\n"vram_texture": false\n}', f"metadata={self.EVIL_OBJECT}"
+        )
+        self.assertNotEqual(changed, png)
+        self.assert_gate(self.sidecar_verdict(changed, ".png"))
+
+    def test_r5_glb_params_value_object_gates(self) -> None:
+        self.assert_gate(self.sidecar_verdict(self.fish_with_scale(self.EVIL_OBJECT)))
+
+    def test_r5_glb_params_value_resource_relative_path_gates(self) -> None:
+        palette = (REPO_ROOT / "game/assets/room/materials/room_palette.tres").read_bytes()
+        verdict = self.sidecar_verdict(
+            self.fish_with_scale(self.PALETTE_REF),
+            **{"assets/room/materials/room_palette.tres": palette},
+        )
+        self.assert_gate(verdict)
+
+    def test_r5_new_metadata_line_in_glb_remap_gates(self) -> None:
+        sidecar = self.fish()
+        changed = sidecar.replace("[remap]\n", f"[remap]\nmetadata={self.EVIL_OBJECT}\n", 1)
+        self.assertNotEqual(changed, sidecar)
+        self.assert_gate(self.sidecar_verdict(changed))
+
+    def test_r5_other_bare_words_in_sidecar_values_gate(self) -> None:
+        values = {
+            "Vector3": "Vector3(1,1,1)",
+            "NodePath": 'NodePath("x")',
+            "SubResource": 'SubResource("x")',
+            "ExtResource": 'ExtResource("x")',
+            "Resource": 'Resource("x")',
+            "inf": "inf",
+            "identifier": "banana",
+            "Color": "Color(1,0,0,1)",
+        }
+        for name, value in values.items():
+            with self.subTest(word=name):
+                self.assert_gate(self.sidecar_verdict(self.fish_with_scale(value)))
+
+    def test_r5_bare_word_inside_a_collection_value_gates(self) -> None:
+        value = f'[1, {{"a": {self.PALETTE_REF}}}]'
+        self.assert_gate(self.sidecar_verdict(self.fish_with_scale(value)))
+
+    def test_r5_subresources_with_resource_or_object_outside_strings_gates(self) -> None:
+        sidecar = self.fish()
+        values = {
+            "resource": f'{{"materials": {{"a": {{"x": {self.PALETTE_REF}}}}}}}',
+            "object": f'{{"materials": {{"a": {{"x": {self.EVIL_OBJECT}}}}}}}',
+            "multi-line resource": f'{{\n"materials": {{\n"a": {self.PALETTE_REF}\n}}\n}}',
+        }
+        for name, value in values.items():
+            with self.subTest(form=name):
+                changed = sidecar.replace("_subresources={}", "_subresources=" + value)
+                self.assertNotEqual(changed, sidecar)
+                self.assert_gate(self.sidecar_verdict(changed))
+
+    # ---- materials that must gate ----
+
+    def test_r5_material_metadata_resource_relative_path_gates(self) -> None:
+        content = PLAIN_TRES + 'metadata/note = Resource("other/payload.tres")\n'
+        self.assert_gate(self.tres_verdict(content))
+
+    def test_r5_material_metadata_object_gates(self) -> None:
+        content = PLAIN_TRES + f"metadata/note = {self.EVIL_OBJECT}\n"
+        self.assert_gate(self.tres_verdict(content))
+
+    def test_r5_material_unknown_bare_word_gates(self) -> None:
+        words = ("banana", "inf", 'NodePath("x")', 'SubResource("x")', "Vector3i(1,1,1)")
+        for word in words:
+            with self.subTest(word=word):
+                self.assert_gate(self.tres_verdict(PLAIN_TRES + f"metadata/note = {word}\n"))
+
+    def test_r5_material_resource_inside_a_collection_gates(self) -> None:
+        content = PLAIN_TRES + 'metadata/note = [1, {"a": Resource("other/payload.tres")}]\n'
+        self.assert_gate(self.tres_verdict(content))
+
+    # ---- counter cases that must stay exempt ----
+
+    def test_r5_real_sidecars_stay_exempt(self) -> None:
+        self.assert_exempt(self.sidecar_verdict(self.fish()))
+        self.assert_exempt(self.sidecar_verdict(self.png(), ".png"))
+        palette = "res://assets/room/materials/room_palette.tres"
+        cabinet = self.real("room/cabinet.glb.import").replace(palette, "res://" + self.MAT_PATH)
+        glass = (REPO_ROOT / "game" / self.MAT_PATH).read_bytes()
+        self.assert_exempt(self.sidecar_verdict(cabinet, **{self.MAT_PATH: glass}))
+
+    def test_r5_real_glass_placeholder_stays_exempt(self) -> None:
+        glass = (REPO_ROOT / "game" / self.MAT_PATH).read_text(encoding="utf-8")
+        self.assert_exempt(self.tres_verdict(glass))
+
+    def test_r5_material_allowed_bare_words_stay_exempt(self) -> None:
+        content = (
+            PLAIN_TRES
+            + "uv1_scale = Vector3(1, 1, 1)\nuv2_scale = Vector2(1, 1)\n"
+            + "metadata/a = Vector4(1, 1, 1, 1)\nmetadata/b = null\nmetadata/c = true\n"
+        )
+        self.assert_exempt(self.tres_verdict(content))
+
+    def test_r5_words_inside_a_double_quoted_string_stay_exempt(self) -> None:
+        text = '"Object(RefCounted) and Resource(\\"x\\") banana"'
+        png = self.png().replace('roughness/src_normal=""', f"roughness/src_normal={text}")
+        self.assertNotEqual(png, self.png())
+        self.assert_exempt(self.sidecar_verdict(png, ".png"))
+        self.assert_exempt(self.tres_verdict(PLAIN_TRES + f"metadata/note = {text}\n"))
+
+    def test_r5_every_real_import_file_uses_only_true_false_null(self) -> None:
+        files = sorted((REPO_ROOT / "game").rglob("*.import"))
+        self.assertTrue(files, "no .import files found under game/")
+        for path in files:
+            with self.subTest(path=path.relative_to(REPO_ROOT).as_posix()):
+                words = self.bare_words(path.read_text(encoding="utf-8"))
+                self.assertLessEqual(words, {"true", "false", "null"})
+
+    @staticmethod
+    def bare_words(text: str) -> set[str]:
+        out: set[str] = set()
+        for line in text.splitlines():
+            if re.match(r"^\[[^\]]*\]$", line):
+                continue
+            line = re.sub(r"^[A-Za-z0-9_/]+=", "", line)
+            line = re.sub(r'"(?:[^"\\]|\\.)*"', '""', line)
+            out.update(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", line))
+        return out
+
+
 class TestRevisionRead(ClassifierCase):
     """R8 and AC4: added rows read head, deleted .tres rows read the old revision."""
 
