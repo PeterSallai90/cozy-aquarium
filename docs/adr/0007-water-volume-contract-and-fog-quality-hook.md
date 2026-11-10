@@ -1,7 +1,7 @@
 # ADR 0007: Water volume contract, single fog settings place and depth tint pass
 
 - Status: Proposed (accepted when the #23 pull request merges; gated by `needs:owner`)
-- Date: 2026-11-09
+- Date: 2026-11-09; Amendment 1 (#126): 2026-11-10
 - Decision log reference: none (no row in the decisions table changes); refines the "Water
   rendering" row of Core systems in docs/architecture.md
 - Issue: #23 (B12a, water and glass shading); used by #126 (B12b caustics), #45 (underwater
@@ -55,6 +55,8 @@ per-instance shader parameters are readable through `get_instance_shader_paramet
    `game/shaders/water_common.gdshaderinc`, shared with later water shaders.
 4. **Draw order and shadows.** Transparent order is fixed by `render_priority`: `DepthTint` below
    `Surface` below `Glass`. None of them casts shadows. #23 shaders read no screen texture.
+   Amendment 1 adds `Caustics` below `DepthTint` (full order: Caustics -3, DepthTint -2,
+   Surface -1, Glass 0).
 
 ## Alternatives considered
 
@@ -76,3 +78,77 @@ per-instance shader parameters are readable through `get_instance_shader_paramet
 - B12b has a fixed parent node and bounds API.
 - Froxel values have no RenderingServer getter, so tests check them on the resource and by a
   source scan, not on the renderer.
+
+## Amendment 1 (#126, B12b caustics)
+
+- Status: Proposed, same gate as the ADR (`needs:owner` on the #126 pull request). No row of the
+  decisions table changes; rules 1 to 4 above stay in force.
+
+### Context
+
+#126 adds caustics: a slow generated light pattern on the surfaces under the lamp, inside the water
+only, clipped by the lamp cone and range, with three values (`caustic_intensity`,
+`caustic_speed`, `caustic_scale`) in one place. The BA decisions on #126 forbid a texture asset
+and a screen-texture read, require intensity 0 or no lamp to hide the effect at no cost, and leave
+the technique and the draw order to the architect.
+
+### Decision
+
+5. **Caustics node.** `Caustics` is the fourth child of `WaterVolume`: a `MeshInstance3D` with the
+   script `TankCaustics` (`game/scenes/tank/tank_caustics.gd`), a `BoxMesh` the size of the water
+   volume (identity transform, sized by `TankWater.build()` like `DepthTint`), material
+   `game/assets/tank/materials/caustics.tres`, shader `game/shaders/caustics.gdshader`, no shadow.
+   The node bounds are the water bounds; the lamp cone and range are clipped in the shader.
+6. **Technique: depth-reading box, no texture.** Like `DepthTint`, the box draws its back faces
+   with the depth test off and reads only the depth texture (`hint_depth_texture`). Per pixel it
+   rebuilds the opaque surface point in the `WaterVolume` frame and its normal from neighbouring
+   depth samples, and keeps only points inside the water box. The pattern is generated in the
+   shader (animated cellular noise, periodic in time), projected along the lamp axis in the
+   `WaterVolume` frame, so it is anchored to the tank and does not move with the camera. The weight
+   is up-facing x depth below the water surface along the lamp axis x soft spot cone x soft range.
+   The result brightens what is already drawn (`blend_mul` with a factor of 1 plus the caustic
+   light), so dark or shaded surfaces get proportionally less. No screen texture, no normal-
+   roughness buffer, no image file, no extra light, no Decal and no viewport.
+7. **Draw order.** `caustics.tres` has `render_priority = -3`: under `DepthTint` (-2), `Surface`
+   (-1) and `Glass` (0), so the player always sees the caustics through them.
+8. **Lamp data by value.** The room owns the lamp. After it places the lamp it calls
+   `TankWater.set_key_light(light: SpotLight3D)` (null when there is no lamp or no `KeyLight`);
+   `TankWater` passes it to `TankCaustics`, which copies position, direction, `spot_angle` and
+   `spot_range` into the `WaterVolume` frame as instance shader parameters and keeps no reference
+   to the light. A tank, cabinet or lamp swap frees the tank with its `Caustics` and builds a new
+   one, as for the other water nodes.
+9. **One caustic settings place.** The three caustic values are named properties of a separate
+   resource `WaterCausticSettings` (`game/scenes/tank/water_caustic_settings.gd` and `.tres`),
+   not of `WaterFogSettings`: fog and caustics change for different reasons, and the fog
+   `applied` signal also re-applies process-wide froxel globals. `apply()` clamps (one warning
+   when anything was out of range) and emits `applied`; only the displayed `TankCaustics` listens.
+   The values reach the shader as instance shader parameters, so `caustics.tres` and the tank
+   scenes hold no copy. A quality level (#81) writes this resource and calls `apply()`.
+10. **Off costs nothing.** `caustic_intensity` 0, no lamp, or an unbuilt water volume sets
+    `Caustics.visible = false`, so the box is not drawn at all.
+
+### Alternatives considered
+
+- **Decal fed by a generated texture.** An animated pattern needs a `SubViewport` render per frame
+  (an extra pass and a texture), and a Decal cannot clip by the lamp cone or by the water box
+  exactly. Rejected.
+- **Projector texture on a second SpotLight3D.** Needs a texture, lights the cabinet, frame and
+  room inside the cone unless every mesh gets cull layers, and doubles the lamp cost. Rejected.
+- **Caustic code in every substrate, decor and plant material.** Touches every material and every
+  later asset issue; no single node to hide. Rejected.
+- **Normal-roughness buffer for the normal.** Exact normals, but it is a screen buffer read that
+  the BA decision keeps out; the depth-neighbour normal is enough for a faint effect. Rejected for
+  #126; may be revisited with a measurement.
+- **Extend `WaterFogSettings`.** Fewer files, but couples two effects and makes a caustic change
+  re-apply the froxel globals. Rejected.
+
+### Consequences
+
+- The transparent order is Caustics -3, DepthTint -2, Surface -1, Glass 0; a later water pass picks
+  a free value and amends this ADR.
+- #45 reuses `Caustics`, `TankCaustics` and `WaterCausticSettings` for the camera inside the water;
+  the shader has no camera-position logic.
+- Glass panes are transparent and not in the depth buffer, so they receive no caustics; only opaque
+  surfaces inside the water box do (substrate, decor, plants, fish, the AC10 stand-in strip).
+- Known limit: no shadow-map occlusion, so a caustic may show under an overhang the lamp shades;
+  the multiply blend keeps it weaker there.
