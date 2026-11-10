@@ -34,7 +34,9 @@ var _resolved_tank: Node3D = null
 
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
-## directory and the shared default fog settings.
+## directory, the shared default fog settings and the shared default caustic settings
+## (CAUSTIC_SETTINGS_PATH). fog_settings and caustic_settings are both optional; null selects
+## the default.
 func setup(
 	model: AquariumModel,
 	catalog: TankCatalog,
