@@ -288,6 +288,93 @@ func test_ac06_the_glass_edge_tint_is_not_scaled_by_the_thickness() -> void:
 	assert_str(source).not_contains("glass_thickness")
 
 
+# --- #129 criterion 7: edge opacity and brightness at their limits (automated part) ---
+# Headless Godot has the dummy renderer, so shader compilation and "no green band at 0" are
+# measured in tests/measure/glass_seam_measure.gd (variants edge_zero and edge_max).
+
+
+func _assert_unit_range(uniform_name: String) -> void:
+	var entry: Dictionary = _uniform(_shader(GLASS_SHADER), uniform_name)
+	assert_bool(entry.is_empty()).override_failure_message("%s missing" % uniform_name).is_false()
+	var range_hint: PackedFloat64Array = _hint_range(entry)
+	(
+		assert_bool(range_hint.is_empty())
+		. override_failure_message("%s has no hint_range" % uniform_name)
+		. is_false()
+	)
+	if range_hint.size() == 2:
+		(
+			assert_float(range_hint[0])
+			. override_failure_message("%s hint minimum" % uniform_name)
+			. is_equal(0.0)
+		)
+		(
+			assert_float(range_hint[1])
+			. override_failure_message("%s hint maximum" % uniform_name)
+			. is_equal(1.0)
+		)
+
+
+func _assert_limits_accepted(uniform_name: String) -> void:
+	var stored: ShaderMaterial = _material(Water.GLASS_MATERIAL)
+	if stored == null:
+		return
+	var material: ShaderMaterial = stored.duplicate() as ShaderMaterial
+	for limit: float in [0.0, 1.0]:
+		material.set_shader_parameter(uniform_name, limit)
+		(
+			assert_float(float(material.get_shader_parameter(uniform_name)))
+			. override_failure_message("%s does not keep %s" % [uniform_name, limit])
+			. is_equal(limit)
+		)
+	var original: Variant = stored.get_shader_parameter(uniform_name)
+	(
+		assert_that(original)
+		. override_failure_message("%s not stored in tank_glass.tres" % uniform_name)
+		. is_not_null()
+	)
+	if original is float:
+		assert_float(float(original)).is_between(0.0, 1.0)
+
+
+func test_ac07_glass_edge_opacity_has_a_range_of_0_to_1() -> void:
+	_assert_unit_range("glass_edge_opacity")
+
+
+func test_ac07_glass_edge_brightness_has_a_range_of_0_to_1() -> void:
+	_assert_unit_range("glass_edge_brightness")
+
+
+func test_ac07_glass_edge_opacity_accepts_0_and_1() -> void:
+	_assert_limits_accepted("glass_edge_opacity")
+
+
+func test_ac07_glass_edge_brightness_accepts_0_and_1() -> void:
+	_assert_limits_accepted("glass_edge_brightness")
+
+
+func test_ac07_the_glass_shader_keeps_its_nine_material_uniforms() -> void:
+	var shader: Shader = _shader(GLASS_SHADER)
+	if shader == null:
+		return
+	var names: PackedStringArray = PackedStringArray()
+	for entry: Dictionary in shader.get_shader_uniform_list():
+		names.append(entry["name"])
+	for expected: String in [
+		"glass_opacity",
+		"glass_edge_tint",
+		"glass_edge_opacity",
+		"glass_edge_brightness",
+		"glass_reflection_color",
+		"glass_reflection_strength",
+		"glass_reflection_power",
+		"glass_roughness",
+		"glass_specular",
+	]:
+		assert_bool(names.has(expected)).override_failure_message("uniform %s" % expected).is_true()
+	assert_int(names.size()).override_failure_message(str(names)).is_equal(9)
+
+
 # --- Placeholder removal and licence rows ---
 
 
