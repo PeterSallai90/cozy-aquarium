@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://shaders/caustics.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "caustics"
+render_priority = -3
+shader = ExtResource("1_shader")
+shader_parameter/caustic_color = Color(1, 0.97, 0.9, 1)
+shader_parameter/caustic_peak_gain = 1.5
+shader_parameter/caustic_side_weight = 0.25
+shader_parameter/caustic_depth_falloff_m = 0.45
+shader_parameter/caustic_sharpness = 2.0
+shader_parameter/caustic_line_width = 0.45

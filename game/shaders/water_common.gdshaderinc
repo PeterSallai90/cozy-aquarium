@@ -52,3 +52,19 @@ float water_distance_to_wall(vec2 local_xz, vec2 size_xz) {
 	vec2 to_wall = size_xz * 0.5 - abs(local_xz);
 	return min(to_wall.x, to_wall.y);
 }
+
+// --- Added for the caustics (#126, ADR 0007 Amendment 1 rule 6). The functions above are
+// unchanged. ---
+
+// True when a local point lies inside the box [-half_size, half_size] grown by tolerance_m on
+// every side. A non-finite point (no opaque surface at that pixel) is never inside.
+bool water_point_in_box(vec3 local_point, vec3 half_size, float tolerance_m) {
+	return all(lessThanEqual(abs(local_point), half_size + vec3(max(tolerance_m, 0.0))));
+}
+
+// View-space position of an opaque depth sample. depth is the raw value of the depth texture
+// (Vulkan clip z), screen_uv the matching screen coordinate in 0 to 1.
+vec3 water_view_from_depth(mat4 inv_projection, vec2 screen_uv, float depth) {
+	vec4 view = inv_projection * vec4(screen_uv * 2.0 - 1.0, depth, 1.0);
+	return view.xyz / view.w;
+}

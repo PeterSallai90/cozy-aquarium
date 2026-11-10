@@ -18,11 +18,13 @@ const CAMERA_MAX_KEEP_WIDTH_ASPECT: float = 16.0 / 9.0
 const CAMERA_FIT_MARGIN: float = 0.02
 const NO_TANK_PIVOT_HEIGHT_M: float = 0.2
 const FOG_SETTINGS_PATH: String = "res://scenes/tank/water_fog_settings.tres"
+const CAUSTIC_SETTINGS_PATH: String = "res://scenes/tank/water_caustic_settings.tres"
 const NO_TANK_EXTERIOR_M: Vector3 = Vector3(0.66, 0.36, 0.36)
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
 var _fog_settings: WaterFogSettings = null
+var _caustic_settings: WaterCausticSettings = null
 var _displayed_tank_id: StringName = &""
 var _camera_distance: float = 0.0
 ## The tank instance made while resolving the definition; _show_tank adds it to the room.
@@ -32,13 +34,19 @@ var _resolved_tank: Node3D = null
 
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
-## directory and the shared default fog settings.
+## directory, the shared default fog settings and the shared default caustic settings
+## (CAUSTIC_SETTINGS_PATH). fog_settings and caustic_settings are both optional; null selects
+## the default.
 func setup(
-	model: AquariumModel, catalog: TankCatalog, fog_settings: WaterFogSettings = null
+	model: AquariumModel,
+	catalog: TankCatalog,
+	fog_settings: WaterFogSettings = null,
+	caustic_settings: WaterCausticSettings = null
 ) -> void:
 	_model = model
 	_catalog = catalog
 	_fog_settings = fog_settings
+	_caustic_settings = caustic_settings
 
 
 func _ready() -> void:
@@ -48,6 +56,8 @@ func _ready() -> void:
 		_catalog = TankCatalog.load_dir()
 	if _fog_settings == null:
 		_fog_settings = load(FOG_SETTINGS_PATH) as WaterFogSettings
+	if _caustic_settings == null:
+		_caustic_settings = load(CAUSTIC_SETTINGS_PATH) as WaterCausticSettings
 	_setup_fog()
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
@@ -100,13 +110,14 @@ func _show_tank() -> void:
 	_add_furniture(&"Cabinet", definition, stand_z)
 	_displayed_tank_id = &""
 	var tank: Node3D = _resolved_tank
+	var water: TankWater = null
 	_resolved_tank = null
 	if tank != null:
 		tank.name = &"Tank"
 		tank.position = Vector3(0.0, CABINET_TOP_HEIGHT_M + definition.glass_thickness_m, stand_z)
-		var water: TankWater = tank.get_node_or_null("WaterVolume") as TankWater
+		water = tank.get_node_or_null("WaterVolume") as TankWater
 		if water != null:
-			water.build(definition, _fog_settings)
+			water.build(definition, _fog_settings, _caustic_settings)
 		add_child(tank)
 		_displayed_tank_id = definition.id
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)
@@ -115,6 +126,8 @@ func _show_tank() -> void:
 		mount = tank.get_node_or_null("lamp_mount") as Node3D
 	if mount != null:
 		lamp.global_transform = mount.global_transform
+		if water != null:
+			water.set_key_light(lamp.get_node_or_null("KeyLight") as SpotLight3D)
 	elif tank == null:
 		lamp.position = Vector3(0.0, 0.0, stand_z)
 	_frame_camera(definition, stand_z)

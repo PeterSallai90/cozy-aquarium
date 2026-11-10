@@ -7,6 +7,8 @@ extends Node3D
 signal built(size_m: Vector3)
 
 const CHILD_NAMES: Array[StringName] = [&"Surface", &"Fog", &"DepthTint"]
+## Hidden or shown by TankCaustics alone (intensity, lamp), never by the always-shown list.
+const CAUSTICS_NAME: StringName = &"Caustics"
 
 var _size_m: Vector3 = Vector3.ZERO
 var _is_built: bool = false
@@ -15,7 +17,11 @@ var _fog_settings: WaterFogSettings = null
 
 ## Sizes the children and keeps this node at (0, size.y / 2, 0). Returns false, with one warning
 ## and the children hidden, when the definition or its water size is unusable.
-func build(definition: TankDefinition, fog_settings: WaterFogSettings) -> bool:
+func build(
+	definition: TankDefinition,
+	fog_settings: WaterFogSettings,
+	caustic_settings: WaterCausticSettings = null
+) -> bool:
 	_disconnect_settings()
 	_is_built = false
 	_size_m = Vector3.ZERO
@@ -23,6 +29,9 @@ func build(definition: TankDefinition, fog_settings: WaterFogSettings) -> bool:
 	if problem != "":
 		push_warning("TankWater: water not built, %s" % problem)
 		_set_children_visible(false)
+		var stale: TankCaustics = get_node_or_null(NodePath(CAUSTICS_NAME)) as TankCaustics
+		if stale != null:
+			stale.clear()
 		return false
 	var size: Vector3 = definition.get_water_volume_size_m()
 	_size_m = size
@@ -34,6 +43,7 @@ func build(definition: TankDefinition, fog_settings: WaterFogSettings) -> bool:
 	_build_surface(size, missing)
 	_build_fog(size, missing)
 	_build_depth_tint(size, missing)
+	_build_caustics(size, missing, caustic_settings)
 	_set_glass_size(definition.interior_size_m)
 	if not missing.is_empty():
 		push_warning("TankWater: missing water nodes: %s" % ", ".join(missing))
@@ -99,6 +109,24 @@ func _build_depth_tint(size: Vector3, missing: PackedStringArray) -> void:
 	mesh.size = size
 	tint.mesh = mesh
 	tint.set_instance_shader_parameter(&"water_size_m", size)
+
+
+func _build_caustics(
+	size: Vector3, missing: PackedStringArray, caustic_settings: WaterCausticSettings
+) -> void:
+	var caustics: TankCaustics = get_node_or_null(NodePath(CAUSTICS_NAME)) as TankCaustics
+	if caustics == null:
+		missing.append(String(CAUSTICS_NAME))
+		return
+	caustics.configure(size, caustic_settings)
+
+
+## Gives the caustics the lamp of the tank (null for none). Call after the tank and the lamp are
+## placed; build() clears the lamp because it moves the water volume.
+func set_key_light(light: SpotLight3D) -> void:
+	var caustics: TankCaustics = get_node_or_null(NodePath(CAUSTICS_NAME)) as TankCaustics
+	if caustics != null:
+		caustics.set_key_light(light)
 
 
 func _build_fog(size: Vector3, missing: PackedStringArray) -> void:

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="WaterCausticSettings" format=3]
+
+[ext_resource type="Script" path="res://scenes/tank/water_caustic_settings.gd" id="1_settings"]
+
+[resource]
+script = ExtResource("1_settings")
+caustic_intensity = 0.4
+caustic_speed = 0.25
+caustic_scale = 25.0
