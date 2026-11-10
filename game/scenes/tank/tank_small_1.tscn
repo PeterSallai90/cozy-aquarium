@@ -6,11 +6,16 @@
 [ext_resource type="Material" path="res://assets/tank/materials/water_surface.tres" id="3_surface"]
 [ext_resource type="FogMaterial" path="res://assets/tank/materials/water_fog.tres" id="4_fog"]
 [ext_resource type="Material" path="res://assets/tank/materials/water_depth_tint.tres" id="5_tint"]
+[ext_resource type="Script" path="res://scenes/tank/tank_caustics.gd" id="10_caustics"]
+[ext_resource type="Material" path="res://assets/tank/materials/caustics.tres" id="11_caustics"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_surface"]
 size = Vector2(0.4, 0.25)
 
 [sub_resource type="BoxMesh" id="BoxMesh_tint"]
+size = Vector3(0.4, 0.25, 0.25)
+
+[sub_resource type="BoxMesh" id="BoxMesh_caustics"]
 size = Vector3(0.4, 0.25, 0.25)
 
 [node name="TankSmall1" instance=ExtResource("1_glb")]
@@ -41,6 +46,14 @@ cast_shadow = 0
 instance_shader_parameters/water_size_m = Vector3(0.4, 0.25, 0.25)
 mesh = SubResource("BoxMesh_tint")
 material_override = ExtResource("5_tint")
+
+[node name="Caustics" type="MeshInstance3D" parent="WaterVolume"]
+visible = false
+cast_shadow = 0
+instance_shader_parameters/water_size_m = Vector3(0.4, 0.25, 0.25)
+mesh = SubResource("BoxMesh_caustics")
+material_override = ExtResource("11_caustics")
+script = ExtResource("10_caustics")
 
 [node name="SubstrateAnchor" type="Marker3D" parent="." index="3"]
 
