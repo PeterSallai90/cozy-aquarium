@@ -36,8 +36,8 @@ extends SceneTree
 ##     horizontal profile at 25/50/75% water height, mirrored so the water is always on the left)
 ##   AC3 core: the strongest 2 px running mean inside the band, minus 1 px at each edge, is at most
 ##     5% above the band mean
-##   AC5 band width (half-step crossings) <= projected corner column + 1 px, <= 42 px medium corner,
-##     <= 18 px front
+##   AC5 band width (half-step crossings) <= projected corner column + 1 px in every
+##     pose (owner decision on #129: no fixed front or medium corner cap)
 ##   AC4a outside the 4 projected vertical corner columns (dilated 2 px): per pixel at most 0.0004
 ##     linear luminance change against before, at most 0.05% of the pixels above it. This also
 ##     covers "meniscus and underside unchanged" (AC9)
@@ -62,8 +62,6 @@ const LUMA := Vector3(0.2126, 0.7152, 0.0722)
 const DIP_LIMIT := 0.03
 const CORE_LIMIT := 0.05
 const WATER_SIDE_PX := 12.0
-const FRONT_WIDTH_LIMIT_PX := 18.0
-const MEDIUM_CORNER_WIDTH_LIMIT_PX := 42.0
 const UNCHANGED_LIMIT := 0.0004
 const UNCHANGED_SHARE_LIMIT := 0.0005
 const MASK_DILATE_PX := 2.0
@@ -550,12 +548,7 @@ func _gate_corners(corners: Array[Dictionary]) -> void:
 			continue
 		var width: float = entry["width_px"]
 		var column: float = float(entry["projected_column_px"]) + 1.0
-		var limit: float = column
-		if _pose == "front":
-			limit = minf(limit, FRONT_WIDTH_LIMIT_PX)
-		elif _size_name == "medium":
-			limit = minf(limit, MEDIUM_CORNER_WIDTH_LIMIT_PX)
-		_check("AC5", "width %s" % tag, width, "<= %.2f" % limit, width <= limit)
+		_check("AC5", "width %s" % tag, width, "<= %.2f" % column, width <= column)
 
 
 func _gate_monotonic(corners: Array[Dictionary]) -> void:
