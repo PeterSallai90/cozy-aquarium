@@ -20,6 +20,22 @@ extends SceneTree
 ##                                luminance is divided by it again
 ##   --stride=<int>               pixel step of the glint analysis (default 1; 2 for orbit)
 ##
+## Added-light protocol (owner decision on #128, 2026-11-10): AC1 (region width, area), AC2 (peak
+## against the lamp peak) and AC4 (variation) are measured on the light the water surface ADDS:
+## luminance(normal frame) minus luminance(same pose with the Surface mesh hidden), clamped at 0 per
+## pixel. The lamp-lit sand seen through the water is therefore not counted as glint. AC3 stays on
+## the normal frame: glint = normal-frame luminance at the added-light peak pixel, divided by the
+## median of the normal frame on the ring at 1.5 to 2x the radius of the added-light 20% region.
+## Top: both frames use the frozen ripple, so TIME is identical. Orbit and shimmer: per sample the
+## camera is placed once and two frames are rendered at that pose, normal (live ripple) and
+## surface hidden. The hidden frame contains no water surface, so it has no TIME dependence; only
+## the pose has to match. The "normal" block of the top JSON keeps the old normal-frame-only numbers
+## (peak, regions, area, ring contrast around the normal-frame peak) for comparison with the
+## earlier baseline. Orbit/shimmer JSON and CSV now hold the added-light numbers. No new CLI
+## options; the top view also writes <tag>_<size>_top_surface_hidden.exr and runs the
+## lamp-from-below measurement (<tag>_<size>_top_lamp.*), so glint_peak_over_lamp_strip_peak (AC2)
+## is in its JSON.
+##
 ## Measurement basis (BA decision on #128): 1920x1080, Forward+, room corner, no fish. Luminance is
 ## linear HDR before tonemapping and glow: a SubViewport with use_hdr_2d, a runtime copy of the
 ## room Environment with glow off and the linear tonemapper. Rec. 709 weights. Ripple TIME is
@@ -392,8 +408,10 @@ func _water_mask() -> Dictionary:
 
 
 ## Luminance on a grid of every `stride` pixels, -1 outside the water mask.
-func _water_grid(image: Image, mask: Dictionary, stride: int) -> Dictionary:
+## With `subtract` set, each value is max(image - subtract, 0): the light the surface adds.
+func _water_grid(image: Image, mask: Dictionary, stride: int, subtract: Image = null) -> Dictionary:
 	var data: PackedByteArray = image.get_data()
+	var other_data: PackedByteArray = PackedByteArray() if subtract == null else subtract.get_data()
 	var half: bool = _is_half(image)
 	var grid_w: int = (WIDTH + stride - 1) / stride
 	var grid_h: int = (HEIGHT + stride - 1) / stride
@@ -414,6 +432,8 @@ func _water_grid(image: Image, mask: Dictionary, stride: int) -> Dictionary:
 			if x % stride != 0:
 				continue
 			var value: float = _lum_at(data, half, x, y)
+			if subtract != null:
+				value = maxf(value - _lum_at(other_data, half, x, y), 0.0)
 			grid[(y / stride) * grid_w + x / stride] = value
 			cells += 1
 			if value > peak:
@@ -467,9 +487,13 @@ func _components(info: Dictionary, level: float) -> Array[Dictionary]:
 	return found
 
 
-func _glint_metrics(image: Image, stride: int) -> Dictionary:
+## Without `hidden` every metric is taken on `image` (the old normal-frame definition). With
+## `hidden` (the same pose, surface hidden) peak, regions and area use the added light, and the
+## ring contrast (AC3) uses `image` around the added-light peak.
+func _glint_metrics(image: Image, stride: int, hidden: Image = null) -> Dictionary:
 	var mask: Dictionary = _water_mask()
-	var info: Dictionary = _water_grid(image, mask, stride)
+	var info: Dictionary = _water_grid(image, mask, stride, hidden)
+	var normal_info: Dictionary = info if hidden == null else _water_grid(image, mask, stride)
 	var tank_px: float = _front_edge_px()
 	var peak: float = info["peak"]
 	var cells: int = info["cells"]
@@ -515,7 +539,7 @@ func _glint_metrics(image: Image, stride: int) -> Dictionary:
 		if bool(component["has_peak"]):
 			peak_area_cells = int(component["area"])
 	var radius_20: float = maxf(sqrt(peak_area_cells * cell_px_area / PI), MIN_RING_RADIUS_PX)
-	var ring: Dictionary = _ring(info, radius_20, stride)
+	var ring: Dictionary = _ring(normal_info, info["peak_cell"], radius_20, stride)
 	result["regions_50"] = regions
 	result["region_count_50"] = regions.size()
 	result["max_region_px"] = widest
@@ -525,18 +549,20 @@ func _glint_metrics(image: Image, stride: int) -> Dictionary:
 	result["radius_20_px"] = radius_20
 	result["ring_median"] = ring["median"]
 	result["ring_cells"] = ring["count"]
-	result["contrast"] = peak / ring["median"] if ring["median"] > 0.0 else -1.0
 	var peak_cell: Vector2i = info["peak_cell"]
+	var normal_grid: PackedFloat32Array = normal_info["grid"]
+	var normal_at_peak: float = normal_grid[peak_cell.y * int(info["w"]) + peak_cell.x]
+	result["normal_at_peak"] = normal_at_peak
+	result["contrast"] = normal_at_peak / ring["median"] if ring["median"] > 0.0 else -1.0
 	result["peak_xy"] = [peak_cell.x * stride, peak_cell.y * stride]
-	result["water_median"] = _median_of_grid(info)
+	result["water_median"] = _median_of_grid(normal_info)
 	return result
 
 
-func _ring(info: Dictionary, radius: float, stride: int) -> Dictionary:
+func _ring(info: Dictionary, peak_cell: Vector2i, radius: float, stride: int) -> Dictionary:
 	var grid: PackedFloat32Array = info["grid"]
 	var grid_w: int = info["w"]
 	var grid_h: int = info["h"]
-	var peak_cell: Vector2i = info["peak_cell"]
 	var inner: float = 1.5 * radius / stride
 	var outer: float = 2.0 * radius / stride
 	var values: PackedFloat32Array = PackedFloat32Array()
@@ -576,8 +602,15 @@ func _measure_top(base: String, stride: int) -> Dictionary:
 	if hidden_image == null:
 		return {"ok": false, "problem": "no HDR capture"}
 	hidden_image.save_exr(base + "_bar_hidden.exr")
+	_surface.visible = false
+	var no_surface: Image = await _capture_hdr()
+	_surface.visible = true
+	if no_surface == null:
+		return {"ok": false, "problem": "no HDR capture"}
+	no_surface.save_exr(base + "_surface_hidden.exr")
 	var result: Dictionary = {"ok": true}
-	result["glint"] = _glint_metrics(hidden_image, stride)
+	result["glint"] = _glint_metrics(hidden_image, stride, no_surface)
+	result["normal"] = _glint_metrics(hidden_image, stride)
 	await _save_tonemapped(base + "_bar_hidden.png")
 	_set_bar_visible(true)
 	var visible_image: Image = await _capture_hdr()
@@ -600,6 +633,14 @@ func _measure_top(base: String, stride: int) -> Dictionary:
 		"pitch_deg": TOP_PITCH_DEG, "distance_m": _top_distance, "share": TOP_WIDTH_SHARE
 	}
 	result["environment"] = _environment_notes()
+	## AC2 lamp peak: the emissive strip seen from below (BA decision), measured in the same run.
+	var below: Dictionary = await _measure_lamp(base + "_lamp")
+	var strip_peak: float = float(below.get("lamp_peak_from_below", 0.0))
+	result["lamp_peak_from_below"] = strip_peak
+	result["glint_peak_over_lamp_strip_peak"] = (
+		float(result["glint"]["glint_peak"]) / strip_peak if strip_peak > 0.0 else -1.0
+	)
+	result["max_glint_peak_for_ac2"] = strip_peak * 0.25
 	return result
 
 
@@ -676,7 +717,10 @@ func _measure_live(base: String, stride: int, orbit: bool) -> Dictionary:
 		var pitch: float = lerpf(TOP_PITCH_DEG, ORBIT_LOW_PITCH_DEG, phase)
 		_place_camera(pitch, _top_distance)
 		var image: Image = await _capture()
-		var metrics: Dictionary = _glint_metrics(image, stride)
+		_surface.visible = false
+		var no_surface: Image = await _capture()
+		_surface.visible = true
+		var metrics: Dictionary = _glint_metrics(image, stride, no_surface)
 		metrics["t_s"] = elapsed
 		metrics["pitch_deg"] = pitch
 		rows.append(metrics)
