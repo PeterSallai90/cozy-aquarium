@@ -280,7 +280,12 @@ func test_ac11_the_room_loads_each_tank_without_any_engine_output() -> void:
 
 
 func test_ac11_every_water_material_has_a_shader_and_no_missing_resource() -> void:
-	for path: String in [Water.GLASS_MATERIAL, Water.SURFACE_MATERIAL, Water.DEPTH_TINT_MATERIAL]:
+	for path: String in [
+		Water.GLASS_MATERIAL,
+		Water.SURFACE_MATERIAL,
+		Water.DEPTH_TINT_MATERIAL,
+		Water.CAUSTICS_MATERIAL
+	]:
 		var material: ShaderMaterial = null
 		if ResourceLoader.exists(path):
 			material = load(path) as ShaderMaterial
