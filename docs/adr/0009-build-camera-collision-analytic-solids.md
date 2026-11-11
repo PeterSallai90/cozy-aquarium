@@ -1,7 +1,8 @@
 # ADR 0009: Build camera collision with analytic solids and a held distance
 
 - Status: Proposed (accepted when the #26 pull request merges; gated by `needs:owner`)
-- Date: 2026-11-11
+- Date: 2026-11-11; amended 2026-11-11 (rules 4 and 5: release tilt, owner decision on #26,
+  option A, [comment](https://github.com/PeterSallai90/cozy-aquarium/issues/26#issuecomment-6808114113))
 - Decision log reference: none (D7 is unchanged); replaces the mechanism in the "Collision" row of
   the camera specification in docs/architecture.md ("sphere cast from pivot, pulled in when
   blocked") and aligns its obstacle list with the owner decision on #26 (walls are not obstacles)
@@ -68,14 +69,25 @@ no point beyond the requested distance is both outside the solids and above the 
    raised to the lowest elevation at which the line reaches the plane only outside the footprints
    of the solids that stand on or below the plane:
    `-atan((pivot.y - cabinet_top) / r_free)`, with `r_free` the horizontal distance along the
-   azimuth to leave those grown footprints. This changes the view direction by less than a tenth of
-   a degree in the cases found, only while the camera is held, and keeps both the hard height rule
-   and "a held distance always exists". The floor (y = 0) is below the plane and needs no box.
+   azimuth to leave those grown footprints. On a steady held frame this changes the view direction
+   by at most 0.1 degrees (0.0955 degrees measured; pan releases stayed within it too), and it keeps both the
+   hard height rule and "a held distance always exists". During a release (rule 5) a larger raise
+   is allowed (owner decision on #26, option A). The floor (y = 0) is below the plane and needs no
+   box.
 5. **Collision wins over easing.** Each frame the held distance is computed from the displayed
    (eased) pose. A camera that must move out goes to the held distance at once, so it is never
    inside a solid at any frame; a camera that may move in (the obstruction ended, for example at a
    rim or lamp edge) eases in by `OrbitMath.damp_factor` and is held again if the eased point is
    inside a solid. Damping time 0 is instant both ways.
+   **Release tilt (owner decision on #26, option A).** The eased release point can lie further out
+   than the new held distance on a falling line, for example in the first frames after a tank swap
+   while pivot and distance are still easing. The plane check of rule 4 then runs on the eased
+   point: the displayed elevation is raised just enough to put the eased camera on the cabinet top
+   plane. During a release this raise is limited only by the cabinet top plane, not by the
+   0.1 degree bound of rule 4: up to 0.89 degrees was measured, for less than about 0.3 s, across
+   228 tank swap cases. If the raised line at the eased distance meets a solid, the camera takes the
+   held pose of that frame instead. The target elevation is never changed. The rejected option was
+   an immediate release after a tank swap, a one-frame inward jump of up to about 0.25 m.
 6. **Near plane.** The camera near plane is the setting `camera_near_m` (0.03 m) in
    `CameraSettings`, and `collision_margin_m` is at least 1.3 x `camera_near_m`. Godot uses a
    reversed-Z depth buffer since 4.3, so moving the near plane from 0.05 to 0.03 m costs no
