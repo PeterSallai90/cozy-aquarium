@@ -9,6 +9,8 @@ const OrbitApi := preload("res://tests/helpers/orbit_api.gd")
 const MEDIUM_ABOVE_M := 0.170
 const SMALL_ABOVE_M := 0.129
 const LARGE_ABOVE_M := 0.258
+const SMALL_DEFAULT_DISTANCE_M := 0.699
+const MEDIUM_DEFAULT_DISTANCE_M := 0.924
 ## The distance at which the large tank is limited by the cabinet floor and not by -10 degrees.
 const LARGE_DEFAULT_DISTANCE_M := 1.489
 
@@ -35,8 +37,11 @@ func test_ac01_the_limit_wins_when_the_cabinet_is_far_below() -> void:
 func test_ac01_the_small_and_medium_tank_stay_at_the_limit_at_the_default_distance() -> void:
 	if not _math_exists():
 		return
-	for above: float in [SMALL_ABOVE_M, MEDIUM_ABOVE_M]:
-		assert_float(OrbitApi.min_elevation(-10.0, above, 0.924)).is_equal_approx(-10.0, 0.01)
+	for pair: Array in [
+		[SMALL_ABOVE_M, SMALL_DEFAULT_DISTANCE_M], [MEDIUM_ABOVE_M, MEDIUM_DEFAULT_DISTANCE_M]
+	]:
+		var result: float = OrbitApi.min_elevation(-10.0, pair[0], pair[1])
+		assert_float(result).is_equal_approx(-10.0, 0.01)
 
 
 func test_ac01_the_large_tank_is_limited_by_the_cabinet_at_the_default_distance() -> void:

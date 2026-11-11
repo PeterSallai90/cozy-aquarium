@@ -406,11 +406,12 @@ func test_ac19_a_decisive_crossing_and_a_jitter_on_top_changes_the_state_once_ea
 	if not await _open(Table.MEDIUM):
 		return
 	var positions: Array[Vector3] = []
+	var plane: float = Cam.BACK_PLANE_Z_M
 	for index: int in 30:
-		var z: float = 0.2 - 0.0145 * index
+		var z: float = plane + 0.2 - 0.4 * index / 29.0
 		positions.append(Vector3(0.0, 1.2, z + (0.01 if index % 2 == 0 else -0.01)))
 	for index: int in 30:
-		var z: float = -0.235 + 0.0145 * index
+		var z: float = plane - 0.2 + 0.4 * index / 29.0
 		positions.append(Vector3(0.0, 1.2, z + (0.01 if index % 2 == 0 else -0.01)))
 	assert_int(_positions_changes(positions, BACK)).is_equal(2)
 

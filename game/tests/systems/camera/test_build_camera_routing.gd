@@ -21,14 +21,18 @@ var _language_state: Dictionary = {}
 var _main: Node = null
 var _controls: Control = null
 var _camera: Camera3D = null
+var _saved_window_size: Vector2i
 
 
 func before_test() -> void:
 	_saved_locale = TranslationServer.get_locale()
 	_language_state = Ui.begin_language_isolation("camera_routing")
+	_saved_window_size = Vector2i.ZERO
 
 
 func after_test() -> void:
+	if _saved_window_size != Vector2i.ZERO:
+		get_tree().root.size = _saved_window_size
 	Ui.end_language_isolation(_language_state, _saved_locale)
 
 
@@ -40,6 +44,14 @@ func _open_main() -> bool:
 	)
 	var scene: PackedScene = load(MAIN_SCENE) as PackedScene
 	_main = scene.instantiate()
+	# The headless root window is 64x64; the HUD layout needs the real game size.
+	_saved_window_size = get_tree().root.size
+	get_tree().root.size = Cam.SIZE_16_9
+	(
+		assert_vector(Vector2(_root().get_visible_rect().size))
+		. override_failure_message("the test window is not 1280x720")
+		. is_equal(Vector2(Cam.SIZE_16_9))
+	)
 	add_child(_main)
 	auto_free(_main)
 	await get_tree().process_frame
@@ -93,6 +105,11 @@ func test_ac10_the_panel_is_where_the_test_expects_it_and_the_world_point_is_fre
 		return
 	assert_bool(panel.get_global_rect().has_point(_world_point())).is_false()
 	assert_bool(panel.get_global_rect().has_point(_panel_point(panel))).is_true()
+	var hud: Node = _main.get_node("Hud")
+	for node: Node in hud.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if control.is_visible_in_tree() and control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+			assert_bool(control.get_global_rect().has_point(_world_point())).is_false()
 
 
 func test_ac10_a_world_drag_orbits_with_the_details_panel_open() -> void:
