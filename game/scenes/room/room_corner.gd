@@ -133,7 +133,15 @@ func _show_tank() -> void:
 			water.set_key_light(lamp.get_node_or_null("KeyLight") as SpotLight3D)
 	elif tank == null:
 		lamp.position = Vector3(0.0, 0.0, stand_z)
-	_frame_camera(definition, stand_z)
+	var solids: Array[AABB] = []
+	if tank != null:
+		solids.append_array(_tank_solids(definition, stand_z, mount != null, lamp))
+	elif definition != null:
+		_append_solid(
+			solids,
+			CameraSolids.cabinet_box(definition, CABINET_TOP_HEIGHT_M, CABINET_MARGIN_M, stand_z)
+		)
+	_frame_camera(definition, stand_z, solids)
 	EventBus.tank_displayed.emit(_displayed_tank_id)
 
 
@@ -220,7 +228,28 @@ func _stand_z(definition: TankDefinition) -> float:
 	return BACK_WALL_Z_M + WALL_GAP_M + depth / 2.0
 
 
-func _frame_camera(definition: TankDefinition, stand_z: float) -> void:
+## Tank, cabinet and lamp as camera solids (room frame); zero boxes are dropped.
+func _tank_solids(
+	definition: TankDefinition, stand_z: float, has_mount: bool, lamp: Node3D
+) -> Array[AABB]:
+	var solids: Array[AABB] = []
+	_append_solid(solids, CameraSolids.tank_box(definition, CABINET_TOP_HEIGHT_M, stand_z))
+	_append_solid(
+		solids,
+		CameraSolids.cabinet_box(definition, CABINET_TOP_HEIGHT_M, CABINET_MARGIN_M, stand_z)
+	)
+	if has_mount:
+		for box: AABB in CameraSolids.lamp_boxes(lamp, global_transform):
+			_append_solid(solids, box)
+	return solids
+
+
+func _append_solid(solids: Array[AABB], box: AABB) -> void:
+	if box.get_volume() > 0.0:
+		solids.append(box)
+
+
+func _frame_camera(definition: TankDefinition, stand_z: float, solids: Array[AABB]) -> void:
 	var pivot: Vector3 = Vector3(0.0, CABINET_TOP_HEIGHT_M + NO_TANK_PIVOT_HEIGHT_M, stand_z)
 	var exterior: Vector3 = NO_TANK_EXTERIOR_M
 	var fit: float = 0.0
@@ -242,6 +271,10 @@ func _frame_camera(definition: TankDefinition, stand_z: float) -> void:
 			exterior.x, exterior.z, CAMERA_HFOV_DEG, CAMERA_ELEVATION_DEG, CAMERA_WIDTH_SHARE
 		),
 		fit
+	)
+	var pan_definition: TankDefinition = definition if _displayed_tank_id != &"" else null
+	_camera.set_bounds(
+		CameraSolids.pan_box(pan_definition, CABINET_TOP_HEIGHT_M, stand_z, pivot), solids
 	)
 	_camera.set_framing(
 		pivot, _camera_distance, pivot.y - CABINET_TOP_HEIGHT_M, CAMERA_ELEVATION_DEG

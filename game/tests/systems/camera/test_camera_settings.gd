@@ -56,3 +56,44 @@ func test_starting_values_of_the_wall_fade() -> void:
 		return
 	assert_float(OrbitApi.setting("wall_fade_time_s")).is_equal_approx(0.2, 0.0001)
 	assert_float(OrbitApi.setting("wall_hysteresis_band_m")).is_equal_approx(0.05, 0.0001)
+
+
+# --- #26 (owner: developer): zoom, pan and collision settings ---
+
+
+func test_26_starting_values_of_zoom_and_pan() -> void:
+	if _settings() == null:
+		return
+	assert_float(OrbitApi.setting("zoom_min_factor")).is_equal_approx(0.6, 0.0001)
+	assert_float(OrbitApi.setting("zoom_max_factor")).is_equal_approx(2.5, 0.0001)
+	assert_float(OrbitApi.setting("zoom_step_factor")).is_equal_approx(0.9, 0.0001)
+	assert_float(OrbitApi.setting("pan_speed")).is_equal_approx(1.0, 0.0001)
+
+
+func test_26_starting_values_of_the_collision_margin_and_the_near_plane() -> void:
+	if _settings() == null:
+		return
+	assert_float(OrbitApi.setting("collision_margin_m")).is_equal_approx(0.05, 0.0001)
+	assert_float(OrbitApi.setting("camera_near_m")).is_equal_approx(0.03, 0.0001)
+
+
+func test_ac21_the_collision_margin_is_at_least_1_3_times_the_near_plane() -> void:
+	if _settings() == null:
+		return
+	var margin: float = OrbitApi.setting("collision_margin_m")
+	var near: float = OrbitApi.setting("camera_near_m")
+	assert_float(near).is_greater(0.0)
+	assert_float(margin).is_greater_equal(1.3 * near)
+
+
+func test_26_the_zoom_limits_are_ordered_and_the_step_zooms_in() -> void:
+	if _settings() == null:
+		return
+	var low: float = OrbitApi.setting("zoom_min_factor")
+	var high: float = OrbitApi.setting("zoom_max_factor")
+	var step: float = OrbitApi.setting("zoom_step_factor")
+	assert_float(low).is_greater(0.0)
+	assert_float(low).is_less(1.0)
+	assert_float(high).is_greater(1.0)
+	assert_float(step).is_greater(0.0)
+	assert_float(step).is_less(1.0)

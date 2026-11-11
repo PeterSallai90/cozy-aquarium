@@ -261,7 +261,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states; species personality with individual variation per fish (D20) |
 | Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
 | Feeding | Drop food; fish notice and eat it gradually, not all at once; no hunger or overfeeding consequences in Mode 1 | Particle food with simple physics; each fish notices food after its own short random delay, then switches to a seek state |
-| Camera | Orbit, zoom, limits, photo mode | See the camera specification; world input routing and modal blocking: [ADR 0008](adr/0008-world-input-routing-and-modal-blocking.md) |
+| Camera | Orbit, zoom, limits, photo mode | See the camera specification; world input routing and modal blocking: [ADR 0008](adr/0008-world-input-routing-and-modal-blocking.md); build camera collision: [ADR 0009](adr/0009-build-camera-collision-analytic-solids.md) |
 | Water rendering | Cozy, readable water | Glass shader; water surface; in-tank fog as a `FogVolume` bounded to the water, with all fog values in one `WaterFogSettings` resource; depth tint scaled by path length; caustics from the lamp onto the surfaces inside the water, with the caustic values in one `WaterCausticSettings` resource; bubbles. Water volume contract, fog quality hook and caustics (Amendment 1): [ADR 0007](adr/0007-water-volume-contract-and-fog-quality-hook.md) |
 | Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`) |
 | Settings | Language (issue 7); audio, graphics quality, controls (issue 9) | One Godot `ConfigFile`, `user://settings.cfg`, written only through `SettingsStore` (`game/systems/settings_store.gd`): one section per area (`[general]` holds `language`; issue 9 adds `[audio]`, `[graphics]`, `[controls]`), the file is read again right before each write so unknown sections and keys survive, it is replaced safely (`.tmp` plus rename), a file that does not parse is copied to `settings.cfg.bak` on the next write, and the game never writes it at startup. Every setting except the language is a typed `SettingKey` (section, key, type, default, optional range; wrong type gives the default, out of range is clamped) read and written through the `Settings` autoload (`game/systems/settings/`), which emits `EventBus.setting_changed` once per real change and reports a failed write through `get_last_save_error()`. The settings screen (`game/ui/settings/`) builds its sections from `settings_sections.tres`; see ADR 0003 |
@@ -308,17 +308,26 @@ The build camera behaves like a person walking around a real tank on a cabinet: 
 
 | Parameter | Starting value | Notes |
 | --- | --- | --- |
-| Pivot | Centre of the tank's water volume | Can be panned within the tank's footprint, never outside it |
+| Pivot | Centre of the tank's water volume | Panned in the screen plane, clamped per axis to the interior footprint (x, z) and the water height (tank floor to water line), never outside it |
 | Default view | Front, elevation 5°, tank width fills about 85% of the screen | Restored by the reset action; 85% up to 16:9, wider screens keep the 16:9 framing ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)); a tank too tall for 85% (the small tank, about 77% at 16:9) is framed so that the tank, its trim and the cabinet front edge stay on screen ([ADR 0006](adr/0006-default-framing-vertical-fit.md)) |
 | Horizontal orbit | Full 360° | Back and side views allowed |
 | Elevation, minimum | −10° | "Crouching by the cabinet"; plus a hard rule: camera height never below the cabinet top |
 | Elevation, maximum | 85° | Near top-down; 90° avoided to prevent the view flipping |
 | Zoom distance | 0.6× to 2.5× the default distance | Scaled by tank size |
-| Collision | Camera never enters the glass, the cabinet or room geometry | Sphere cast from pivot to camera; camera is pulled in when blocked |
+| Collision | Camera never enters the tank (base to rim top; the open top is free above the rim plane), the cabinet, the floor or the lamp, each plus a 0.05 m margin | Room walls are not obstacles: the wall cutaway hides them. The view line and the look-at pivot never change; the camera is held at the smallest distance at least the requested one that is outside every solid, so it is pushed out, never pulled toward the pivot; the requested pose is kept ([ADR 0009](adr/0009-build-camera-collision-analytic-solids.md)) |
+| Near plane | 0.03 m | The collision margin is at least 1.3 × the near plane |
 | Smoothing | Damped interpolation, about 0.15 s | Toggle in settings for players sensitive to motion |
 | Field of view | 50° | Horizontal angle at 16:9 ([ADR 0005](adr/0005-camera-fov-reference-and-default-framing.md)); adjustable 40–70° in settings |
 
 **Controls (mouse and keyboard):** right-drag orbits, mouse wheel zooms, middle-drag pans, `Home` resets to the front view, `Q`/`E` orbit in 45° steps, `R`/`F` raise and lower elevation. Left mouse stays reserved for selecting and placing items. All bindings are remappable.
+
+**Reserved keys:** a new binding must not collide with these, with or without modifiers unless
+noted. Build camera: right and middle mouse, mouse wheel, `Q`, `E`, `R`, `F`, `Home` (all without
+modifiers; with Ctrl, Alt, Shift or Meta they do nothing). Selection and placement: left mouse.
+Global: `Esc` (`ui_cancel`: closes panels and dialogs, leaves photo mode), `Ctrl+Z` (undo, a later
+issue). Photo mode: `P`, `WASD`, `Space`, `Ctrl`, `Shift`, `Enter`, mouse wheel (field of view;
+the build camera is not driven while photo mode is active). A test checks that no two input map
+actions share an event.
 
 **The cabinet:** a simple stylized aquarium cabinet sits under the tank in a cozy room corner. It explains the lower camera limit visually and can become customizable later (wood colours, styles).
 
