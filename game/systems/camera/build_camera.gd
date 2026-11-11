@@ -18,6 +18,7 @@ const ACTION_HOME: StringName = &"camera_home"
 const KEY_ACTIONS: Array[StringName] = [ACTION_LEFT, ACTION_RIGHT, ACTION_UP, ACTION_DOWN]
 
 const PIN_TOLERANCE_DEG: float = 0.0001
+const HELD_EPSILON_M: float = 0.000001
 const PLANE_TOLERANCE_M: float = 0.000001
 
 @export var settings: CameraSettings = null
@@ -45,6 +46,7 @@ var _pan_box: AABB = AABB()
 var _solids: Array[AABB] = []
 ## The distance the camera is placed at: the eased distance, pushed out of the solids.
 var _shown_distance: float = 1.0
+var _was_held: bool = false
 ## Action name to the frame time collected toward the next repeat step.
 var _held: Dictionary[StringName, float] = {}
 
@@ -206,7 +208,7 @@ func step(delta_s: float) -> void:
 	_elevation = clampf(
 		_elevation, _min_elevation(_pivot.y + _above_offset, _distance), settings.max_elevation_deg
 	)
-	_place()
+	_place(factor)
 
 
 ## While the window is unfocused the wheel, the pan start and Home are ignored; the #25 orbit
@@ -382,9 +384,9 @@ func _snap_to_targets() -> void:
 
 
 ## Places the camera at the eased pose, pushed out of the solids at every frame, so it is never
-## inside one and never farther out than needed. Below the cabinet top plane only the shown
-## elevation is raised (ADR 0009).
-func _place() -> void:
+## inside one. A push-out is immediate; a release from a held frame eases (ADR 0009 rule 5).
+## Below the cabinet top plane only the shown elevation is raised.
+func _place(factor: float = 1.0) -> void:
 	if not is_inside_tree():
 		return
 	var margin: float = settings.collision_margin_m
@@ -399,6 +401,11 @@ func _place() -> void:
 		)
 		direction = OrbitMath.offset(_azimuth, shown_elevation, 1.0)
 		held = CameraCollision.held_distance(_solids, margin, _pivot, direction, _distance)
+	if _was_held and factor < 1.0 and held < _shown_distance:
+		# The obstruction ended: ease out of the hold, never into a solid.
+		var eased: float = lerpf(_shown_distance, held, factor)
+		held = CameraCollision.held_distance(_solids, margin, _pivot, direction, eased)
+	_was_held = held > _distance + HELD_EPSILON_M
 	_shown_distance = held
 	global_position = _pivot + direction * _shown_distance
 	global_rotation = OrbitMath.camera_rotation(_azimuth, shown_elevation)

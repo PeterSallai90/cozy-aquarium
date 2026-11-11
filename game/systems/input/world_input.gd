@@ -24,8 +24,13 @@ static func is_text_focused(viewport: Viewport) -> bool:
 ## wheel as handled only for controls that use it, so the world checks this itself.
 static func is_over_stop_control(root: Node, position: Vector2) -> bool:
 	for child: Node in root.get_children():
+		if child is Window or child is SubViewport:
+			continue
 		var item: CanvasItem = child as CanvasItem
 		if item != null and not item.visible:
+			continue
+		var layer: CanvasLayer = child as CanvasLayer
+		if layer != null and not layer.visible:
 			continue
 		var control: Control = child as Control
 		if (

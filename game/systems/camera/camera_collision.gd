@@ -37,8 +37,7 @@ static func line_interval(origin: Vector3, direction: Vector3, box: AABB) -> Vec
 static func held_distance(
 	solids: Array[AABB], margin_m: float, pivot: Vector3, direction: Vector3, requested_m: float
 ) -> float:
-	var grown: Array[AABB] = _grown(solids, margin_m)
-	return _chain(grown, pivot, direction, requested_m)
+	return _chain(solids, margin_m, pivot, direction, requested_m, false, 0.0)
 
 
 ## The lowest elevation at which a camera held outside the grown footprints of the solids that
@@ -47,37 +46,34 @@ static func lowest_held_elevation_deg(
 	solids: Array[AABB], margin_m: float, pivot: Vector3, azimuth_deg: float, plane_y: float
 ) -> float:
 	var flat: Vector3 = OrbitMath.offset(azimuth_deg, 0.0, 1.0)
-	var footprints: Array[AABB] = []
-	for box: AABB in solids:
-		var grown: AABB = box.grow(margin_m)
-		if grown.position.y <= plane_y and grown.end.y >= plane_y:
-			footprints.append(
-				AABB(
-					Vector3(grown.position.x, -FAR_M, grown.position.z),
-					Vector3(grown.size.x, 2.0 * FAR_M, grown.size.z)
-				)
-			)
-	var reach: float = _chain(footprints, pivot, flat, 0.0)
+	var reach: float = _chain(solids, margin_m, pivot, flat, 0.0, true, plane_y)
 	if reach <= EPSILON:
 		return -90.0
 	return -rad_to_deg(atan((pivot.y - plane_y) / reach))
 
 
-static func _grown(solids: Array[AABB], margin_m: float) -> Array[AABB]:
-	var grown: Array[AABB] = []
-	for box: AABB in solids:
-		grown.append(box.grow(margin_m))
-	return grown
-
-
+## Leaves the grown solids one after the other. With footprints, only the solids whose grown
+## box spans plane_y count, and only by their x/z extent. Allocates nothing.
 static func _chain(
-	grown: Array[AABB], origin: Vector3, direction: Vector3, requested_m: float
+	solids: Array[AABB],
+	margin_m: float,
+	origin: Vector3,
+	direction: Vector3,
+	requested_m: float,
+	footprints: bool,
+	plane_y: float
 ) -> float:
 	var t: float = requested_m
-	for pass_index: int in grown.size() + 1:
+	for pass_index: int in solids.size() + 1:
 		var moved: bool = false
-		for box: AABB in grown:
-			var span: Vector2 = line_interval(origin, direction, box)
+		for box: AABB in solids:
+			var grown: AABB = box.grow(margin_m)
+			if footprints:
+				if grown.position.y > plane_y or grown.end.y < plane_y:
+					continue
+				grown.position.y = -FAR_M
+				grown.size.y = 2.0 * FAR_M
+			var span: Vector2 = line_interval(origin, direction, grown)
 			if span.x < t and t < span.y:
 				t = span.y
 				moved = true
