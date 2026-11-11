@@ -70,7 +70,7 @@ func _assert_room_without_tank(room: Node3D) -> void:
 	assert_that(Rig.displayed_id(room)).is_equal(&"")
 	for root_name: String in ["Room", "Cabinet", "Lamp"]:
 		assert_object(room.get_node_or_null(root_name)).is_instanceof(Node3D)
-	assert_object(room.get_node_or_null("PlaceholderCamera")).is_instanceof(Camera3D)
+	assert_object(room.get_node_or_null("BuildCamera")).is_instanceof(Camera3D)
 
 
 # --- AC 4 ---

@@ -1,6 +1,6 @@
 # gdlint: disable=max-public-methods
 extends GdUnitTestSuite
-## #22 criteria 9 and 13 and #24 criterion 13 (owner: developer): the placeholder camera framing at
+## #22 criteria 9 and 13 and #24 criterion 13 (owner: developer): the default camera framing at
 ## several aspect ratios for each tank (ADR 0005, ADR 0006 option A "Camera backs off") and a clean
 ## load. The default distance is the larger of the width distance (85% of the screen width) and
 ## the vertical-fit distance (tank exterior, rim trim and the front edge of the cabinet top inside
@@ -46,7 +46,7 @@ func _open(size: Vector2i, id: StringName = Table.MEDIUM) -> void:
 
 
 func _camera() -> Camera3D:
-	return _room.get_node("PlaceholderCamera") as Camera3D
+	return _room.get_node("BuildCamera") as Camera3D
 
 
 func _tank() -> Node3D:
@@ -388,7 +388,7 @@ func test_ac13_room_without_setup_builds_from_the_defaults_without_logging() -> 
 	assert_that(Rig.displayed_id(made[0])).is_equal(Table.MEDIUM)
 
 
-func test_ac13_exactly_one_camera_is_active_and_it_is_the_placeholder() -> void:
+func test_ac13_exactly_one_camera_is_active_and_it_is_the_build_camera() -> void:
 	await _open(Vector2i(1920, 1080))
 	var current: int = 0
 	var stack: Array[Node] = [_room]
@@ -399,4 +399,4 @@ func test_ac13_exactly_one_camera_is_active_and_it_is_the_placeholder() -> void:
 		stack.append_array(node.get_children())
 	assert_int(current).is_equal(1)
 	assert_object(_viewport.get_camera_3d()).is_same(_camera())
-	assert_str(String(_camera().name)).is_equal("PlaceholderCamera")
+	assert_str(String(_camera().name)).is_equal("BuildCamera")

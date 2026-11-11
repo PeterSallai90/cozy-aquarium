@@ -1,12 +1,14 @@
 # gdlint: disable=max-public-methods
 extends GdUnitTestSuite
-## #24 criteria 8, 9, 13 (camera back at the default view) and 19 (automatic part) (owner:
-## developer): the room reacts to the change-tank Command. The room listens to the model
-## (tank_changed, model_reset), swaps tank, cabinet and lamp and frames the default view of the new
-## tank. Swapping goes through the real Command and CommandHistory; the room never writes the model.
+## #24 criteria 8, 9, 13 (the camera eases to the default view; #25 AC 8 keeps the azimuth) and 19
+## (automatic part) (owner: developer): the room reacts to the change-tank Command. The room
+## listens to the model (tank_changed, model_reset), swaps tank, cabinet and lamp and frames the
+## default view of the new tank. Swapping goes through the real Command and CommandHistory; the
+## room never writes the model.
 
 const Api := preload("res://tests/helpers/late_api.gd")
 const Rig := preload("res://tests/helpers/room_rig.gd")
+const Cam := preload("res://tests/helpers/camera_rig.gd")
 const Table := preload("res://tests/helpers/tank_table.gd")
 const Factory := preload("res://tests/helpers/factory.gd")
 const ModelState := preload("res://tests/helpers/model_state.gd")
@@ -167,19 +169,21 @@ func test_ac09_the_room_never_writes_the_model_while_swapping() -> void:
 	assert_that(Rig.displayed_id(room)).is_equal(Table.LARGE)
 
 
-# --- AC 13: the camera is back at the default view ---
+# --- AC 13: the camera eases to the default view of the new tank ---
 
 
-func test_ac13_a_moved_camera_is_back_at_the_default_front_view_of_the_new_tank() -> void:
+func test_ac13_a_tank_change_eases_to_the_default_view_of_the_new_tank() -> void:
+	# #25 AC 8 supersedes the reset: the azimuth is kept, so a camera that is still at the front
+	# view (azimuth 0, elevation 5) ends at the default view of the new tank once it has settled.
 	var fresh: Node3D = await _open_room(Rig.model_with(Table.LARGE))
-	var fresh_camera: Camera3D = fresh.get_node("PlaceholderCamera") as Camera3D
+	var fresh_camera: Camera3D = fresh.get_node("BuildCamera") as Camera3D
 	var fresh_pivot: Vector3 = (fresh.get_node("Tank/WaterVolume") as Node3D).global_position
 	var room: Node3D = await _open_room()
-	var camera: Camera3D = room.get_node("PlaceholderCamera") as Camera3D
-	camera.position += Vector3(0.3, 0.2, 0.5)
-	camera.rotation += Vector3(0.1, 0.4, 0.0)
+	var camera: Camera3D = room.get_node("BuildCamera") as Camera3D
+	camera.set_process(false)
 	assert_bool(_change(Table.LARGE)).is_true()
 	await get_tree().process_frame
+	Cam.settle(camera)
 	var pivot: Vector3 = (room.get_node("Tank/WaterVolume") as Node3D).global_position
 	assert_vector(camera.global_position - pivot).is_equal_approx(
 		fresh_camera.global_position - fresh_pivot, Vector3.ONE * 0.002
@@ -189,11 +193,13 @@ func test_ac13_a_moved_camera_is_back_at_the_default_front_view_of_the_new_tank(
 
 func test_ac13_every_change_re_frames_the_view_of_the_new_tank() -> void:
 	var room: Node3D = await _open_room()
-	var camera: Camera3D = room.get_node("PlaceholderCamera") as Camera3D
+	var camera: Camera3D = room.get_node("BuildCamera") as Camera3D
+	camera.set_process(false)
 	var distances: Dictionary = {}
 	for id: StringName in [Table.SMALL, Table.LARGE, Table.MEDIUM]:
 		_change(id)
 		await get_tree().process_frame
+		Cam.settle(camera)
 		var pivot: Vector3 = (room.get_node("Tank/WaterVolume") as Node3D).global_position
 		distances[id] = camera.global_position.distance_to(pivot)
 	# A larger tank is framed from further away.

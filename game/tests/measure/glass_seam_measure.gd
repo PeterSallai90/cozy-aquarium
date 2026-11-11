@@ -207,7 +207,7 @@ func _setup() -> void:
 	_room.call("setup", model, catalog)
 	_viewport.add_child(_room)
 	await _settle()
-	_camera = _room.get_node("PlaceholderCamera") as Camera3D
+	_camera = _room.get_node("BuildCamera") as Camera3D
 	_tank = _room.get_node("Tank") as Node3D
 	var surface: MeshInstance3D = _tank.get_node("WaterVolume/Surface") as MeshInstance3D
 	_glass = _tank.get_node("Glass") as MeshInstance3D
