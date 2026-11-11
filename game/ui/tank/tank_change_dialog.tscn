@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/tank/tank_change_dialog.gd" id="1_script"]
 
-[node name="TankChangeDialog" type="Control"]
+[node name="TankChangeDialog" type="Control" groups=["world_input_blockers"]]
 visible = false
 layout_mode = 3
 anchors_preset = 15
