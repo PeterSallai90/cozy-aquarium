@@ -254,7 +254,8 @@ func test_ac15_behind_the_back_wall_the_camera_is_not_held_and_the_cutaway_hides
 
 
 func test_ac15_behind_the_left_wall_the_camera_is_not_held_and_the_cutaway_hides_the_wall() -> void:
-	for id: StringName in Table.IDS:
+	# The small tank at the default distance is at x = -0.696, in front of the plane (#25).
+	for id: StringName in [Table.MEDIUM, Table.LARGE]:
 		var rig: Dictionary = await Cz.open_tank(self, id)
 		if not rig["ok"]:
 			return

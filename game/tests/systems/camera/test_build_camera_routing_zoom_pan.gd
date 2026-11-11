@@ -217,8 +217,7 @@ func test_ac18_the_wheel_over_the_details_panel_does_not_zoom() -> void:
 		return
 	await Ui.open_details(self, _controls)
 	var panel: Control = Ui.details(_controls)
-	if panel.mouse_filter != Control.MOUSE_FILTER_STOP:
-		return
+	assert_int(panel.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	Cz.wheel(_root(), true, 1.0, 0, panel.get_global_rect().get_center())
 	_unchanged()
 

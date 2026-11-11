@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 
 const Cz := preload("res://tests/helpers/camera_zoom_rig.gd")
 const Table := preload("res://tests/helpers/tank_table.gd")
+const OrbitApi := preload("res://tests/helpers/orbit_api.gd")
 
 const MARGIN := 0.1
 const TOLERANCE := 0.0001
@@ -277,18 +278,27 @@ func test_ac12_the_lowest_held_elevation_on_the_three_floor_corner_cases() -> vo
 		assert_float(left).is_greater(right)
 
 
-func test_ac12_the_lowest_held_elevation_of_the_corner_cases_is_a_small_negative_angle() -> void:
+func test_ac12_the_raise_in_the_held_corner_cases_is_at_most_a_tenth_of_a_degree() -> void:
 	if not _exists():
 		return
-	for id: StringName in Table.IDS:
+	# Only the held cases: the corner seen across the whole footprint. The near-side corners,
+	# 0.08 m from the cabinet edge, are never held at 0.6x. The target is the lowest allowed
+	# elevation at 0.6x of the default distance of the tank (small, medium, large).
+	var defaults: Array[float] = [0.699, 0.924, 1.489]
+	for index: int in Table.IDS.size():
+		var id: StringName = Table.IDS[index]
 		var solids: Array[AABB] = [Cz.tank_box(id, 0.0), Cz.cabinet_box(id, 0.0)]
 		var pan: AABB = Cz.pan_box(id, 0.0)
 		for corner_x: bool in [false, true]:
 			var corner: Vector3 = Cz.box_corner(pan, corner_x, false, false)
-			for azimuth: float in [90.0, 270.0]:
-				var lowest: float = Cz.lowest_held_elevation(
-					solids, Cz.margin(), corner, azimuth, Cz.CABINET_TOP_M
-				)
-				# The line to the plane from a pivot 0.004 to 0.008 m above it, over at least the
-				# cabinet half width: well below a degree.
-				assert_float(lowest).is_between(-1.5, 0.0)
+			var across: float = 270.0 if corner_x else 90.0
+			var lowest: float = Cz.lowest_held_elevation(
+				solids, Cz.margin(), corner, across, Cz.CABINET_TOP_M
+			)
+			var target: float = OrbitApi.min_elevation(
+				OrbitApi.setting("min_elevation_limit_deg"),
+				corner.y - Cz.CABINET_TOP_M,
+				defaults[index] * Cz.setting("zoom_min_factor")
+			)
+			var raise_deg: float = maxf(target, lowest) - target
+			assert_float(raise_deg).is_less_equal(0.1 + Cz.ANGLE_DEG)
