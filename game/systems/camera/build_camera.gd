@@ -403,9 +403,37 @@ func _place(factor: float = 1.0) -> void:
 		held = CameraCollision.held_distance(_solids, margin, _pivot, direction, _distance)
 	if _was_held and factor < 1.0 and held < _shown_distance:
 		# The obstruction ended: ease out of the hold, never into a solid.
-		var eased: float = lerpf(_shown_distance, held, factor)
-		held = CameraCollision.held_distance(_solids, margin, _pivot, direction, eased)
+		var eased: float = _eased_release(direction, held, factor)
+		var raised: float = shown_elevation
+		if _pivot.y + direction.y * eased < plane_y - PLANE_TOLERANCE_M:
+			raised = _plane_elevation(shown_elevation, eased, plane_y)
+		var raised_direction: Vector3 = OrbitMath.offset(_azimuth, raised, 1.0)
+		var free: float = CameraCollision.held_distance(
+			_solids, margin, _pivot, raised_direction, eased
+		)
+		if free <= eased + HELD_EPSILON_M:
+			held = eased
+			shown_elevation = raised
+			direction = raised_direction
 	_was_held = held > _distance + HELD_EPSILON_M
 	_shown_distance = held
 	global_position = _pivot + direction * _shown_distance
 	global_rotation = OrbitMath.camera_rotation(_azimuth, shown_elevation)
+
+
+## The distance a camera that was held eases out to: a step of the damping toward the new held
+## distance, kept outside the solids.
+func _eased_release(direction: Vector3, held: float, factor: float) -> float:
+	var eased: float = lerpf(_shown_distance, held, factor)
+	return CameraCollision.held_distance(
+		_solids, settings.collision_margin_m, _pivot, direction, eased
+	)
+
+
+## Raises the elevation just enough to put a camera at `distance` on the cabinet top plane, for a
+## line that falls below it (ADR 0009 rule 4); the same elevation when it is already above.
+func _plane_elevation(elevation: float, distance: float, plane_y: float) -> float:
+	if distance <= 0.0:
+		return elevation
+	var needed: float = rad_to_deg(asin(clampf((plane_y - _pivot.y) / distance, -1.0, 1.0)))
+	return maxf(elevation, needed)
