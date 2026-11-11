@@ -51,3 +51,21 @@ func test_a_pass_control_does_not_count() -> void:
 	var control: Control = _stop_control(root)
 	control.mouse_filter = Control.MOUSE_FILTER_PASS
 	assert_bool(WorldInput.is_over_stop_control(root, POINT)).is_false()
+
+
+func test_a_stop_control_inside_a_window_does_not_count() -> void:
+	var root: Node = _root()
+	var window: Window = Window.new()
+	root.add_child(window)
+	_stop_control(window)
+	assert_bool(WorldInput.is_over_stop_control(root, POINT)).is_false()
+
+
+func test_a_stop_control_under_a_hidden_parent_control_does_not_count() -> void:
+	var root: Node = _root()
+	var parent: Control = Control.new()
+	parent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.visible = false
+	root.add_child(parent)
+	_stop_control(parent)
+	assert_bool(WorldInput.is_over_stop_control(root, POINT)).is_false()

@@ -32,6 +32,13 @@ func _frames(
 		var where: String = "%s frame %d" % [label, frame]
 		if Cz.inside_any(boxes, Cz.margin(), camera.global_position):
 			failures.append("%s: inside a solid" % where)
+		if camera.global_position.y < Cz.CABINET_TOP_M - Cz.LENGTH_M:
+			failures.append(
+				(
+					"%s: camera height %.5f is below the cabinet top"
+					% [where, camera.global_position.y]
+				)
+			)
 		var shown: float = _shown(camera)
 		if was_held and shown < previous - SLACK_M:
 			var goal: float = Cz.oracle_held(
@@ -86,4 +93,43 @@ func test_ac13_a_held_camera_panned_across_the_lamp_edge_eases_without_a_pop() -
 	for x: float in [pan.position.x + 0.15, pan.get_center().x, pan.end.x, pan.position.x]:
 		Cz.set_pivot(camera, Vector3(x, pan.end.y, pan.get_center().z), false)
 		failures.append_array(_frames(camera, room, Table.MEDIUM, 90, "lamp edge x %.2f" % x))
+	assert_array(failures).override_failure_message(Cz.summary(failures)).is_empty()
+
+
+## A held camera at the lowest elevation, pivot at a floor corner of the tank, released by a swap.
+func _swap_failures(
+	from_id: StringName, to_id: StringName, azimuth: float, high_x: bool
+) -> PackedStringArray:
+	var model: AquariumModel = Room.model_with(from_id)
+	var history: CommandHistory = CommandHistory.new()
+	var rig: Dictionary = await Cz.open(self, model, Cam.SIZE_16_9, from_id)
+	if not rig["ok"]:
+		return PackedStringArray(["camera API missing"])
+	var room: Node3D = rig["room"]
+	var camera: Camera3D = rig["camera"]
+	var pan: AABB = Cz.pan_box(from_id, Cz.stand_z(room))
+	var corner: Vector3 = Cz.box_corner(pan, high_x, false, false)
+	Cz.pose(camera, azimuth, -90.0, Cz.zoom_in_distance(rig["default_distance"]), corner)
+	Cam.settle(camera)
+	assert_bool(Cz.is_held(camera)).is_true()
+	assert_float(camera.global_position.y).is_greater_equal(Cz.CABINET_TOP_M - Cz.LENGTH_M)
+	var catalog: RefCounted = Room.default_catalog()
+	assert_bool(history.execute(Api.change_tank(model, catalog, to_id))).is_true()
+	return _frames(camera, room, to_id, 150, "%s to %s az %s" % [from_id, to_id, azimuth])
+
+
+func test_ac13_a_release_at_the_lowest_elevation_never_sinks_below_the_cabinet_top_right_corner(
+) -> void:
+	var failures: PackedStringArray = await _swap_failures(Table.LARGE, Table.SMALL, 270.0, true)
+	assert_array(failures).override_failure_message(Cz.summary(failures)).is_empty()
+
+
+func test_ac13_a_release_at_the_lowest_elevation_never_sinks_below_the_cabinet_top_left_corner(
+) -> void:
+	var failures: PackedStringArray = await _swap_failures(Table.LARGE, Table.SMALL, 90.0, false)
+	assert_array(failures).override_failure_message(Cz.summary(failures)).is_empty()
+
+
+func test_ac13_a_release_from_large_to_medium_never_sinks_below_the_cabinet_top() -> void:
+	var failures: PackedStringArray = await _swap_failures(Table.LARGE, Table.MEDIUM, 270.0, true)
 	assert_array(failures).override_failure_message(Cz.summary(failures)).is_empty()
