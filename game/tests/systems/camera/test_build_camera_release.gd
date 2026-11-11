@@ -13,6 +13,9 @@ const OrbitApi := preload("res://tests/helpers/orbit_api.gd")
 
 const SLACK_M := 0.002
 
+## The largest raise measured per frame class, printed by each case.
+var _largest: Dictionary = {}
+
 
 func _shown(camera: Camera3D) -> float:
 	return (camera.global_position - Cam.pivot(camera)).length()
@@ -27,9 +30,27 @@ func _frames(
 	var failures: PackedStringArray = PackedStringArray()
 	var previous: float = _shown(camera)
 	var was_held: bool = Cz.is_held(camera)
+	var release_run: int = 0
+	_largest = {Cz.STEADY: 0.0, Cz.RELEASE: 0.0, Cz.NEITHER: 0.0}
 	for frame: int in frames:
 		Cam.step(camera, Cz.FRAME_S)
 		var where: String = "%s frame %d" % [label, frame]
+		var frame_class: String = Cz.frame_class(camera, boxes)
+		var raise_deg: float = Cz.raise_deg(camera)
+		_largest[frame_class] = maxf(_largest[frame_class], raise_deg)
+		release_run = release_run + 1 if frame_class == Cz.RELEASE else 0
+		if raise_deg < -Cz.ANGLE_DEG:
+			failures.append("%s: shown elevation lowered by %.4f degrees" % [where, raise_deg])
+		if frame_class == Cz.STEADY and raise_deg > 0.1 + Cz.ANGLE_DEG:
+			failures.append("%s: steady held raise %.4f degrees" % [where, raise_deg])
+		if frame_class == Cz.RELEASE and raise_deg > Cz.RELEASE_RAISE_LIMIT_DEG:
+			failures.append("%s: release raise %.4f degrees" % [where, raise_deg])
+		if release_run > Cz.RELEASE_RUN_LIMIT_FRAMES:
+			failures.append("%s: release lasts %d frames" % [where, release_run])
+		if frame_class == Cz.NEITHER and absf(raise_deg) > Cz.ANGLE_DEG:
+			failures.append(
+				"%s: raised by %.4f degrees, neither held nor releasing" % [where, raise_deg]
+			)
 		if Cz.inside_any(boxes, Cz.margin(), camera.global_position):
 			failures.append("%s: inside a solid" % where)
 		if camera.global_position.y < Cz.CABINET_TOP_M - Cz.LENGTH_M:
@@ -54,6 +75,7 @@ func _frames(
 				)
 		previous = shown
 		was_held = Cz.is_held(camera)
+	print("RAISE_MAX ", label, " ", _largest)
 	return failures
 
 

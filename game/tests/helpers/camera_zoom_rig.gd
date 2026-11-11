@@ -38,6 +38,12 @@ const ANGLE_DEG: float = Cam.ANGLE_TOLERANCE_DEG
 const CABINET_TOP_M: float = Table.CABINET_TOP_M
 const HORIZONTAL_FOV_DEG: float = 50.0
 const HELD_EPSILON_M: float = 0.0005
+const STEADY := "steady"
+const RELEASE := "release"
+const NEITHER := "neither"
+const FRAME_CLASS_TOLERANCE_M: float = 0.001
+const RELEASE_RAISE_LIMIT_DEG: float = 1.0
+const RELEASE_RUN_LIMIT_FRAMES: int = 30
 const MASK_ALL: Array[int] = [KEY_MASK_CTRL, KEY_MASK_ALT, KEY_MASK_SHIFT, KEY_MASK_META]
 
 # --- late-bound helper classes ---
@@ -500,3 +506,27 @@ static func summary(failures: PackedStringArray) -> String:
 	for index: int in mini(failures.size(), 6):
 		shown.append(failures[index])
 	return "%d failures, first: %s" % [failures.size(), " | ".join(shown)]
+
+
+## The frame type of AC 12 and AC 22. d_held is the oracle held distance of the eased pose.
+## Steady: held (d_held more than 1 mm above the request) and the shown distance within 1 mm of
+## d_held. Release: the shown distance is still more than 1 mm above d_held. Otherwise neither.
+static func frame_class(camera: Camera3D, boxes: Array[AABB]) -> String:
+	var requested: float = Cam.dist(camera)
+	var pivot: Vector3 = Cam.pivot(camera)
+	var direction: Vector3 = OrbitApi.offset(Cam.az(camera), Cam.el(camera), 1.0)
+	var d_held: float = oracle_held(boxes, margin(), pivot, direction, requested)
+	var shown: float = (camera.global_position - pivot).length()
+	if shown > d_held + FRAME_CLASS_TOLERANCE_M:
+		return RELEASE
+	if (
+		d_held > requested + FRAME_CLASS_TOLERANCE_M
+		and absf(shown - d_held) <= FRAME_CLASS_TOLERANCE_M
+	):
+		return STEADY
+	return NEITHER
+
+
+## The raise of the displayed elevation over the eased elevation, in degrees.
+static func raise_deg(camera: Camera3D) -> float:
+	return shown_elevation(camera) - Cam.el(camera)

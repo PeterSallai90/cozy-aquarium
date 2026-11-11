@@ -109,10 +109,17 @@ func _frame_failures(label: String, before: Dictionary, reference_el: float) -> 
 	elif absf(actual - requested) > Cz.LENGTH_M:
 		failures.append("%s: not held but at %.4f instead of %.4f" % [label, actual, requested])
 	var raise_deg: float = Cz.shown_elevation(_camera) - reference_el
-	if raise_deg > RAISE_LIMIT_DEG + Cz.ANGLE_DEG or raise_deg < -Cz.ANGLE_DEG:
-		failures.append("%s: shown elevation differs by %.4f degrees" % [label, raise_deg])
-	if not held and absf(raise_deg) > Cz.ANGLE_DEG:
-		failures.append("%s: shown elevation is raised by %.4f while not held" % [label, raise_deg])
+	var frame_class: String = Cz.frame_class(_camera, _boxes)
+	if raise_deg < -Cz.ANGLE_DEG:
+		failures.append("%s: shown elevation is lowered by %.4f degrees" % [label, raise_deg])
+	if frame_class == Cz.STEADY and raise_deg > RAISE_LIMIT_DEG + Cz.ANGLE_DEG:
+		failures.append("%s: steady held raise %.4f degrees" % [label, raise_deg])
+	if frame_class == Cz.RELEASE and raise_deg > Cz.RELEASE_RAISE_LIMIT_DEG:
+		failures.append("%s: release raise %.4f degrees" % [label, raise_deg])
+	if frame_class == Cz.NEITHER and absf(raise_deg) > Cz.ANGLE_DEG:
+		failures.append(
+			"%s: raised by %.4f degrees in a frame that is neither" % [label, raise_deg]
+		)
 	return failures
 
 
@@ -216,7 +223,7 @@ func test_ac22_the_displayed_elevation_differs_only_while_the_camera_is_held() -
 				var raise_deg: float = Cz.shown_elevation(_camera) - Cam.t_el(_camera)
 				if absf(raise_deg) > Cz.ANGLE_DEG:
 					raised += 1
-					assert_bool(Cz.is_held(_camera)).is_true()
+					assert_str(Cz.frame_class(_camera, _boxes)).is_equal(Cz.STEADY)
 				assert_float(raise_deg).is_less_equal(RAISE_LIMIT_DEG + Cz.ANGLE_DEG)
 		# The raise is a rare exception, not the rule.
 		assert_int(raised).is_less(6)
