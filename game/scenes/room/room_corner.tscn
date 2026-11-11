@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" path="res://scenes/room/room_corner.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://assets/room/room_corner.glb" id="2_room"]
+[ext_resource type="Script" path="res://systems/camera/build_camera.gd" id="3_camera"]
+[ext_resource type="Script" path="res://scenes/room/wall_cutaway.gd" id="4_walls"]
 [ext_resource type="Environment" path="res://scenes/room/room_environment.tres" id="5_env"]
 
 [node name="RoomCorner" type="Node3D"]
@@ -9,8 +11,12 @@ script = ExtResource("1_script")
 
 [node name="Room" parent="." instance=ExtResource("2_room")]
 
-[node name="PlaceholderCamera" type="Camera3D" parent="."]
+[node name="BuildCamera" type="Camera3D" parent="."]
 current = true
+script = ExtResource("3_camera")
+
+[node name="WallCutaway" type="Node" parent="."]
+script = ExtResource("4_walls")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = ExtResource("5_env")

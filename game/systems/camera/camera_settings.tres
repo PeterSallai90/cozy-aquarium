@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CameraSettings" format=3]
+
+[ext_resource type="Script" path="res://systems/camera/camera_settings.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+min_elevation_limit_deg = -10.0
+max_elevation_deg = 85.0
+damping_time_s = 0.15
+drag_deg_per_viewport_height = 180.0
+azimuth_step_deg = 45.0
+elevation_step_deg = 5.0
+key_repeat_interval_s = 0.25
+max_frame_time_s = 0.1
+wall_fade_time_s = 0.2
+wall_hysteresis_band_m = 0.05

@@ -1,6 +1,6 @@
 class_name RoomCorner
 extends Node3D
-## The cozy room corner: room, cabinet, lamp, the displayed tank and the placeholder camera.
+## The cozy room corner: room, cabinet, lamp, the displayed tank and the build camera.
 ## Reads the model, never writes it. When the model changes the tank (or is reset), the room swaps
 ## tank, cabinet and lamp for the ones of the new tank and frames the default view again.
 
@@ -9,6 +9,7 @@ const CABINET_TOP_HEIGHT_M: float = 0.75
 const CABINET_MARGIN_M: float = 0.025
 ## Room origin to the inner face of the back wall, and the gap between wall and cabinet back.
 const BACK_WALL_Z_M: float = -0.215
+const SIDE_WALL_X_M: float = -0.85
 const WALL_GAP_M: float = 0.035
 const CAMERA_HFOV_DEG: float = 50.0
 const CAMERA_ELEVATION_DEG: float = 5.0
@@ -30,7 +31,8 @@ var _camera_distance: float = 0.0
 ## The tank instance made while resolving the definition; _show_tank adds it to the room.
 var _resolved_tank: Node3D = null
 
-@onready var _camera: Camera3D = $PlaceholderCamera
+@onready var _camera: BuildCamera = $BuildCamera
+@onready var _walls: WallCutaway = $WallCutaway
 
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
@@ -62,6 +64,7 @@ func _ready() -> void:
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
 	_show_tank()
+	_register_walls()
 	get_viewport().size_changed.connect(_apply_projection)
 	_apply_projection()
 
@@ -240,8 +243,26 @@ func _frame_camera(definition: TankDefinition, stand_z: float) -> void:
 		),
 		fit
 	)
-	_camera.position = CameraFraming.camera_position(pivot, _camera_distance, CAMERA_ELEVATION_DEG)
-	_camera.rotation = Vector3(-deg_to_rad(CAMERA_ELEVATION_DEG), 0.0, 0.0)
+	_camera.set_framing(
+		pivot, _camera_distance, pivot.y - CABINET_TOP_HEIGHT_M, CAMERA_ELEVATION_DEG
+	)
+
+
+## Gives the wall cutaway the two walls and their planes (normals into the room).
+func _register_walls() -> void:
+	var room: Node = get_node_or_null("Room")
+	if room == null:
+		return
+	var back: Node = room.find_child("BackWall", true, false)
+	var side: Node = room.find_child("SideWall", true, false)
+	if back is GeometryInstance3D:
+		var nodes: Array[GeometryInstance3D] = [back as GeometryInstance3D]
+		var plane: Plane = Plane(Vector3(0.0, 0.0, 1.0), BACK_WALL_Z_M)
+		_walls.add_wall(WallCutaway.BACK, nodes, global_transform * plane)
+	if side is GeometryInstance3D:
+		var nodes: Array[GeometryInstance3D] = [side as GeometryInstance3D]
+		var plane: Plane = Plane(Vector3(1.0, 0.0, 0.0), SIDE_WALL_X_M)
+		_walls.add_wall(WallCutaway.LEFT, nodes, global_transform * plane)
 
 
 ## The points that must stay on screen, relative to the pivot: the corners of the tank exterior

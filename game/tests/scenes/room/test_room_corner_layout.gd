@@ -261,7 +261,7 @@ func test_ac12_rays_from_the_camera_to_the_water_line_grid_miss_the_lamp() -> vo
 	for id: StringName in Table.IDS:
 		var room: Node3D = _room(id)
 		var tank: Node3D = room.get_node("Tank") as Node3D
-		var camera: Camera3D = room.get_node("PlaceholderCamera") as Camera3D
+		var camera: Camera3D = room.get_node("BuildCamera") as Camera3D
 		var boxes: Array[AABB] = [
 			_room_box(room, "Lamp", "lamp"),
 			_room_box(room, "Lamp", "lamp_brackets"),
@@ -334,7 +334,7 @@ func test_ac15_hiding_lamp_hides_the_bar_and_brackets() -> void:
 
 func test_ac15_the_camera_is_not_under_a_hideable_root() -> void:
 	var room: Node3D = _room()
-	var camera: Node = room.get_node("PlaceholderCamera")
+	var camera: Node = room.get_node("BuildCamera")
 	assert_object(camera.get_parent()).is_same(room)
 	for root_name: String in ["Room", "Cabinet", "Lamp"]:
 		assert_bool(room.get_node(root_name).is_ancestor_of(camera)).is_false()
