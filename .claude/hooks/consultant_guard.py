@@ -12,8 +12,9 @@ consultants/<notes-folder-name>/ (gitignored). This hook enforces that:
   project's read-only check scripts). Output redirection, command substitution
   and any option not explicitly allowed (git, gdlint, gdformat) are blocked.
   Goal: what the hook parses equals what bash executes. So the command must be a
-  single line and contain no `$`, backtick, `{`, `}`, `~`, backslash or control
-  characters (these make bash expand or join words after the hook looked at them),
+  single line and contain no `$`, backtick, `{`, `}`, backslash, control characters or
+  unquoted `#` (bash comment), and `~` only as in `HEAD~3` (alphanumeric before, digit
+  after); these make bash expand, join or drop words after the hook looked at them,
   and the glob characters `* ? [ ]` are allowed only inside quotes (where they are
   literal). Anything else unrecognised is refused.
 - PowerShell: always blocked (the agents use Bash).
@@ -164,8 +165,11 @@ def check_file_tool(payload: dict, notes: str) -> None:
     target = target.resolve()
     if allowed != target and allowed not in target.parents:
         block(f"You may only write inside {allowed}. Everything else is read-only.")
-    if target.name.lower() == "claude.md":
-        block("Files named CLAUDE.md may not be written.")
+    parts = [p.lower() for p in target.relative_to(allowed).parts]
+    if any(p == ".claude" for p in parts):
+        block("Paths with a .claude component may not be written (no skills, settings or memory).")
+    if target.name.lower().startswith("claude"):
+        block("Files whose name starts with 'claude' (CLAUDE.md, CLAUDE.local.md) may not be written.")
     if target.suffix.lower() not in TEXT_SUFFIXES:
         block("Only .md and .txt text files may be written in your notes folder.")
 
@@ -292,7 +296,11 @@ GLOB_CHARS = set("*?[]")
 def check_characters(command: str) -> None:
     """Refuse anything bash would expand or join after this hook has parsed the line."""
     quote = ""
-    for ch in command:
+    for i, ch in enumerate(command):
+        if ch == "~" and 0 < i < len(command) - 1 and command[i - 1].isalnum() and command[i + 1].isdigit():
+            continue  # HEAD~3: a tilde inside a word, after an alphanumeric, before a digit
+        if ch == "#" and not quote:
+            block("An unquoted '#' is not allowed (bash treats it as a comment and drops the rest).")
         if ch in FORBIDDEN_CHARS:
             block(f"The character {ch!r} is not allowed (no expansion, substitution or line joining).")
         if (ord(ch) < 32 and ch != "	") or ord(ch) == 127:

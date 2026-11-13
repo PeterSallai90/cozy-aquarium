@@ -193,8 +193,10 @@ class ConsultantGuardTest(unittest.TestCase):
             "git tag --list 'v*'",
             "git remote -v",
             "ls game | grep model",
-            "ls a#b",
-            "echo a#b",
+            "grep -rn '#' docs",
+            "grep -rn \"# x\" docs",
+            "git log HEAD~3 --oneline",
+            "git diff HEAD~1..HEAD --stat",
             "cat README.md | head -5 | wc -l",
             "find game -name '*.gd' -type f",
             "grep -rn foo game 2>&1",
@@ -207,6 +209,37 @@ class ConsultantGuardTest(unittest.TestCase):
         ]:
             with self.subTest(command=command):
                 self.assert_bash_allowed(command)
+
+    def test_round4_hash_and_tilde_are_blocked(self) -> None:
+        for command in [
+            "git branch newbranch # --list",
+            "git tag v9 # -l",
+            "gdformat game # --check",
+            "ls #x",
+            "ls;#x",
+            "ls|#x",
+            "ls a#b",
+            "echo a#b",
+            "ls ~",
+            "ls ~3",
+            "ls a ~3",
+            "ls x=~3",
+            "ls a:~3",
+            "git log HEAD~",
+            "git log ~3",
+        ]:
+            with self.subTest(command=command):
+                self.assert_bash_blocked(command)
+
+    def test_round4_claude_paths_are_blocked(self) -> None:
+        notes = ROOT / "consultants" / "security"
+        self.assert_write(str(notes / ".claude" / "skills" / "x" / "SKILL.md"), 2)
+        self.assert_write("consultants/security/.claude/skills/x/SKILL.md", 2)
+        self.assert_write(str(notes / ".CLAUDE" / "settings.txt"), 2)
+        self.assert_write(str(notes / "CLAUDE.local.md"), 2)
+        self.assert_write(str(notes / "sub" / "claude.md"), 2)
+        self.assert_write(str(notes / "claude-notes.md"), 2)
+        self.assert_write(str(notes / "findings.md"), 0)
 
     def test_powershell_is_blocked(self) -> None:
         self.assertEqual(run_hook("PowerShell", {"command": "Get-ChildItem"}), 2)
