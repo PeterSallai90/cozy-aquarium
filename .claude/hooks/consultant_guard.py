@@ -11,6 +11,11 @@ consultants/<notes-folder-name>/ (gitignored). This hook enforces that:
   (git history and diffs, gh read commands, file listing and searching, the
   project's read-only check scripts). Output redirection, command substitution
   and any option not explicitly allowed (git, gdlint, gdformat) are blocked.
+  Goal: what the hook parses equals what bash executes. So the command must be a
+  single line and contain no `$`, backtick, `{`, `}`, `~`, backslash or control
+  characters (these make bash expand or join words after the hook looked at them),
+  and the glob characters `* ? [ ]` are allowed only inside quotes (where they are
+  literal). Anything else unrecognised is refused.
 - PowerShell: always blocked (the agents use Bash).
 
 Exit code 2 blocks the tool call; stderr is shown to the agent as the reason.
@@ -34,12 +39,11 @@ OPERATORS = {"&&", "||", ";", "|"}
 
 # Utilities with no way to write files or run programs (extra checks in check_command).
 READ_UTILS = {
-    "ls", "cat", "head", "tail", "wc", "grep", "rg", "find", "cut", "diff", "stat", "du",
+    "ls", "cat", "head", "tail", "wc", "grep", "find", "cut", "diff", "stat", "du",
     "pwd", "echo", "jq", "basename", "dirname", "realpath", "which",
 }  # fmt: skip
 
 FIND_BLOCKED_PREFIXES = ("-delete", "-exec", "-ok", "-fprint", "-fls")
-RG_BLOCKED_PREFIXES = ("--pre", "--hostname", "--search-zip")
 
 # git: explicit allowlist per subcommand. Long options must match exactly (git accepts
 # abbreviated long options, so anything not listed here is refused, abbreviations too).
@@ -209,6 +213,8 @@ def check_git(args: list[str]) -> None:
     if not args or args[0].startswith("-"):
         block("git needs a subcommand directly (no global options).")
     sub, rest = args[0], args[1:]
+    if sub in ("branch", "tag") and "--" in rest:
+        block(f"`git {sub}` does not accept `--`.")
     if sub == "branch":
         positional = check_options("git branch", rest, GIT_BRANCH_LONG, set("arvl"))
         if positional and not any(a.split("=", 1)[0] in GIT_BRANCH_LISTING for a in rest):
@@ -221,8 +227,8 @@ def check_git(args: list[str]) -> None:
         if rest not in ([], ["-v"], ["--verbose"]) and not (len(rest) == 2 and rest[0] == "get-url"):
             block("Only `git remote -v` and `git remote get-url <name>` are allowed.")
     elif sub in GIT_SPECS:
-        if sub == "reflog" and rest[:1] and rest[0] in ("expire", "delete", "exists"):
-            block("Only reading the reflog is allowed.")
+        if sub == "reflog" and rest and not rest[0].startswith("-") and rest[0] not in ("show", "list"):
+            block("Only `git reflog`, `git reflog show` and `git reflog list` are allowed.")
         long_ok, short_ok = GIT_SPECS[sub]
         check_options(f"git {sub}", rest, long_ok, short_ok)
     else:
@@ -252,8 +258,6 @@ def check_command(tokens: list[str]) -> None:
     if prog in READ_UTILS:
         if prog == "find" and any(a.startswith(FIND_BLOCKED_PREFIXES) for a in args):
             block("find actions that write or execute are not allowed.")
-        if prog == "rg" and any(a.startswith(RG_BLOCKED_PREFIXES) or re.match(r"^-[A-Za-z]*z", a) for a in args):
-            block("rg options that run a command are not allowed.")
         if prog == "tail" and any(a.startswith("--f") or re.match(r"^-[A-Za-z]*[fF]", a) for a in args):
             block("tail --follow never ends; not allowed.")
         return
@@ -281,10 +285,32 @@ def check_command(tokens: list[str]) -> None:
     block(f"`{prog}` is not on the read-only command list.")
 
 
+FORBIDDEN_CHARS = set("$`{}~\\")
+GLOB_CHARS = set("*?[]")
+
+
+def check_characters(command: str) -> None:
+    """Refuse anything bash would expand or join after this hook has parsed the line."""
+    quote = ""
+    for ch in command:
+        if ch in FORBIDDEN_CHARS:
+            block(f"The character {ch!r} is not allowed (no expansion, substitution or line joining).")
+        if (ord(ch) < 32 and ch != "	") or ord(ch) == 127:
+            block("Only single-line commands are allowed (no newlines or control characters).")
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "'\"":
+            quote = ch
+        elif ch in GLOB_CHARS:
+            block(f"Glob character {ch!r} is allowed only inside quotes.")
+    if quote:
+        block("Unterminated quote.")
+
+
 def check_bash(payload: dict) -> None:
     command = (payload.get("tool_input") or {}).get("command", "")
-    if any(marker in command for marker in ("`", "$(", "<(", ">(", "$'", '$"')):
-        block("Command substitution and $'..' quoting are not allowed.")
+    check_characters(command)
     for tokens in split_commands(SAFE_REDIRECTS.sub(" ", command)):
         check_command(tokens)
 
