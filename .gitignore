@@ -30,3 +30,6 @@ Thumbs.db
 # Secrets, never committed
 .env
 *.key
+
+# Local notes of the consultant agents (consultant-security, consultant-analyst); never committed
+/consultants/
