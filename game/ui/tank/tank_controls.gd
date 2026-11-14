@@ -1,13 +1,15 @@
 class_name TankControls
 extends Control
-## The tank-control group of the HUD: the Change tank and Tank details buttons, the chooser, the
-## details panel and the confirmation dialog. Closing a panel puts the focus back on the button
-## that opens it. It is also the panel group: only one panel is open at a time (open_panel,
-## close_panels), and no panel opens while the dialog is open. It runs the change-tank Command; the
-## chooser and the dialog only report what the player did.
+## The tank-control group of the HUD: the Change tank, Tank details and Substrate buttons, the
+## choosers, the details panel and the confirmation dialog. Closing a panel puts the focus
+## back on the button that opens it. It is also the panel group: only one panel is open at a time
+## (open_panel, close_panels), and no panel opens while the dialog is open. It runs the
+## change-tank and the set-substrate Commands; the choosers and the dialog only report what the
+## player did.
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
+var _substrates: SubstrateCatalog = null
 var _history: CommandHistory = null
 var _panels: Array[Control] = []
 var _openers: Dictionary[Control, Button] = {}
@@ -18,14 +20,22 @@ var _asked_card: Button = null
 @onready var _details_button: Button = $Group/Buttons/TankDetailsButton
 @onready var _chooser: TankChooser = $Group/TankChooser
 @onready var _details: TankDetails = $Group/TankDetails
+@onready var _substrate_button: Button = $Group/Buttons/SubstrateButton
+@onready var _substrate_chooser: SubstrateChooser = $Group/SubstrateChooser
 @onready var _dialog: TankChangeDialog = $TankChangeDialog
 
 
-## Before the node enters the tree.
-func setup(model: AquariumModel, catalog: TankCatalog, history: CommandHistory) -> void:
+## Before the node enters the tree. Without `substrates` the catalog directory is loaded.
+func setup(
+	model: AquariumModel,
+	catalog: TankCatalog,
+	history: CommandHistory,
+	substrates: SubstrateCatalog = null
+) -> void:
 	_model = model
 	_catalog = catalog
 	_history = history
+	_substrates = substrates
 
 
 func _ready() -> void:
@@ -35,14 +45,23 @@ func _ready() -> void:
 		_catalog = TankCatalog.load_dir()
 	if _history == null:
 		_history = CommandHistory.new()
+	if _substrates == null:
+		_substrates = SubstrateCatalog.load_dir()
 	_panels.append(_chooser)
 	_chooser.build(_catalog)
 	_panels.append(_details)
+	_panels.append(_substrate_chooser)
 	_openers[_chooser] = _open_button
 	_openers[_details] = _details_button
+	_openers[_substrate_chooser] = _substrate_button
+	_substrate_chooser.setup(_model, _substrates)
 	_details.setup(_model, _catalog)
 	_open_button.pressed.connect(_on_open_pressed)
 	_details_button.pressed.connect(_on_details_pressed)
+	_substrate_button.pressed.connect(_on_substrate_pressed)
+	_substrate_chooser.type_picked.connect(_on_substrate_type_picked)
+	_substrate_chooser.swatch_picked.connect(_on_swatch_picked)
+	_substrate_chooser.close_requested.connect(close_panels)
 	_details.close_requested.connect(close_panels)
 	_chooser.picked.connect(_on_picked)
 	_chooser.close_requested.connect(close_panels)
@@ -68,6 +87,8 @@ func open_panel(panel: Control, opener: Button = null) -> void:
 		_chooser.focus_current()
 	elif panel == _details:
 		_details.focus_start()
+	elif panel == _substrate_chooser:
+		_substrate_chooser.focus_current()
 
 
 ## Closes every panel and the dialog; the focus goes back to the button of the panel that was
@@ -122,6 +143,41 @@ func _on_details_pressed() -> void:
 		close_panels()
 	else:
 		open_panel(_details)
+
+
+func _on_substrate_pressed() -> void:
+	if _dialog.is_active():
+		return
+	if _substrate_chooser.visible:
+		close_panels()
+	else:
+		open_panel(_substrate_chooser)
+
+
+## A card: the pick rule of the catalog gives the colour (the type in use keeps it).
+func _on_substrate_type_picked(substrate_id: StringName, _card: Button) -> void:
+	var colour: Color = _substrates.colour_for_pick(
+		_model.get_substrate_id(), _model.get_substrate_colour(), substrate_id
+	)
+	_set_substrate(substrate_id, colour)
+
+
+## A swatch of the type in use.
+func _on_swatch_picked(colour: Color, _swatch: Button) -> void:
+	_set_substrate(_model.get_substrate_id(), colour)
+
+
+## The panel stays open. Nothing happens while the dialog is open, the history is busy or the
+## model already holds this type and colour.
+func _set_substrate(substrate_id: StringName, colour: Color) -> void:
+	if _dialog.is_active() or _history.is_busy():
+		return
+	if (
+		substrate_id == _model.get_substrate_id()
+		and colour.to_rgba32() == _model.get_substrate_colour().to_rgba32()
+	):
+		return
+	_history.execute(SetSubstrateCommand.new(_model, _substrates, substrate_id, colour))
 
 
 func _on_picked(tank_id: StringName, card: Button) -> void:

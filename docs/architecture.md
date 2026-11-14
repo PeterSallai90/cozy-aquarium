@@ -257,13 +257,13 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | System | Responsibility | Key technique |
 | --- | --- | --- |
 | Placement | Pick, place, move, rotate, scale, delete items inside the tank | Raycast onto substrate and items; snapping; overlap check with collision shapes; ghost preview |
-| Substrate | Sand and gravel types, colours, sculpting slopes | Heightmap mesh; colour as shader parameter |
+| Substrate | Five substrate types from the catalog, colour from a short swatch list, sculpting slopes (#29) | Flat layer at the inner floor until #29, heightmap mesh later; colour and grain look as shader instance parameters; defaults and load fallback: ADR 0010 |
 | Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states; species personality with individual variation per fish (D20) |
 | Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
 | Feeding | Drop food; fish notice and eat it gradually, not all at once; no hunger or overfeeding consequences in Mode 1 | Particle food with simple physics; each fish notices food after its own short random delay, then switches to a seek state |
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification; world input routing and modal blocking: [ADR 0008](adr/0008-world-input-routing-and-modal-blocking.md); build camera collision: [ADR 0009](adr/0009-build-camera-collision-analytic-solids.md) |
 | Water rendering | Cozy, readable water | Glass shader; water surface; in-tank fog as a `FogVolume` bounded to the water, with all fog values in one `WaterFogSettings` resource; depth tint scaled by path length; caustics from the lamp onto the surfaces inside the water, with the caustic values in one `WaterCausticSettings` resource; bubbles. Water volume contract, fog quality hook and caustics (Amendment 1): [ADR 0007](adr/0007-water-volume-contract-and-fog-quality-hook.md) |
-| Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`) |
+| Save/load | Save format, validation and migration (issue 6); slots, autosave and thumbnails (issue 27) | Pure `SaveCodec` in `game/model`; file I/O and safe write in `SaveStore` (`game/systems/save_store.gd`); the load replaces an empty or unknown substrate id with the default before the model is refilled, with one warning and no history entry (ADR 0010) |
 | Settings | Language (issue 7); audio, graphics quality, controls (issue 9) | One Godot `ConfigFile`, `user://settings.cfg`, written only through `SettingsStore` (`game/systems/settings_store.gd`): one section per area (`[general]` holds `language`; issue 9 adds `[audio]`, `[graphics]`, `[controls]`), the file is read again right before each write so unknown sections and keys survive, it is replaced safely (`.tmp` plus rename), a file that does not parse is copied to `settings.cfg.bak` on the next write, and the game never writes it at startup. Every setting except the language is a typed `SettingKey` (section, key, type, default, optional range; wrong type gives the default, out of range is clamped) read and written through the `Settings` autoload (`game/systems/settings/`), which emits `EventBus.setting_changed` once per real change and reports a failed write through `get_last_save_error()`. The settings screen (`game/ui/settings/`) builds its sections from `settings_sections.tres`; see ADR 0003 |
 | Localization | All visible text; the current language | gettext `.po`, `tr()`/`tr_n()` keys only; the `Localization` autoload (`game/systems/localization/`, registered after `EventBus`) owns the language API and emits `EventBus.language_changed` |
 
@@ -379,7 +379,7 @@ The files named in this section are created with the repository, not before: `.e
 | Language API | Autoload `Localization`: `get_supported_languages()` (`en`, `hu`), `get_language_display_name(code)`, `get_language()`, `set_language(code)` returning `OK` or `ERR_INVALID_PARAMETER`, and `get_last_save_error()` (the result of the last settings write, `OK` until one fails; set before the signal). A change emits `EventBus.language_changed(language)` once, after the locale switched. UI calls only this API and holds no language logic |
 | Source strings | Never in code or scenes: only translation keys through `tr()` and `tr_n()`. A text that code builds (inserted numbers, plurals) is rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`, and its control, like any control showing player text, has auto-translate turned off |
 | Key convention | Lower case, dot-separated `area.subject.detail`, `_` inside a segment, only `a-z 0-9 _ .`, at least two segments (for example `save.error.not_found`, `menu.main.new_aquarium`, `fish.neon_tetra.name`). No `msgctxt`. Checked by `tools/scripts/check_translations.py` |
-| Key areas | `menu`, `save`, `settings`, `language`, `tank`, `fish`, `item`, `ui`, `photo`, `datetime`, `number`, `unit`. The same list is `ALLOWED_AREAS` in `check_translations.py`; an issue that needs a new area adds it to both in its own pull request |
+| Key areas | `menu`, `save`, `settings`, `language`, `tank`, `substrate`, `fish`, `item`, `ui`, `photo`, `datetime`, `number`, `unit`. The same list is `ALLOWED_AREAS` in `check_translations.py`; an issue that needs a new area adds it to both in its own pull request |
 | Plural keys | `<key>` for the singular and `<key>.plural` for the plural, used with two literals: `tr_n("fish.count", "fish.count.plural", n)`. A last segment `plural` is reserved for this. Both `.po` files use `Plural-Forms: nplurals=2; plural=(n != 1);` |
 | Non-literal keys | `tr(x.name_key)` and `tr(entry_key)` are allowed only for an identifier or member access whose last name is `key` or ends in `_key`; the plural form is `tr_n(e, e + ".plural", n)` with the same expression `e`. Any other non-literal key fails `generate_pot.py` |
 | Files | `game/localization/messages.pot` (generated by `python tools/scripts/generate_pot.py` from literal `tr()`/`tr_n()`/`atr()`/`atr_n()` keys in scripts, `text`/`tooltip_text`/`placeholder_text`/`title` in scenes, catalog `*_key` fields and `extra_keys.txt`; sorted, no references or dates, never edited by hand), `en.po` (English text under the key), `hu.po`, `extra_keys.txt` (keys that exist only at run time). UTF-8 without BOM, LF |
@@ -1284,7 +1284,7 @@ The first backlog has 10 epics and 42 items across four milestones; M1 "First pl
 | --- | --- | --- |
 | M0 Foundation | Everything runs end to end with no gameplay | An empty scene builds in CI, tests run, language switches, a save file round-trips |
 | M1 First playable (v0.1) | The core cozy loop in one tank | You can arrange a tank, add 3 species, orbit the camera, save and reload |
-| M2 Content and photo mode (v0.2) | Variety and sharing | 15 species, 10 plants, 15 decorations, 5 substrates, photo mode with underwater shots |
+| M2 Content and photo mode (v0.2) | Variety and sharing | 15 species, 10 plants, 15 decorations, photo mode with underwater shots |
 | M3 Release 1.0 | Ready for itch.io | Audio, performance target met, Hungarian complete, release pipeline live |
 
 The AI BA turns each row into a full issue (story, acceptance criteria, out of scope, test notes) before it moves to Ready. Sizes are estimates for planning; anything that turns out L is split.
@@ -1308,7 +1308,7 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 14 | Orbit camera with elevation limits and cabinet floor | E2 Camera | M1 | feature | M | P0 |
 | 15 | Camera zoom, pan, collision, reset to front view | E2 Camera | M1 | feature | M | P0 |
 | 16 | Automated camera limit tests | E2 Camera | M1 | test | S | P0 |
-| 17 | Substrate types with colour selection | E3 Substrate | M1 | feature | M | P0 |
+| 17 | Substrate types with colour selection (sand, gravel, pebbles, black sand, coloured gravel) | E3 Substrate | M1 | feature | M | P0 |
 | 18 | Sculpt substrate slopes | E3 Substrate | M2 | feature | M | P2 |
 | 19 | Catalog browser UI (categories, thumbnails, search) | E4 Placement | M1 | feature | M | P0 |
 | 20 | Place, move and rotate items with ghost preview and snapping | E4 Placement | M1 | feature | M | P0 |
@@ -1323,7 +1323,7 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 29 | Parametric fish generator: 15 species with real Mode 2 data | E7 Content | M2 | asset | L (split per 4 species) | P0 |
 | 30 | Plant generator: 10 plants with sway shader | E7 Content | M2 | asset | M | P0 |
 | 31 | Decorations: 15 rocks, wood and ornaments | E7 Content | M2 | asset | M | P0 |
-| 32 | Five substrate types (sand, gravel, pebbles, black sand, coloured gravel) | E7 Content | M2 | asset | S | P1 |
+| 32 | Superseded by 17: Five substrate types (sand, gravel, pebbles, black sand, coloured gravel) | E7 Content | M1 (in 17) | asset | S | P1 |
 | 33 | Photo mode: free camera, hide UI, save PNG | E8 Photo mode | M2 | feature | M | P1 |
 | 34 | Photo mode: enter tank from the top, underwater effect | E8 Photo mode | M2 | feature | M | P1 |
 | 35 | Photo tools: pause fish, depth of field, filters, frame overlay | E8 Photo mode | M2 | feature | M | P2 |

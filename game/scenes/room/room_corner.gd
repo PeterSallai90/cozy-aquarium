@@ -24,6 +24,7 @@ const NO_TANK_EXTERIOR_M: Vector3 = Vector3(0.66, 0.36, 0.36)
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
+var _substrates: SubstrateCatalog = null
 var _fog_settings: WaterFogSettings = null
 var _caustic_settings: WaterCausticSettings = null
 var _displayed_tank_id: StringName = &""
@@ -37,16 +38,18 @@ var _resolved_tank: Node3D = null
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
 ## directory, the shared default fog settings and the shared default caustic settings
-## (CAUSTIC_SETTINGS_PATH). fog_settings and caustic_settings are both optional; null selects
-## the default.
+## (CAUSTIC_SETTINGS_PATH). fog_settings, caustic_settings and substrates are all optional; null
+## selects the default.
 func setup(
 	model: AquariumModel,
 	catalog: TankCatalog,
 	fog_settings: WaterFogSettings = null,
-	caustic_settings: WaterCausticSettings = null
+	caustic_settings: WaterCausticSettings = null,
+	substrates: SubstrateCatalog = null
 ) -> void:
 	_model = model
 	_catalog = catalog
+	_substrates = substrates
 	_fog_settings = fog_settings
 	_caustic_settings = caustic_settings
 
@@ -56,6 +59,8 @@ func _ready() -> void:
 		_model = AquariumModel.new()
 	if _catalog == null:
 		_catalog = TankCatalog.load_dir()
+	if _substrates == null:
+		_substrates = SubstrateCatalog.load_dir()
 	if _fog_settings == null:
 		_fog_settings = load(FOG_SETTINGS_PATH) as WaterFogSettings
 	if _caustic_settings == null:
@@ -63,6 +68,7 @@ func _ready() -> void:
 	_setup_fog()
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
+	_model.substrate_changed.connect(_on_substrate_changed)
 	_show_tank()
 	_register_walls()
 	get_viewport().size_changed.connect(_apply_projection)
@@ -123,6 +129,7 @@ func _show_tank() -> void:
 			water.build(definition, _fog_settings, _caustic_settings)
 		add_child(tank)
 		_displayed_tank_id = definition.id
+		_apply_substrate()
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)
 	var mount: Node3D = null
 	if tank != null:
@@ -143,6 +150,33 @@ func _show_tank() -> void:
 		)
 	_frame_camera(definition, stand_z, solids)
 	EventBus.tank_displayed.emit(_displayed_tank_id)
+
+
+func _on_substrate_changed(_substrate_id: StringName, _colour: Color) -> void:
+	_apply_substrate()
+
+
+## Gives the substrate layer of the shown tank the colour and look of the model's substrate. An
+## empty or unknown id shows the default type with its default colour, silently (ADR 0010). Reads
+## the model only.
+func _apply_substrate() -> void:
+	var tank: Node = get_node_or_null("Tank")
+	if tank == null:
+		return
+	var layer: SubstrateLayer = tank.get_node_or_null("SubstrateAnchor/Substrate") as SubstrateLayer
+	if layer == null:
+		return
+	var id: StringName = _model.get_substrate_id()
+	var colour: Color = _model.get_substrate_colour()
+	var definition: SubstrateDefinition = _substrates.get_definition(id)
+	if definition == null:
+		definition = _substrates.get_default()
+		if definition == null:
+			return
+		colour = definition.default_colour
+	layer.apply_look(
+		colour, definition.grain_scale, int(definition.grain_shape), definition.grain_contrast
+	)
 
 
 ## The definition to show: the model's tank, else the default tank (one warning for an unknown id,

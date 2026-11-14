@@ -38,6 +38,7 @@ ALLOWED_AREAS: tuple[str, ...] = (
     "settings",
     "language",
     "tank",
+    "substrate",
     "fish",
     "item",
     "ui",

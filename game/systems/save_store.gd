@@ -12,13 +12,19 @@ const _TEMP_SUFFIX: String = ".tmp"
 
 var _clock: Callable = Callable()
 var _codec: SaveCodec = null
+var _substrates: SubstrateCatalog = null
 
 
 ## `clock` is a Callable returning a stamp (YYYY-MM-DDTHH:MM:SSZ). When empty or invalid the
 ## system clock is used (UTC). `codec` is only passed by tests that need another format version.
-func _init(clock: Callable = Callable(), codec: SaveCodec = null) -> void:
+## `substrates` is the catalog for the load fallback (ADR 0010); without it a loaded substrate id
+## is taken as it is.
+func _init(
+	clock: Callable = Callable(), codec: SaveCodec = null, substrates: SubstrateCatalog = null
+) -> void:
 	_clock = clock
 	_codec = codec if codec != null else SaveCodec.new()
+	_substrates = substrates
 
 
 ## Writes the model to the path. PATH_REFUSED for a path outside user://, INTERNAL for a null
@@ -62,6 +68,8 @@ func load_into(path: String, model: AquariumModel, history: CommandHistory) -> S
 	var decoded: SaveResult = _codec.decode_bytes(bytes, _now())
 	if not decoded.is_ok():
 		return decoded
+	if _substrates != null:
+		SubstrateSetup.normalise(decoded.model, _substrates)
 	model.reset_from(decoded.model)
 	history.clear()
 	return SaveResult.success()

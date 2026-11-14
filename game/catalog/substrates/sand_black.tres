@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="SubstrateDefinition" format=3]
+
+[ext_resource type="Script" path="res://catalog/substrate_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"sand_black"
+name_key = "substrate.sand_black.name"
+description_key = "substrate.sand_black.description"
+sort_order = 4
+default_colour = Color(0.18039216, 0.17647059, 0.18823529, 1)
+colour_swatches = Array[Color]([Color(0.18039216, 0.17647059, 0.18823529, 1), Color(0.22745098, 0.21176471, 0.2, 1), Color(0.18431373, 0.20784314, 0.23137255, 1), Color(0.29019608, 0.28235294, 0.2745098, 1)])
+grain_scale = 0.0015
+grain_shape = 0
+grain_contrast = 0.55
+ph_effect = 1
+hardness_effect = 1
+bulk_density_kg_per_l = 1.6
+layer_depth_min_cm = 2.0
+layer_depth_max_cm = 4.0
+layer_depth_default_cm = 3.0
+grain_size_min_mm = 0.2
+grain_size_max_mm = 1.0
+rooting_suitability = 0.7
+nutrient_retention = 0.3
+burrowing_suitability = 1.0
+edge_smoothness = 1.0
+waste_trapping = 0.2
+cleaning_difficulty = 0.5
