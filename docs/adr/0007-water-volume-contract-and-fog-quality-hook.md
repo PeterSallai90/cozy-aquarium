@@ -1,6 +1,6 @@
 # ADR 0007: Water volume contract, single fog settings place and depth tint pass
 
-- Status: Proposed (accepted when the #23 pull request merges; gated by `needs:owner`)
+- Status: Accepted (accepted when the #23 pull request merges; gated by `needs:owner`)
 - Date: 2026-11-09; Amendment 1 (#126): 2026-11-10
 - Decision log reference: none (no row in the decisions table changes); refines the "Water
   rendering" row of Core systems in docs/architecture.md
