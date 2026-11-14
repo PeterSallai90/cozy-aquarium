@@ -2,7 +2,7 @@
 
 - Status: Proposed (accepted when the #26 pull request merges; gated by `needs:owner`)
 - Date: 2026-11-11; amended 2026-11-11 (rules 4 and 5: release tilt, owner decision on #26,
-  option A, [comment](https://github.com/PeterSallai90/cozy-aquarium/issues/26#issuecomment-6808114113))
+  option A, [comment](https://github.com/PeterSallai90/cozy-aquarium/issues/26#issuecomment-6808157598))
 - Decision log reference: none (D7 is unchanged); replaces the mechanism in the "Collision" row of
   the camera specification in docs/architecture.md ("sphere cast from pivot, pulled in when
   blocked") and aligns its obstacle list with the owner decision on #26 (walls are not obstacles)
