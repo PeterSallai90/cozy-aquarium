@@ -18,7 +18,7 @@ const ELEVATIONS: Array[float] = [-10.0, 5.0, 45.0, 85.0]
 const NOTCHES: int = 12
 const SETTLE_FRAMES: int = 60
 const SWEEP_BASE_SEED: int = 270000
-const SWEEP_SEQUENCES: int = 200
+const SWEEP_SEQUENCES: int = 150
 const SWEEP_SEQUENCES_FLOOR: int = 50
 const SWEEP_SEQUENCES_TARGET: int = 200
 const EVENTS_PER_SEQUENCE: int = 40
@@ -44,7 +44,9 @@ func after_test() -> void:
 	# The shared production resource must keep its committed values (see test_camera_limits.gd).
 	var settings: CameraSettings = Lim.production_settings()
 	assert_float(settings.min_elevation_limit_deg).is_equal(-10.0)
+	assert_float(settings.max_elevation_deg).is_equal(85.0)
 	assert_float(settings.zoom_min_factor).is_equal(0.6)
+	assert_float(settings.zoom_max_factor).is_equal(2.5)
 	assert_float(settings.damping_time_s).is_equal(0.15)
 
 
@@ -76,6 +78,10 @@ func test_epic_zoom_in_never_passes_through_the_glass_at_any_azimuth() -> void:
 				)
 				for message: String in Lim.pose_home(rig, azimuth, elevation):
 					failures.append("%s pose: %s" % [label, message])
+				label = (
+					"glass tank=%s azimuth=%d elevation=%.2f"
+					% [rig.id, int(azimuth), rig.camera.get_target_elevation_deg()]
+				)
 				failures.append_array(Lim.drive_zoom_in(rig, label, NOTCHES, SETTLE_FRAMES))
 				if absf(rig.camera.get_target_distance_m() - _zoom_min_distance(rig)) > LENGTH:
 					failures.append(

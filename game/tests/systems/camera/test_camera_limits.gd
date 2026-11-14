@@ -255,9 +255,13 @@ func _home_case(rig: Lim.TankRig, dt: float) -> PackedStringArray:
 			var gap_now: float = targets[axis] - now[axis]
 			if absf(gap_now) > absf(gap_before) + tolerance:
 				failures.append("%s frame %d value %d: the gap grew" % [label, index, axis])
-			if gap_now * (targets[axis] - start[axis]) < -tolerance:
+			var start_gap: float = targets[axis] - start[axis]
+			if signf(gap_now) != signf(start_gap) and absf(gap_now) > tolerance:
 				failures.append("%s frame %d value %d: overshoot" % [label, index, axis])
-			if index == 0 and absf(now[axis] - previous[axis]) > share * absf(gap_before) + 0.01:
+			if (
+				index == 0
+				and absf(now[axis] - previous[axis]) > share * absf(gap_before) + tolerance
+			):
 				failures.append("%s: value %d moved more than the easing share" % [label, axis])
 		previous = now
 	failures.append_array(_default_view_failures(rig, label))
@@ -398,7 +402,7 @@ func _focus_loss_mid_drag() -> void:
 	for rig: Lim.TankRig in _rigs:
 		for window: bool in FOCUS_NOTIFICATIONS:
 			for at_top: bool in [false, true]:
-				Lim.reset(rig)
+				_failures.append_array(Lim.reset(rig))
 				var label: String = (
 					"%s window=%s top=%s" % [_label("focus loss", rig), window, at_top]
 				)
