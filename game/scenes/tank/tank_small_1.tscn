@@ -8,6 +8,8 @@
 [ext_resource type="Material" path="res://assets/tank/materials/water_depth_tint.tres" id="5_tint"]
 [ext_resource type="Script" path="res://scenes/tank/tank_caustics.gd" id="10_caustics"]
 [ext_resource type="Material" path="res://assets/tank/materials/caustics.tres" id="11_caustics"]
+[ext_resource type="Script" path="res://scenes/tank/substrate_layer.gd" id="12_substrate_layer"]
+[ext_resource type="Material" path="res://assets/tank/materials/substrate.tres" id="13_substrate"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_surface"]
 size = Vector2(0.4, 0.25)
@@ -17,6 +19,9 @@ size = Vector3(0.4, 0.25, 0.25)
 
 [sub_resource type="BoxMesh" id="BoxMesh_caustics"]
 size = Vector3(0.4, 0.25, 0.25)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_substrate"]
+size = Vector2(0.4, 0.25)
 
 [node name="TankSmall1" instance=ExtResource("1_glb")]
 
@@ -56,6 +61,13 @@ material_override = ExtResource("11_caustics")
 script = ExtResource("10_caustics")
 
 [node name="SubstrateAnchor" type="Marker3D" parent="." index="3"]
+
+[node name="Substrate" type="MeshInstance3D" parent="SubstrateAnchor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.0002, 0)
+cast_shadow = 0
+mesh = SubResource("PlaneMesh_substrate")
+material_override = ExtResource("13_substrate")
+script = ExtResource("12_substrate_layer")
 
 [node name="lamp_mount" type="Marker3D" parent="." index="4"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, -0.025)
