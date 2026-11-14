@@ -1,6 +1,6 @@
 # ADR 0009: Build camera collision with analytic solids and a held distance
 
-- Status: Proposed (accepted when the #26 pull request merges; gated by `needs:owner`)
+- Status: Accepted (accepted when the #26 pull request merges; gated by `needs:owner`)
 - Date: 2026-11-11; amended 2026-11-11 (rules 4 and 5: release tilt, owner decision on #26,
   option A, [comment](https://github.com/PeterSallai90/cozy-aquarium/issues/26#issuecomment-6808157598))
 - Decision log reference: none (D7 is unchanged); replaces the mechanism in the "Collision" row of
