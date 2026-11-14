@@ -81,7 +81,7 @@ per-instance shader parameters are readable through `get_instance_shader_paramet
 
 ## Amendment 1 (#126, B12b caustics)
 
-- Status: Proposed, same gate as the ADR (`needs:owner` on the #126 pull request). No row of the
+- Status: Accepted, same gate as the ADR (`needs:owner` on the #126 pull request). No row of the
   decisions table changes; rules 1 to 4 above stay in force.
 
 ### Context
