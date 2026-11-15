@@ -1,12 +1,13 @@
 # gdlint: disable=max-public-methods
 extends GdUnitTestSuite
-## #28 criteria 13 and 14 (owner: developer for room_corner.gd; the layer node itself is the
-## technical-artist's): the room shows the substrate of the model on the layer at the
-## SubstrateAnchor. For each of the three tanks and each of the five types the tint equals the
-## model colour and grain_scale, grain_shape and grain_contrast equal the catalog values of the
-## type, in the same frame as substrate_changed (no frame is awaited between the Command and the
-## check). The comparison is against the catalog, never against hard-coded numbers. An empty or
-## unknown id shows the default look silently (ADR 0010 rule 6). The view never validates.
+## #28 criteria 13 and 14 (owner: developer for room_corner.gd; the bed node, its view and the
+## tank scenes are the technical-artist's and the developer's, see test_substrate_bed_scene.gd):
+## the room shows the substrate of the model on the SubstrateBed at the SubstrateAnchor. For each
+## of the three tanks and each of the five types the bed shows the type with the tint equal to the
+## model colour on the bed and on every material copy of the shown view: after a type change at the
+## swap (finish_pending(), no frame is awaited for the bed), after a colour change of the same type
+## in the same frame as substrate_changed. An empty or unknown id shows the default type silently
+## (ADR 0010 rule 6). The view never validates.
 
 const Api := preload("res://tests/helpers/late_api.gd")
 const Rig := preload("res://tests/helpers/room_rig.gd")
@@ -34,19 +35,47 @@ func _room(model: AquariumModel) -> Node3D:
 	return room
 
 
-func _assert_shows(room: Node3D, id: StringName, colour: Color, label: String) -> void:
-	var layer: MeshInstance3D = Scene.layer_of_room(room)
+## A room whose bed is complete (the swap is done inside the call, so a test can capture it).
+func _room_finished(model: AquariumModel) -> Node3D:
+	var room: Node3D = await _room(model)
+	var bed: Node3D = Scene.bed_of_room(room)
+	if bed != null:
+		bed.call("finish_pending")
+	return room
+
+
+## Asserts the bed shows the type with the colour. `finish` completes a pending type change first
+## (the swap); a colour change of the shown type is checked without it.
+func _assert_shows(
+	room: Node3D, id: StringName, colour: Color, label: String, finish: bool = true
+) -> void:
+	var bed: Node3D = Scene.bed_of_room(room)
 	(
-		assert_object(layer)
-		. override_failure_message("%s: %s is missing" % [label, Scene.LAYER_IN_ROOM])
+		assert_object(bed)
+		. override_failure_message(
+			"%s: %s is missing or not a SubstrateBed" % [label, Scene.BED_IN_ROOM]
+		)
 		. is_not_null()
 	)
-	if layer != null:
-		(
-			assert_str(Scene.mismatch(layer, _substrates, id, colour))
-			. override_failure_message(label)
-			. is_empty()
+	if bed == null:
+		return
+	if finish:
+		bed.call("finish_pending")
+	assert_that(bed.call("get_shown_id")).override_failure_message("%s: shown id" % label).is_equal(
+		id
+	)
+	(
+		assert_bool(Scene.same_tint(bed.call("get_tint"), colour))
+		. override_failure_message(
+			"%s: bed tint %s, want %s" % [label, Sub.hex(bed.call("get_tint")), Sub.hex(colour)]
 		)
+		. is_true()
+	)
+	(
+		assert_str(Scene.tint_mismatch(bed.call("get_shown_view"), colour))
+		. override_failure_message(label)
+		. is_empty()
+	)
 
 
 ## Picks a type the way the chooser does (colour from the pick helper); nothing when it is in use.
@@ -71,7 +100,8 @@ func test_ac14_each_tank_shows_each_type_with_its_default_colour_in_the_same_fra
 		_assert_shows(room, Sub.SAND, model.get_substrate_colour(), "%s start" % tank_id)
 		for id: StringName in [Sub.GRAVEL, Sub.PEBBLES, Sub.BLACK, Sub.COLOURED, Sub.SAND]:
 			_pick(model, id)
-			# No frame is awaited: the room reacts inside the signal handler.
+			# No frame is awaited: the room reacts inside the signal handler and the swap is
+			# finished on the spot.
 			_assert_shows(room, id, model.get_substrate_colour(), "%s %s" % [tank_id, id])
 
 
@@ -83,9 +113,11 @@ func test_ac14_each_tank_shows_swatch_2_of_each_type_in_the_same_frame() -> void
 		var room: Node3D = await _room(model)
 		for id: StringName in Sub.IDS:
 			_pick(model, id)
+			_assert_shows(room, id, model.get_substrate_colour(), "%s %s" % [tank_id, id])
 			var second: Color = Sub.swatch(_substrates, id, 2)
 			assert_bool(_history.execute(Sub.command(model, _substrates, id, second))).is_true()
-			_assert_shows(room, id, second, "%s %s swatch 2" % [tank_id, id])
+			# The same type with another swatch: the tint moves in the same frame, no swap.
+			_assert_shows(room, id, second, "%s %s swatch 2" % [tank_id, id], false)
 
 
 func test_ac14_the_tint_equals_the_model_colour_at_build_for_every_type_and_tank() -> void:
@@ -125,7 +157,10 @@ func test_ac14_a_loaded_non_swatch_colour_is_shown_as_it_is() -> void:
 func test_ac14_the_room_never_writes_the_model() -> void:
 	var model: AquariumModel = Sub.model_with(Sub.GRAVEL, Sub.NOT_A_SWATCH)
 	var room: Node3D = await _room(model)
-	assert_object(Scene.layer_of_room(room)).override_failure_message("no layer").is_not_null()
+	var bed: Node3D = Scene.bed_of_room(room)
+	assert_object(bed).override_failure_message("no bed").is_not_null()
+	if bed != null:
+		bed.call("finish_pending")
 	assert_that(model.get_substrate_id()).is_equal(Sub.GRAVEL)
 	assert_that(model.get_substrate_colour()).is_equal(Sub.NOT_A_SWATCH)
 
@@ -136,7 +171,7 @@ func test_ac14_the_room_never_writes_the_model() -> void:
 func test_ac11_an_unknown_id_shows_the_default_look_silently() -> void:
 	var model: AquariumModel = Sub.model_with(Sub.UNKNOWN_ID, Sub.NOT_A_SWATCH)
 	var seen: Dictionary = await EngineOutput.capture_result(
-		func() -> Variant: return await _room(model)
+		func() -> Variant: return await _room_finished(model)
 	)
 	var room: Node3D = seen["result"]
 	_assert_shows(room, Sub.SAND, Sub.default_colour(_substrates, Sub.SAND), "unknown id")
@@ -147,7 +182,7 @@ func test_ac11_an_unknown_id_shows_the_default_look_silently() -> void:
 func test_ac11_an_empty_id_shows_the_default_look_silently() -> void:
 	var model: AquariumModel = Sub.model_with(&"", Color.WHITE)
 	var seen: Dictionary = await EngineOutput.capture_result(
-		func() -> Variant: return await _room(model)
+		func() -> Variant: return await _room_finished(model)
 	)
 	var room: Node3D = seen["result"]
 	_assert_shows(room, Sub.SAND, Sub.default_colour(_substrates, Sub.SAND), "empty id")
@@ -158,7 +193,7 @@ func test_ac11_an_empty_id_shows_the_default_look_silently() -> void:
 func test_ac11_a_bare_model_shows_the_default_look_silently() -> void:
 	var model: AquariumModel = Rig.model_with(Table.MEDIUM)
 	var seen: Dictionary = await EngineOutput.capture_result(
-		func() -> Variant: return await _room(model)
+		func() -> Variant: return await _room_finished(model)
 	)
 	var room: Node3D = seen["result"]
 	_assert_shows(room, Sub.SAND, Sub.default_colour(_substrates, Sub.SAND), "bare model")
@@ -183,7 +218,7 @@ func test_ac13_the_new_tank_shows_the_same_floor_after_a_tank_change() -> void:
 		_assert_shows(room, Sub.PEBBLES, colour, "after the change to %s" % target)
 
 
-func test_ac13_a_substrate_change_after_a_tank_change_reaches_the_new_layer() -> void:
+func test_ac13_a_substrate_change_after_a_tank_change_reaches_the_new_bed() -> void:
 	var model: AquariumModel = Sub.model_with(Sub.SAND, Sub.SAND_DEFAULT, Table.SMALL)
 	var room: Node3D = await _room(model)
 	assert_bool(_history.execute(Api.change_tank(model, _tanks, Table.LARGE))).is_true()
@@ -192,11 +227,11 @@ func test_ac13_a_substrate_change_after_a_tank_change_reaches_the_new_layer() ->
 	_assert_shows(room, Sub.COLOURED, model.get_substrate_colour(), "large after the pick")
 
 
-func test_ac13_exactly_one_layer_exists_after_tank_changes() -> void:
+func test_ac13_exactly_one_bed_exists_after_tank_changes() -> void:
 	var model: AquariumModel = Sub.model_with(Sub.SAND, Sub.SAND_DEFAULT, Table.SMALL)
 	var room: Node3D = await _room(model)
 	for target: StringName in [Table.LARGE, Table.SMALL, Table.MEDIUM]:
 		assert_bool(_history.execute(Api.change_tank(model, _tanks, target))).is_true()
 		await get_tree().process_frame
-	var found: Array[Node] = room.find_children("Substrate", "MeshInstance3D", true, false)
+	var found: Array[Node] = room.find_children("Substrate", "Node3D", true, false)
 	assert_int(found.size()).is_equal(1)

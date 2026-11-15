@@ -30,6 +30,43 @@ const COMMAND_USERS: Array[String] = [
 	"res://model/set_substrate_command.gd",
 	"res://ui/tank/tank_controls.gd",
 ]
+## The bed, the view, the job and the room only read the model (technical plan v3, section 2).
+const READERS: Array[String] = [
+	"res://scenes/room/room_corner.gd",
+	"res://scenes/tank/substrate/substrate_bed.gd",
+	"res://scenes/tank/substrate/substrate_bed_view.gd",
+	"res://scenes/tank/substrate/substrate_assembly_job.gd",
+]
+## The files that run on a worker thread (technical plan 1.8): the pure assembly, its input, the
+## data objects, the bake reader and the cancel token.
+const WORKER_FILES: Array[String] = [
+	"res://scenes/tank/substrate/substrate_assembler.gd",
+	"res://scenes/tank/substrate/substrate_assembly_input.gd",
+	"res://scenes/tank/substrate/substrate_bed_data.gd",
+	"res://scenes/tank/substrate/substrate_chunk_data.gd",
+	"res://scenes/tank/substrate/substrate_bake_data.gd",
+	"res://scenes/tank/substrate/substrate_cancel_token.gd",
+]
+## What a worker file must not use: scene nodes and the tree, loading, the render server, MultiMesh,
+## signals and the autoloads (reading the bake file with FileAccess is allowed).
+const WORKER_FORBIDDEN: Array[String] = [
+	"\\b(Node|Node2D|Node3D|SceneTree|Viewport|Window)\\b",
+	"\\b(get_tree|get_node|get_node_or_null|add_child|call_deferred)\\b",
+	"(?<![\\w.])(load|preload)\\s*\\(",
+	"\\b(ResourceLoader|RenderingServer|MultiMesh|MultiMeshInstance3D|MeshInstance3D)\\b",
+	"\\b(emit_signal|connect)\\s*\\(|\\.emit\\s*\\(|\\bsignal\\s",
+	"\\b(EventBus|Localization|Settings)\\b",
+]
+## Unseeded or engine-version dependent randomness: the global random functions, randomize() and
+## hash() (technical plan 1.6). A seeded RandomNumberGenerator instance is the sanctioned way.
+const NONDETERMINISM: Array[String] = [
+	(
+		"(?<![\\w.])(randi|randf|randi_range|randf_range|randfn|randomize|"
+		+ "rand_from_seed|seed|hash)\\s*\\("
+	),
+	"\\.(randomize|hash)\\s*\\(",
+]
+const SUBSTRATE_DIR := "res://scenes/tank/substrate/"
 const MODE_2_PATTERN := (
 	"\\b(ph_effect|hardness_effect|bulk_density_kg_per_l|rooting_suitability|"
 	+ "nutrient_retention|burrowing_suitability|edge_smoothness|waste_trapping|"
@@ -136,11 +173,13 @@ func test_ac18_only_tank_controls_builds_the_set_substrate_command() -> void:
 	assert_bool(found.has("res://ui/tank/tank_controls.gd")).is_true()
 
 
-func test_ac18_the_chooser_the_room_and_the_layer_never_write_the_model() -> void:
+func test_ac18_the_chooser_the_room_the_bed_the_view_and_the_job_never_write_the_model() -> void:
 	for path: String in [
 		"res://ui/tank/substrate_chooser.gd",
 		"res://scenes/room/room_corner.gd",
-		"res://scenes/tank/substrate_layer.gd",
+		"res://scenes/tank/substrate/substrate_bed.gd",
+		"res://scenes/tank/substrate/substrate_bed_view.gd",
+		"res://scenes/tank/substrate/substrate_assembly_job.gd",
 	]:
 		var source: String = _source(path)
 		assert_str(source).override_failure_message("%s is missing" % path).is_not_empty()
@@ -210,3 +249,93 @@ func test_ac18_compaction_risk_is_nowhere() -> void:
 				"res://catalog/substrates/".path_join(file_name)
 			)
 			assert_str(text).not_contains("compaction_risk")
+
+
+func test_ac18_the_bed_the_view_the_job_and_the_room_never_call_a_model_writer() -> void:
+	var patterns: Array[RegEx] = SourceScan.compile(PackedStringArray(["\\bapply_\\w+\\s*\\("]))
+	for path: String in READERS:
+		var source: String = _source(path)
+		assert_str(source).override_failure_message("%s is missing or empty" % path).is_not_empty()
+		(
+			assert_array(SourceScan.find_matches(source, patterns))
+			. override_failure_message("%s calls an apply_ function of the model" % path)
+			. is_empty()
+		)
+
+
+func test_ac18_fill_depth_m_is_read_only_through_the_surface_helper_and_the_catalog() -> void:
+	var found: PackedStringArray = _scripts_matching("\\bfill_depth_m\\b")
+	for path: String in found:
+		(
+			assert_bool(
+				path.begins_with("res://catalog/") or path == "res://model/substrate_surface.gd"
+			)
+			. override_failure_message(
+				"%s reads fill_depth_m; only SubstrateSurface and the catalog may" % path
+			)
+			. is_true()
+		)
+	(
+		assert_bool(found.has("res://model/substrate_surface.gd"))
+		. override_failure_message("model/substrate_surface.gd does not read fill_depth_m")
+		. is_true()
+	)
+
+
+func test_ac18_no_unseeded_or_engine_dependent_randomness_in_the_substrate_scripts() -> void:
+	var paths: PackedStringArray = SourceScan.list_scripts(SUBSTRATE_DIR, PackedStringArray())
+	(
+		assert_array(paths)
+		. override_failure_message("no scripts under %s" % SUBSTRATE_DIR)
+		. is_not_empty()
+	)
+	var patterns: Array[RegEx] = SourceScan.compile(PackedStringArray(NONDETERMINISM))
+	for path: String in paths:
+		var hits: PackedStringArray = SourceScan.find_matches(_source(path), patterns)
+		(
+			assert_array(hits)
+			. override_failure_message(
+				"%s uses unseeded or engine-version dependent randomness: %s" % [path, hits]
+			)
+			. is_empty()
+		)
+
+
+func test_ac18_the_assembler_uses_one_seeded_random_number_generator() -> void:
+	var source: String = _source(SUBSTRATE_DIR + "substrate_assembler.gd")
+	assert_str(source).is_not_empty()
+	assert_str(source).contains("RandomNumberGenerator")
+	assert_str(source).contains("seed_for")
+
+
+func test_ac18_the_worker_files_hold_no_node_load_render_server_signal_or_autoload() -> void:
+	var patterns: Array[RegEx] = SourceScan.compile(PackedStringArray(WORKER_FORBIDDEN))
+	for path: String in WORKER_FILES:
+		var source: String = _source(path)
+		assert_str(source).override_failure_message("%s is missing or empty" % path).is_not_empty()
+		var hits: PackedStringArray = SourceScan.find_matches(source, patterns)
+		(
+			assert_array(hits)
+			. override_failure_message("%s is a worker-thread file but uses %s" % [path, hits])
+			. is_empty()
+		)
+
+
+func test_ac18_the_worker_files_extend_ref_counted_and_the_token_holds_a_mutex() -> void:
+	for path: String in WORKER_FILES:
+		assert_str(_source(path)).override_failure_message(path).contains("extends RefCounted")
+	assert_str(_source(SUBSTRATE_DIR + "substrate_cancel_token.gd")).contains("Mutex")
+
+
+func test_ac18_the_flat_layer_files_are_gone() -> void:
+	for path: String in [
+		"res://scenes/tank/substrate_layer.gd",
+		"res://shaders/substrate.gdshader",
+		"res://assets/tank/materials/substrate.tres",
+	]:
+		(
+			assert_bool(FileAccess.file_exists(path))
+			. override_failure_message("%s still exists" % path)
+			. is_false()
+		)
+	assert_array(_scripts_matching("\\bSubstrateLayer\\b")).is_empty()

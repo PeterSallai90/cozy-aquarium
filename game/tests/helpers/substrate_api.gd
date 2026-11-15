@@ -8,6 +8,8 @@ extends RefCounted
 ## then fails with a readable message and the rest of the suites keep running.
 ##
 ## Contract of the technical plan (comment on #28):
+## - SubstrateDefinition gains fill_depth_m and bed_look (technical plan v3, 3.2); the look keys
+##   of look() carry them.
 ## - SubstrateCatalog.load_dir(path), get_definition(id), get_ids() (ordered by sort_order),
 ##   get_default(), is_swatch(id, colour), swatch_index(id, colour), colour_for_pick(current_id,
 ##   current_colour, picked_id) -> Color, constant DEFAULT_ID.
@@ -195,13 +197,16 @@ static func default_id() -> StringName:
 	return constant(CATALOG_PATH, "DEFAULT_ID", &"<missing>")
 
 
-## The look of a type from the catalog: {"grain_scale", "grain_shape", "grain_contrast"}.
+## The look of a type from the catalog: {"grain_scale", "grain_shape", "grain_contrast",
+## "fill_depth_m", "bed_look"} (the last is the SubstrateBedLook resource or null).
 static func look(cat: RefCounted, id: StringName) -> Dictionary:
 	var def: Resource = definition(cat, id)
 	return {
 		"grain_scale": prop(def, "grain_scale", MISSING_COLOUR.r),
 		"grain_shape": prop(def, "grain_shape", -1),
 		"grain_contrast": prop(def, "grain_contrast", MISSING_COLOUR.r),
+		"fill_depth_m": prop(def, "fill_depth_m", MISSING_COLOUR.r),
+		"bed_look": prop(def, "bed_look", null),
 	}
 
 

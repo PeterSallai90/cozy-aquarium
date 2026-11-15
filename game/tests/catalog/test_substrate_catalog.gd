@@ -6,6 +6,16 @@ extends GdUnitTestSuite
 ## and Black sand have the same Mode 2 values on purpose (Q12): nothing here compares them.
 
 const Sub := preload("res://tests/helpers/substrate_api.gd")
+const Bed := preload("res://tests/helpers/substrate_bed_api.gd")
+
+## Mode 2 layer depth min / default / max in cm per type (AC 1).
+const DEPTH_RANGES_CM: Dictionary = {
+	"sand_fine": [2.0, 3.0, 5.0],
+	"sand_black": [2.0, 3.0, 5.0],
+	"gravel_natural": [3.0, 4.0, 8.0],
+	"gravel_coloured": [3.0, 4.0, 8.0],
+	"pebbles_river": [4.0, 6.0, 8.0],
+}
 
 var _catalog: RefCounted = null
 
@@ -109,8 +119,8 @@ func test_ac01_the_look_parameters_are_filled_and_in_range() -> void:
 			. is_greater(0.0)
 		)
 		(
-			assert_bool([0, 1, 2].has(int(look["grain_shape"])))
-			. override_failure_message("%s: grain_shape is not SPECKLE, ANGULAR or ROUND" % id)
+			assert_bool([0, 1, 2, 3].has(int(look["grain_shape"])))
+			. override_failure_message("%s: grain_shape is not SAND, ANGULAR, ROUND or PEBBLE" % id)
 			. is_true()
 		)
 		assert_float(look["grain_contrast"]).is_between(0.0, 1.0)
@@ -164,7 +174,7 @@ func test_ac01_the_water_effect_enum_starts_with_the_unset_sentinel() -> void:
 
 func test_ac01_the_grain_shape_enum_has_the_numbers_the_shader_uses() -> void:
 	var shape: Variant = Sub.constant(Sub.DEFINITION_PATH, "GrainShape", {})
-	assert_that(shape).is_equal({"SPECKLE": 0, "ANGULAR": 1, "ROUND": 2})
+	assert_that(shape).is_equal({"SAND": 0, "ANGULAR": 1, "ROUND": 2, "PEBBLE": 3})
 
 
 func test_ac01_a_fresh_definition_is_unfilled_so_the_filled_checks_mean_something() -> void:
@@ -310,3 +320,140 @@ func test_ac02_no_two_types_share_the_same_look_triple() -> void:
 func test_ac02_the_old_placeholder_file_is_gone() -> void:
 	assert_bool(FileAccess.file_exists("res://catalog/substrates/.gitkeep")).is_false()
 	assert_int(Sub.ids(_catalog).size()).is_equal(5)
+
+
+# --- AC 1 (v3.2): fill depth, depth ranges, grain classes, the look resource ---
+
+
+## "" when a definition-like object obeys the depth rules of AC 1, else the first broken rule.
+func _depth_problem(def: Object) -> String:
+	var low: float = Sub.prop(def, "layer_depth_min_cm", 0.0)
+	var mid: float = Sub.prop(def, "layer_depth_default_cm", 0.0)
+	var high: float = Sub.prop(def, "layer_depth_max_cm", 0.0)
+	var fill: float = Sub.prop(def, "fill_depth_m", 0.0)
+	if low <= 0.0 or low > mid or mid > high:
+		return "need 0 < min <= default <= max, have %s, %s, %s" % [low, mid, high]
+	if absf(mid - fill * 100.0) > 1e-6:
+		return "layer_depth_default_cm %s is not fill_depth_m %s x 100" % [mid, fill]
+	if fill < 0.03:
+		return "fill_depth_m %s is below 0.03" % fill
+	return ""
+
+
+func test_ac01_fill_depth_is_0_03_0_04_0_06_0_03_0_04_and_never_below_3_cm() -> void:
+	for id: StringName in Sub.IDS:
+		if not _have(id):
+			continue
+		var fill: float = Sub.look(_catalog, id)["fill_depth_m"]
+		assert_float(fill).override_failure_message("%s: fill_depth_m" % id).is_equal_approx(
+			Bed.fill_depth(id), 1e-9
+		)
+		assert_float(fill).is_greater_equal(0.03)
+
+
+func test_ac01_the_layer_depth_default_is_the_fill_depth_times_100() -> void:
+	for id: StringName in Sub.IDS:
+		if not _have(id):
+			continue
+		var def: Resource = Sub.definition(_catalog, id)
+		var fill: float = Sub.prop(def, "fill_depth_m", Bed.MISSING_NUMBER)
+		var depth: float = Sub.prop(def, "layer_depth_default_cm", 0.0)
+		(
+			assert_float(depth)
+			. override_failure_message("%s: default %s cm, fill %s m" % [id, depth, fill])
+			. is_equal_approx(fill * 100.0, 1e-6)
+		)
+
+
+func test_ac01_the_mode_2_depth_ranges_are_those_of_the_issue() -> void:
+	for id: StringName in Sub.IDS:
+		if not _have(id):
+			continue
+		var wanted: Array = DEPTH_RANGES_CM[String(id)]
+		var def: Resource = Sub.definition(_catalog, id)
+		(
+			assert_float(Sub.prop(def, "layer_depth_min_cm", 0.0))
+			. override_failure_message("%s: layer_depth_min_cm" % id)
+			. is_equal_approx(wanted[0], 1e-6)
+		)
+		(
+			assert_float(Sub.prop(def, "layer_depth_default_cm", 0.0))
+			. override_failure_message("%s: layer_depth_default_cm" % id)
+			. is_equal_approx(wanted[1], 1e-6)
+		)
+		(
+			assert_float(Sub.prop(def, "layer_depth_max_cm", 0.0))
+			. override_failure_message("%s: layer_depth_max_cm" % id)
+			. is_equal_approx(wanted[2], 1e-6)
+		)
+		assert_str(_depth_problem(def)).override_failure_message("%s" % id).is_empty()
+
+
+func test_ac01_pebbles_are_the_deepest_bed() -> void:
+	if not (_have(Sub.PEBBLES) and _have(Sub.GRAVEL) and _have(Sub.SAND)):
+		return
+	var pebbles: float = Sub.look(_catalog, Sub.PEBBLES)["fill_depth_m"]
+	for id: StringName in [Sub.SAND, Sub.GRAVEL, Sub.BLACK, Sub.COLOURED]:
+		assert_float(pebbles).is_greater(Sub.look(_catalog, id)["fill_depth_m"])
+
+
+func test_ac01_the_depth_checker_fails_a_min_above_default_and_a_default_off_the_fill_depth(
+) -> void:
+	var broken_min: Resource = Sub.new_definition()
+	broken_min.set("layer_depth_min_cm", 5.0)
+	broken_min.set("layer_depth_default_cm", 3.0)
+	broken_min.set("layer_depth_max_cm", 8.0)
+	broken_min.set("fill_depth_m", 0.03)
+	assert_str(_depth_problem(broken_min)).is_not_empty()
+	var off_fill: Resource = Sub.new_definition()
+	off_fill.set("layer_depth_min_cm", 2.0)
+	off_fill.set("layer_depth_default_cm", 4.0)
+	off_fill.set("layer_depth_max_cm", 8.0)
+	off_fill.set("fill_depth_m", 0.03)
+	assert_str(_depth_problem(off_fill)).is_not_empty()
+	var fine: Resource = Sub.new_definition()
+	fine.set("layer_depth_min_cm", 2.0)
+	fine.set("layer_depth_default_cm", 3.0)
+	fine.set("layer_depth_max_cm", 5.0)
+	fine.set("fill_depth_m", 0.03)
+	assert_str(_depth_problem(fine)).is_empty()
+	# The definition has the field, otherwise the three checks above ran on a stand-in.
+	assert_bool(Sub.script_exists(Sub.DEFINITION_PATH)).is_true()
+	var names: Array = []
+	for entry: Dictionary in Sub.new_definition().get_property_list():
+		names.append(entry["name"])
+	assert_bool(names.has("fill_depth_m")).override_failure_message("no fill_depth_m").is_true()
+
+
+func test_ac01_each_type_has_the_grain_shape_of_the_plan() -> void:
+	for id: StringName in Sub.IDS:
+		if _have(id):
+			var shape: int = Sub.look(_catalog, id)["grain_shape"]
+			assert_int(shape).override_failure_message("%s: grain_shape" % id).is_equal(
+				int(Bed.SHAPE_BY_ID[String(id)])
+			)
+
+
+func test_ac01_every_type_names_a_bed_look_resource() -> void:
+	for id: StringName in Sub.IDS:
+		if not _have(id):
+			continue
+		var bed_look: Object = Sub.look(_catalog, id)["bed_look"]
+		assert_object(bed_look).override_failure_message("%s: bed_look is null" % id).is_not_null()
+		(
+			assert_str(Bed.class_of(bed_look))
+			. override_failure_message("%s: bed_look is not a SubstrateBedLook" % id)
+			. is_equal("SubstrateBedLook")
+		)
+		assert_str((bed_look as Resource).resource_path if bed_look != null else "").is_equal(
+			Bed.look_path(id)
+		)
+
+
+func test_ac01_sand_and_black_sand_keep_a_unique_look_triple_through_the_contrast() -> void:
+	if not (_have(Sub.SAND) and _have(Sub.BLACK)):
+		return
+	var sand: Dictionary = Sub.look(_catalog, Sub.SAND)
+	var black: Dictionary = Sub.look(_catalog, Sub.BLACK)
+	assert_int(sand["grain_shape"]).is_equal(black["grain_shape"])
+	assert_float(sand["grain_contrast"]).is_not_equal(black["grain_contrast"])
