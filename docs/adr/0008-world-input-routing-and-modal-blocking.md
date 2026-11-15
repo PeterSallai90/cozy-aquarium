@@ -1,6 +1,6 @@
 # ADR 0008: World input routing and modal blocking
 
-- Status: Proposed (accepted when the #25 pull request merges; gated by `needs:owner`)
+- Status: Accepted (accepted when the #25 pull request merges; gated by `needs:owner`)
 - Date: 2026-11-11
 - Decision log reference: none (no row in the decisions table changes); refines the "Camera" row
   of Core systems in docs/architecture.md
