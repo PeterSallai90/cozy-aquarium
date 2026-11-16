@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="SubstrateBedLook" format=3]
+
+[ext_resource type="Script" path="res://scenes/tank/substrate/substrate_bed_look.gd" id="1_look"]
+[ext_resource type="Shader" path="res://shaders/substrate_stone.gdshader" id="2_stone"]
+[ext_resource type="Shader" path="res://shaders/substrate_core.gdshader" id="3_core"]
+[ext_resource type="PackedScene" path="res://assets/substrate/grains_pebble.glb" id="4_grains"]
+
+[sub_resource type="ShaderMaterial" id="pebbles_river_stone"]
+resource_name = "pebbles_river_stone"
+shader = ExtResource("2_stone")
+shader_parameter/substrate_tint = Color(0.63921569, 0.60784314, 0.56078431, 1)
+shader_parameter/speckle_strength = 0.22
+shader_parameter/speckle_frequency = 7.0
+shader_parameter/band_strength = 0.3
+shader_parameter/occlusion_top_depth = 1.6
+shader_parameter/occlusion_glass_depth = 2.0
+shader_parameter/occlusion_floor = 0.2
+shader_parameter/exposure_floor = 0.3
+shader_parameter/wet_gain = 0.56
+shader_parameter/fill_light = 0.34
+shader_parameter/fill_color = Color(1.0, 0.93, 0.85, 1)
+shader_parameter/stone_roughness = 0.6
+shader_parameter/stone_specular = 0.35
+
+[sub_resource type="ShaderMaterial" id="pebbles_river_core"]
+resource_name = "pebbles_river_core"
+shader = ExtResource("3_core")
+shader_parameter/substrate_tint = Color(0.63921569, 0.60784314, 0.56078431, 1)
+shader_parameter/core_darkness = 0.12
+shader_parameter/core_light = 0.15
+
+[resource]
+script = ExtResource("1_look")
+grain_class = 3
+bake_files_by_tank = Dictionary[StringName, String]({
+&"tank_large_1": "pebbles_river_tank_large_1.bin",
+&"tank_medium_1": "pebbles_river_tank_medium_1.bin",
+&"tank_small_1": "pebbles_river_tank_small_1.bin"
+})
+grain_glb = ExtResource("4_grains")
+lod_distances_m = PackedFloat32Array(0.22, 0.8)
+chunk_size_m = 0.1
+core_inset_m = 0.05
+core_drop_m = 0.04
+tone_lightness = 0.2
+tone_hue_deg = 10.0
+tone_saturation = 0.6
+tone_outlier_share = 0.04
+junction_overlap_m = 0.0
+stone_material = SubResource("pebbles_river_stone")
+core_material = SubResource("pebbles_river_core")

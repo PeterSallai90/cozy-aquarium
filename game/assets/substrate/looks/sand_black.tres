@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="SubstrateBedLook" format=3]
+
+[ext_resource type="Script" path="res://scenes/tank/substrate/substrate_bed_look.gd" id="1_look"]
+[ext_resource type="Shader" path="res://shaders/substrate_sand_grain.gdshader" id="2_grain"]
+[ext_resource type="Shader" path="res://shaders/substrate_sand_top.gdshader" id="3_top"]
+[ext_resource type="Shader" path="res://shaders/substrate_core.gdshader" id="4_core"]
+
+[sub_resource type="ShaderMaterial" id="sand_black_grain"]
+resource_name = "sand_black_grain"
+shader = ExtResource("2_grain")
+shader_parameter/substrate_tint = Color(0.18039216, 0.17647059, 0.18823529, 1)
+shader_parameter/occlusion_top_depth = 2.2
+shader_parameter/occlusion_glass_depth = 2.2
+shader_parameter/occlusion_floor = 0.4
+shader_parameter/wet_gain = 0.8
+shader_parameter/fill_light = 0.4
+shader_parameter/fill_color = Color(0.94, 0.97, 1.0, 1)
+shader_parameter/grain_roughness = 0.45
+shader_parameter/grain_specular = 0.5
+shader_parameter/lamp_tint = 0.2
+
+[sub_resource type="ShaderMaterial" id="sand_black_top"]
+resource_name = "sand_black_top"
+shader = ExtResource("3_top")
+shader_parameter/substrate_tint = Color(0.18039216, 0.17647059, 0.18823529, 1)
+shader_parameter/wet_gain = 0.8
+shader_parameter/tone_spread = 0.08
+shader_parameter/glint_share = 0.045
+shader_parameter/glint_gain = 1.45
+shader_parameter/shade_begin = 0.65
+shader_parameter/shade_end = 1.0
+shader_parameter/lamp_tint = 0.2
+
+[sub_resource type="ShaderMaterial" id="sand_black_core"]
+resource_name = "sand_black_core"
+shader = ExtResource("4_core")
+shader_parameter/substrate_tint = Color(0.18039216, 0.17647059, 0.18823529, 1)
+shader_parameter/core_darkness = 0.5
+shader_parameter/core_light = 0.7
+shader_parameter/lamp_tint = 0.2
+
+[resource]
+script = ExtResource("1_look")
+grain_class = 0
+bake_file = "sand.bin"
+sand_range_begin_m = 0.7
+sand_range_end_m = 1.0
+chunk_size_m = 0.05
+core_inset_m = 0.0028
+core_drop_m = 0.0022
+sand_surface_drop_m = 0.0017
+tone_lightness = 0.08
+junction_overlap_m = 0.0004
+tone_hue_deg = 2.0
+tone_saturation = 0.3
+tone_glint_share = 0.045
+tone_glint_gain = 1.45
+grain_material = SubResource("sand_black_grain")
+top_material = SubResource("sand_black_top")
+core_material = SubResource("sand_black_core")
+top_grain_parameters = {"fill_light": 0.1, "exposure_floor": 0.22}
