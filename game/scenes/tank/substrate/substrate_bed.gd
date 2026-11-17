@@ -326,12 +326,9 @@ func _make_placeholder(input: SubstrateAssemblyInput, median_size_m: float) -> S
 	var stub: SubstrateBedData = SubstrateBedData.new()
 	stub.input = input
 	stub.median_size_m = median_size_m
-	var interior: Vector3 = input.interior_size_m
-	var core_height: float = maxf(input.depth() - input.core_drop_m, 0.001)
-	stub.core_size = Vector3(
-		interior.x - 2.0 * input.core_inset_m, core_height, interior.z - 2.0 * input.core_inset_m
-	)
-	stub.core_centre = Vector3(0.0, core_height / 2.0, 0.0)
+	var core: AABB = SubstrateAssembler.core_box(input)
+	stub.core_size = core.size
+	stub.core_centre = core.get_center()
 	var view: SubstrateBedView = SubstrateBedView.new()
 	view.name = PLACEHOLDER_NAME
 	view.begin(stub, _pending_look)

@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## data of the first type is still assembled, the bed shows a stone-less view of that type (core,
 ## floor skin, for sand the procedural surface) so the lamp-lit cabinet never shows through an
 ## empty floor. Its core box must be exactly the box the assembler gives the same input, so the
-## swap to the real view moves nothing; this suite guards the copy of that rule in SubstrateBed.
+## swap to the real view moves nothing; this suite guards that SubstrateBed builds the placeholder
+## core from SubstrateAssembler.core_box.
 
 const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const Fixture := preload("res://tests/helpers/substrate_bed_fixture.gd")
