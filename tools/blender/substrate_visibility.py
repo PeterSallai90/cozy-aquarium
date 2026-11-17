@@ -25,8 +25,9 @@ Stones without a flag are not written. Stones whose top would end above the fill
 (solver tolerance) are moved back inside, so no drawn stone leaves the tank.
 
 Set frames: ring sets have the glass at z = 0, the interior at z < 0 and x along the glass (the
-corner set K has its second glass at x = 0); top sets cover x in [0, period), z in (-period, 0]
-with the tile floor at y = 0; the tank set is in the tank frame.
+corner set K has its second glass at x = 0); a top tile I<k> covers x in [0, period), z in
+(-period, 0] with the tile floor at y = 0 and holds the fill k together with the seam and node
+stones on its borders; the tank set is in the tank frame.
 """
 
 from __future__ import annotations
@@ -582,56 +583,65 @@ class Pass:
         }
         node, seam_x, seam_z = clean["C"], clean["X"], clean["Z"]
         fill = [clean[f"I{k}"] for k in range(fills)]
-        results: dict[str, tuple] = {}
-        frame = [
-            (np.zeros(len(s), np.int32), np.zeros(len(s), np.int32))
-            for s in (node, seam_x, seam_z)
-        ]
-        for k in range(fills):
-            others = []
-            for a in (-1, 0, 1):
-                for b in (-1, 0, 1):
-                    dx, dz = a * period, -b * period
-                    if (a, b) != (0, 0):
-                        others.append(shift(fill[(k + a + 2 * b) % fills], dx, dz))
-                        others.append(shift(node, dx, dz))
-                        others.append(shift(seam_x, dx, dz))
-                        others.append(shift(seam_z, dx, dz))
-            for a, b in ((2, -1), (2, 0), (2, 1), (-1, 2), (0, 2), (1, 2), (2, 2)):
-                dx, dz = a * period, -b * period
-                others.append(shift(node, dx, dz))
-                if a < 2:
-                    others.append(shift(seam_x, dx, dz))
-                if b < 2:
-                    others.append(shift(seam_z, dx, dz))
-            got = flags_for(
-                [fill[k], node, seam_x, seam_z] + others, self.samples, self.cell, TOP_DIRS, [],
-                self.min_cells, 4,
-            )
-            results[f"I{k}"] = got[0]
-            for i in range(3):
-                frame[i] = merge(frame[i], got[i + 1])
-        results["C"], results["X"], results["Z"] = frame
+        # A written top tile I<k> is everything whose centre lies in the cell: the fill and the
+        # pieces of the frame (nodes and seams) on its four borders, with the flags they have in
+        # the neighbourhood of that fill. The frame stones are therefore written once per fill:
+        # a seam stone that one fill covers and another leaves open is drawn only where it shows.
+        # (One merged frame for all fills carried about a fifth more stones than the rest of the
+        # tile along every border.)
         out = {}
-        for name, stones in clean.items():
-            behind = behind_mask(
-                stones, self.shapes, top["thickness_m"], [], self.top_keep, 0.0
-            )
-            out[name] = self._finish(name, stones, results[name], behind)
-        # surface report: the top height field of one cell with its frame, per fill
         cells = round(period / REPORT_CELL_M)
         fields = []
         for k in range(fills):
-            parts = [out[f"I{k}"][0]]
-            for name in ("C", "X", "Z"):
-                for a in (0, 1):
-                    for b in (0, 1):
-                        parts.append(shift(out[name][0], a * period, -b * period))
-            points = self.shapes.top_points(np.concatenate(parts), top["thickness_m"] * 0.5)
+            pieces = [
+                fill[k],
+                node,
+                seam_x,
+                seam_z,
+                shift(node, period, 0.0),
+                shift(node, 0.0, -period),
+                shift(node, period, -period),
+                shift(seam_x, 0.0, -period),
+                shift(seam_z, period, 0.0),
+            ]
+            others = []
+            for i_a in (-1, 0, 1):
+                for i_b in (-1, 0, 1):
+                    dx, dz = i_a * period, -i_b * period
+                    if (i_a, i_b) != (0, 0):
+                        others.append(shift(fill[(k + i_a + 2 * i_b) % fills], dx, dz))
+                    if (i_a, i_b) not in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                        others.append(shift(node, dx, dz))
+                    if (i_a, i_b) not in ((0, 0), (0, 1)):
+                        others.append(shift(seam_x, dx, dz))
+                    if (i_a, i_b) not in ((0, 0), (1, 0)):
+                        others.append(shift(seam_z, dx, dz))
+            for i_a, i_b in ((2, -1), (2, 0), (2, 1), (-1, 2), (0, 2), (1, 2), (2, 2)):
+                dx, dz = i_a * period, -i_b * period
+                others.append(shift(node, dx, dz))
+                if i_a < 2:
+                    others.append(shift(seam_x, dx, dz))
+                if i_b < 2:
+                    others.append(shift(seam_z, dx, dz))
+            got = flags_for(
+                pieces + others, self.samples, self.cell, TOP_DIRS, [], self.min_cells,
+                len(pieces),
+            )
+            stones = np.concatenate(pieces)
+            flags = np.concatenate([g[0] for g in got])
+            exposure = np.concatenate([g[1] for g in got])
+            inside = (stones[:, 0] >= 0.0) & (stones[:, 0] < period)
+            inside &= (stones[:, 2] > -period) & (stones[:, 2] <= 0.0)
+            stones, flags, exposure = stones[inside], flags[inside], exposure[inside]
+            behind = behind_mask(stones, self.shapes, top["thickness_m"], [], self.top_keep, 0.0)
+            name = f"I{k}"
+            out[name] = self._finish(name, stones, (flags, exposure), behind)
+            # surface report: the top height field of the tile
+            points = self.shapes.top_points(out[name][0], top["thickness_m"] * 0.5)
             field = height_field(points, 0.0, -period, cells, cells) + base
             fields.append(field.reshape(-1))
             self.report[f"top_cover_I{k}"] = self._top_cover(
-                np.concatenate(parts), base, 0.0, period, -period, 0.0
+                out[name][0], base, 0.0, period, -period, 0.0
             )
         self.report["top_field"] = spread(np.concatenate(fields))
         return out
@@ -641,7 +651,7 @@ class Pass:
         would end above the crop limit after it. `written` is changed in place."""
         base = self.fill - self.params["top"]["thickness_m"] + lift
         fills = self.params["top"]["fills"]
-        for name in ["C", "X", "Z"] + [f"I{k}" for k in range(fills)]:
+        for name in [f"I{k}" for k in range(fills)]:
             stones, flags, exposure = written[name]
             _low, high = self.shapes.extents(stones)
             keep = high[:, 1] + base <= self.fill + self.crop_above

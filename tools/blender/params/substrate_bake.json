@@ -5,7 +5,7 @@
     "mode": "tank",
     "data_set": "pebbles_river",
     "fill_depth_m": 0.06,
-    "overfill_m": -0.001,
+    "overfill_m": 0.0,
     "size_classes": [
       [
         0.012,
@@ -92,7 +92,7 @@
       "seam_half_m": 0.0045,
       "seam_extra_m": 0.012,
       "fills": 4,
-      "surface_bias_m": 0.0008
+      "surface_bias_m": 0.001
     },
     "pour": {
       "max_active": 900,
@@ -107,7 +107,8 @@
       "glass_friction": 0.3,
       "linear_damping": 0.3,
       "angular_damping": 0.4
-    }
+    },
+    "seam_trim_share": 0.6
   },
   "gravel_coloured": {
     "class": "round",
@@ -169,7 +170,8 @@
       "linear_damping": 0.3,
       "angular_damping": 0.4
     },
-    "ring_pit_depth_m": 0.003
+    "ring_pit_depth_m": 0.003,
+    "seam_trim_share": 0.6
   },
   "sand_fine": {
     "class": "sand",

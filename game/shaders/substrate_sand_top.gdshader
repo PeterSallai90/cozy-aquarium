@@ -20,6 +20,7 @@ uniform float bump_strength : hint_range(0.0, 2.0) = 1.1;
 uniform float gap_darken : hint_range(0.0, 1.0) = 0.35;
 uniform float ripple_strength : hint_range(0.0, 1.0) = 0.12;
 uniform float surface_roughness : hint_range(0.0, 1.0) = 0.8;
+uniform float surface_specular : hint_range(0.0, 1.0) = 0.3;
 // Under the dense real grains (near the camera) the surface is in their shade.
 uniform float shade_near : hint_range(0.0, 1.0) = 0.62;
 uniform float shade_begin = 0.22;
@@ -130,7 +131,7 @@ void fragment() {
 	vec3 n_world = normalize(vec3(lean.x, 1.0, lean.y));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
 	ROUGHNESS = mix(surface_roughness, 0.25, glint * detail);
-	SPECULAR = mix(0.3, 0.9, glint * detail);
+	SPECULAR = mix(surface_specular, 0.9, glint * detail);
 	v_specular = SPECULAR;
 }
 

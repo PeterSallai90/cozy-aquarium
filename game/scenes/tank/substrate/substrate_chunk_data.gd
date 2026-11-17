@@ -13,6 +13,9 @@ var aabb: AABB = AABB()
 var buffers: Array[PackedFloat32Array] = []
 ## Instances per variant, the same order as `buffers`.
 var counts: PackedInt32Array = PackedInt32Array()
+## Per variant the instances that are seen from above or through a pane. They come first in the
+## buffer; the rest are the stones kept behind them, which are only drawn near the camera.
+var seen_counts: PackedInt32Array = PackedInt32Array()
 
 
 func instance_count() -> int:
@@ -20,3 +23,11 @@ func instance_count() -> int:
 	for count: int in counts:
 		total += count
 	return total
+
+
+## The instances of variant `v` drawn at a distance: all of them near the camera, without the
+## stones kept behind the visible ones beyond `behind_range_m` (0 = always all).
+func drawn_count(v: int, distance: float, behind_range_m: float) -> int:
+	if behind_range_m > 0.0 and distance > behind_range_m and v < seen_counts.size():
+		return seen_counts[v]
+	return counts[v]

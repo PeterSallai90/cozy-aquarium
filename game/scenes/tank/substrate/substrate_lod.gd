@@ -58,7 +58,8 @@ static func cell_bounds(data: SubstrateBedData, index: int) -> AABB:
 
 
 ## The drawn-triangle estimate of a bed (AC 33): the sum over the chunks whose bounds intersect
-## the frustum of instances x the triangles of the LOD the distance to the chunk bounds selects.
+## the frustum of instances x the triangles of the LOD the distance to the chunk bounds selects
+## (beyond the look's behind range without the stones kept behind the visible ones).
 ## Ray-cast sand grains count 2 triangles each; sand top cells count when they are in the frustum
 ## and within the real-grain range. `triangles` holds one PackedInt32Array of triangle counts per
 ## LOD for each mesh variant (empty for sand); `frustum` and `camera_local` are in the bed's
@@ -78,14 +79,16 @@ static func estimate_triangles(
 		if is_sand:
 			total += chunk.instance_count() * 2
 			continue
-		var lod: int = select(distance_to(chunk.aabb, camera_local), look.lod_distances_m, -1, 0.0)
+		var distance: float = distance_to(chunk.aabb, camera_local)
+		var lod: int = select(distance, look.lod_distances_m, -1, 0.0)
 		for v: int in chunk.counts.size():
 			if v >= triangles.size():
 				break
 			var per_lod: PackedInt32Array = triangles[v]
 			if per_lod.is_empty():
 				continue
-			total += chunk.counts[v] * per_lod[mini(lod, per_lod.size() - 1)]
+			var drawn: int = chunk.drawn_count(v, distance, look.behind_range_m)
+			total += drawn * per_lod[mini(lod, per_lod.size() - 1)]
 	if not is_sand or data.top_tiles.is_empty():
 		return total
 	for index: int in data.top_placements.size() / SubstrateBedData.PLACEMENT_FLOATS:

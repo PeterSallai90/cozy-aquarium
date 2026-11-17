@@ -38,7 +38,8 @@ bake_files_by_tank = Dictionary[StringName, String]({
 &"tank_small_1": "pebbles_river_tank_small_1.bin"
 })
 grain_glb = ExtResource("4_grains")
-lod_distances_m = PackedFloat32Array(0.22, 0.8)
+lod_distances_m = PackedFloat32Array(0.25, 0.9)
+behind_range_m = 0.5
 chunk_size_m = 0.1
 core_inset_m = 0.05
 core_drop_m = 0.04

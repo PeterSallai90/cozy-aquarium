@@ -27,6 +27,8 @@ const CLASS_PEBBLE: int = 3
 @export var lod_distances_m: PackedFloat32Array = PackedFloat32Array()
 @export_range(0.0, 0.5) var lod_hysteresis: float = 0.05
 @export var chunk_size_m: float = 0.05
+## Beyond this distance a chunk leaves out the stones kept behind the visible ones (0 = never).
+@export var behind_range_m: float = 0.0
 ## Sand: real top grains are drawn in full up to the begin and thin out to the end.
 @export var sand_range_begin_m: float = 0.7
 @export var sand_range_end_m: float = 1.0

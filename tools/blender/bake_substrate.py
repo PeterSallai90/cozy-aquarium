@@ -364,7 +364,8 @@ def parse_args(argv: list[str]):  # noqa: ANN201
 
 
 def _part_key(type_name: str, params: dict, part: str, seed: int, tank: str) -> str:
-    relevant = {k: v for k, v in params.items() if k not in ("keep", "visibility", "data_set")}
+    after_pour = ("keep", "visibility", "data_set", "seam_trim_share")
+    relevant = {k: v for k, v in params.items() if k not in after_pour}
     if part == "ring":
         relevant.pop("top", None)
     elif part == "top":
@@ -522,7 +523,7 @@ def bake(argv: list[str]) -> None:
         ring_fills = params["ring"]["fills"]
         top_fills = params["top"]["fills"]
         order = ["K", "E"] + [f"F{k}" for k in range(ring_fills)]
-        order += ["C", "X", "Z"] + [f"I{k}" for k in range(top_fills)]
+        order += [f"I{k}" for k in range(top_fills)]
         if "lift_m" not in params["top"]:
             # the settled top layer is placed so that its measured mean surface is the fill depth
             # (plus surface_bias_m, a share of the tolerance, so more stone tops reach it)

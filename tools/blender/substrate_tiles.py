@@ -28,6 +28,9 @@ Top (the upper layers away from the glass, shallow, floor at z = 0 = fill depth 
 
 The junction between ring and top is resolved at run time (ring stones win, top stones that
 overlap them are dropped): the top layer moves with the fill depth, the ring pile does not.
+
+The data file holds the ring sets as poured and, for the top, one whole tile I<k> per fill: the
+fill together with the node and seam stones on its borders (substrate_visibility.py).
 """
 
 from __future__ import annotations
@@ -216,8 +219,12 @@ def trim_overlaps(sets: dict[str, np.ndarray], params: dict) -> dict[str, int]:
     it, in place: a fill stone inside a seam band, a seam stone inside a node, a corner stone
     inside the seams it was poured against. Such a stone came to rest on top of the stones of the
     band, so a tile border would carry more top stones than the rest of the tile and show as a
-    ridge (the tile grid of the look spike). Returns the number of stones dropped per set."""
+    ridge (the tile grid of the look spike). `seam_trim_share` of the type (default 1) is the
+    share of the band, from its middle, that is cleared: stones as large as the band is wide
+    also fill the flanks of the band, and dropping those would leave a groove along the border.
+    Returns the number of stones dropped per set."""
     dropped: dict[str, int] = {}
+    share = float(params.get("seam_trim_share", 1.0))
 
     def keep(name: str, mask: np.ndarray) -> None:
         dropped[name] = int((~mask).sum())
@@ -225,7 +232,7 @@ def trim_overlaps(sets: dict[str, np.ndarray], params: dict) -> dict[str, int]:
 
     if "E" in sets:
         ring = params["ring"]
-        period, depth, h = ring["period_m"], ring["depth_m"], ring["seam_half_m"]
+        period, depth, h = ring["period_m"], ring["depth_m"], ring["seam_half_m"] * share
         corner = ring.get("corner_m", depth)
         for k in range(ring["fills"]):
             s = sets[f"F{k}"]
@@ -236,7 +243,7 @@ def trim_overlaps(sets: dict[str, np.ndarray], params: dict) -> dict[str, int]:
         keep("K", ~(in_seam | in_previous))
     if "C" in sets:
         top = params["top"]
-        period, h = top["period_m"], top["seam_half_m"]
+        period, h = top["period_m"], top["seam_half_m"] * share
         s = sets["X"]
         keep("X", (s[:, 0] >= h) & (s[:, 0] < period - h))
         s = sets["Z"]

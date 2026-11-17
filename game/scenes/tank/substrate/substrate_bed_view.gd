@@ -39,7 +39,8 @@ var _next_placement: int = 0
 var _cell_number: int = -1
 var _cell_part: int = 0
 var _last_cell: Vector2 = Vector2(INF, INF)
-## Built chunks: {"box": AABB, "lod": int, "items": Array of [MultiMesh, variant]}.
+## Built chunks: {"box": AABB, "lod": int, "full": bool (the stones kept behind are drawn too),
+## "items": Array of [MultiMesh, variant, instances seen from above or through a pane]}.
 var _chunks: Array[Dictionary] = []
 ## Built top cells: {"node": MultiMeshInstance3D, "box": AABB, "near": bool}.
 var _top_cells: Array[Dictionary] = []
@@ -166,8 +167,10 @@ func update_lod(camera_local: Vector3) -> void:
 			var lod: int = SubstrateLod.select(
 				distance, _look.lod_distances_m, chunk["lod"], _look.lod_hysteresis
 			)
-			if lod != int(chunk["lod"]):
+			var near: bool = _behind_drawn(distance, chunk["full"])
+			if lod != int(chunk["lod"]) or near != bool(chunk["full"]):
 				chunk["lod"] = lod
+				chunk["full"] = near
 				_apply_lod(chunk)
 	for cell: Dictionary in _top_cells:
 		var near: bool = (
@@ -336,11 +339,20 @@ func _build_chunk(chunk: SubstrateChunkData) -> void:
 			lod = SubstrateLod.select(
 				SubstrateLod.distance_to(chunk.aabb, _camera_local), _look.lod_distances_m, -1, 0.0
 			)
+	var full: bool = true
+	if not _is_sand and _look.behind_range_m > 0.0:
+		full = (
+			_has_camera
+			and SubstrateLod.distance_to(chunk.aabb, _camera_local) <= _look.behind_range_m
+		)
 	for v: int in chunk.buffers.size():
 		if chunk.counts[v] == 0:
 			continue
 		var mesh: Mesh = _quad if _is_sand else _mesh_of(v, lod)
 		var multimesh: MultiMesh = _make_multimesh(chunk.buffers[v], mesh)
+		var seen: int = chunk.seen_counts[v] if v < chunk.seen_counts.size() else chunk.counts[v]
+		if not full:
+			multimesh.visible_instance_count = seen
 		var node: MultiMeshInstance3D = MultiMeshInstance3D.new()
 		node.name = "Chunk_%d_%d_v%d" % [chunk.key.x, chunk.key.y, v]
 		node.multimesh = multimesh
@@ -349,15 +361,28 @@ func _build_chunk(chunk: SubstrateChunkData) -> void:
 		node.visible = _stones_visible
 		add_child(node)
 		_stone_nodes.append(node)
-		items.append([multimesh, v])
+		items.append([multimesh, v, seen])
 	if not _is_sand:
-		_chunks.append({"box": chunk.aabb, "lod": lod, "items": items})
+		_chunks.append({"box": chunk.aabb, "lod": lod, "full": full, "items": items})
 
 
 func _apply_lod(chunk: Dictionary) -> void:
 	var items: Array = chunk["items"]
 	for item: Array in items:
-		(item[0] as MultiMesh).mesh = _mesh_of(int(item[1]), int(chunk["lod"]))
+		var multimesh: MultiMesh = item[0]
+		multimesh.mesh = _mesh_of(int(item[1]), int(chunk["lod"]))
+		multimesh.visible_instance_count = -1 if bool(chunk["full"]) else int(item[2])
+
+
+## True when a chunk at `distance` draws the stones kept behind the visible ones too (with the
+## hysteresis of the LOD, so the hidden row does not flicker at the edge of the range).
+func _behind_drawn(distance: float, current: bool) -> bool:
+	var limit: float = _look.behind_range_m
+	if limit <= 0.0:
+		return true
+	if current:
+		return distance <= limit * (1.0 + _look.lod_hysteresis)
+	return distance < limit * (1.0 - _look.lod_hysteresis)
 
 
 func _mesh_of(variant: int, lod: int) -> Mesh:

@@ -6,9 +6,10 @@ extends RefCounted
 ##
 ## Whole-tank data (pebbles): the baked stones are the bed. Tile data: the four panes use the
 ## ring sets rotated by 0, 90, 180 and 270 degrees (corner K, seams E, one fill F<k> per cell);
-## the top lattice of 5 cm cells starts at the back left corner of the interior and holds the
-## frame sets C, X, Z and one fill I<k> per cell, translated only. No two edge-adjacent cells use
-## the same fill. Stone types: the top stones go into the chunk buffers; ring stones win at the
+## the top lattice of 5 cm cells starts at the back left corner of the interior and holds one top
+## tile I<k> per cell (a fill with the seam stones on its borders, so the tiles of any fills
+## fit), translated only. No two edge-adjacent cells use the same fill. Stone types: the top
+## stones go into the chunk buffers; ring stones win at the
 ## junction, a top stone that overlaps one is dropped. Sand: the top grains stay in shared tile
 ## buffers (one per fill for the inner cells, nine parts per fill for the cells at a pane, which
 ## leave out the parts inside the ring strip); the ring grains go into the chunk buffers.
@@ -23,6 +24,7 @@ const FLOATS: int = SubstrateBedData.FLOATS
 ## Stones between two looks at the cancel token inside a pass.
 const CANCEL_STRIDE: int = 1024
 const NO_CLIP: Rect2 = Rect2(-1000.0, -1000.0, 2000.0, 2000.0)
+const SEEN_FLAGS: int = SubstrateBakeData.FLAG_ABOVE | SubstrateBakeData.FLAG_PANE
 ## Sand: the fills whose tiles are also kept in nine parts for the cells at a pane.
 const BORDER_FILLS: int = 2
 ## Parts of a tile along one axis: inside the strip at the low border, the middle, the high one.
@@ -267,16 +269,14 @@ static func _place_top(
 	var depth: float = bake.tile_value("ring", "depth_m")
 	var lattice: Vector2i = _lattice(input, bake)
 	var count: int = maxi(1, int(bake.tile_value("top", "fills", 1.0)))
-	var frame: Array[Vector2i] = [bake.set_range("C"), bake.set_range("X"), bake.set_range("Z")]
 	var fill_sets: Array[Vector2i] = []
 	var largest: int = 0
 	for k: int in count:
 		fill_sets.append(bake.set_range("I%d" % k))
 		largest = maxi(largest, fill_sets[k].y)
-	var per_cell: int = frame[0].y + frame[1].y + frame[2].y + largest
 	var ring_floats: int = ring.size()
 	var out: PackedFloat32Array = ring.duplicate()
-	out.resize(ring_floats + lattice.x * lattice.y * per_cell * RECORD)
+	out.resize(ring_floats + lattice.x * lattice.y * largest * RECORD)
 	var cursor: int = ring_floats
 	var inset: float = depth - input.junction_overlap_m
 	var clip: Rect2 = Rect2(
@@ -293,10 +293,6 @@ static func _place_top(
 			var origin: Vector3 = Vector3(
 				-lx / 2.0 + a * period, base_y, -lz / 2.0 + (b + 1) * period
 			)
-			for span: Vector2i in frame:
-				cursor = _append(
-					out, cursor, bake.stones, span, Basis.IDENTITY, origin, Vector3.ZERO, clip
-				)
 			cursor = _append(
 				out, cursor, bake.stones, fill_sets[k], Basis.IDENTITY, origin, Vector3.ZERO, clip
 			)
@@ -374,11 +370,11 @@ static func _resolve_junction(
 	return write
 
 
-## Sand: the shared top tile buffers and the placement of every cell. A tile is every grain of a
-## fill and of the frame whose centre lies in the cell, relative to the centre of the cell. The
-## first tiles are the whole tiles of every fill (inner cells); then, for each border fill, nine
-## parts: the strips and corners inside the ring strip at a border and the middle. A cell at a
-## pane draws the parts that are not in the ring strip of its panes.
+## Sand: the shared top tile buffers and the placement of every cell. A tile holds the grains of
+## the baked tile I<k> relative to the centre of the cell. The first tiles are the whole tiles of
+## every fill (inner cells); then, for each border fill, nine parts: the strips and corners inside
+## the ring strip at a border and the middle. A cell at a pane draws the parts that are not in the
+## ring strip of its panes.
 static func _build_sand_tiles(
 	input: SubstrateAssemblyInput,
 	bake: SubstrateBakeData,
@@ -398,54 +394,33 @@ static func _build_sand_tiles(
 	var border_fills: int = mini(BORDER_FILLS, count)
 	data.top_pitch_m = period
 	data.top_y_range = Vector2(INF, -INF)
-	# the frame sets on the four borders and corners of the cell x in [0, period), z in
-	# (-period, 0]
-	var frame_sets: Array[Vector2i] = [
-		bake.set_range("C"), bake.set_range("X"), bake.set_range("Z")
-	]
-	var frame_shifts: Array = [
-		[Vector2.ZERO, Vector2(period, 0.0), Vector2(0.0, -period), Vector2(period, -period)],
-		[Vector2.ZERO, Vector2(0.0, -period)],
-		[Vector2.ZERO, Vector2(period, 0.0)],
-	]
 	for k: int in count:
 		var whole: PackedFloat32Array = PackedFloat32Array()
 		var parts: Array[PackedFloat32Array] = []
 		if k < border_fills:
 			for _part: int in 9:
 				parts.append(PackedFloat32Array())
-		var sources: Array[Vector2i] = [bake.set_range("I%d" % k)]
-		var shifts: Array = [[Vector2.ZERO]]
-		sources.append_array(frame_sets)
-		shifts.append_array(frame_shifts)
-		for s: int in sources.size():
-			var span: Vector2i = sources[s]
-			for shift: Vector2 in shifts[s]:
-				for record: int in range(span.x, span.x + span.y):
-					var o: int = record * RECORD
-					var x: float = bake.stones[o] + shift.x
-					var z: float = bake.stones[o + 2] + shift.y
-					var r_light: float = rng.randf()
-					var r_hue: float = rng.randf()
-					var r_kind: float = rng.randf()
-					var r_seed: float = rng.randf()
-					if x < 0.0 or x >= period or z > 0.0 or z <= -period:
-						continue
-					var centre: Vector3 = Vector3(
-						x - period / 2.0, bake.stones[o + 1] + base_y, z + period / 2.0
-					)
-					var reach: float = _write_instance(
-						whole, input, bake, o, centre, r_light, r_hue, r_kind, r_seed
-					)
-					data.top_y_range.x = minf(data.top_y_range.x, centre.y - reach)
-					data.top_y_range.y = maxf(data.top_y_range.y, centre.y + reach)
-					if k < border_fills:
-						var part: int = (
-							_part_of(x, period, strip) + 3 * _part_of(z + period, period, strip)
-						)
-						_write_instance(
-							parts[part], input, bake, o, centre, r_light, r_hue, r_kind, r_seed
-						)
+		# a tile covers x in [0, period) and z in (-period, 0] from its origin
+		var span: Vector2i = bake.set_range("I%d" % k)
+		for record: int in range(span.x, span.x + span.y):
+			var o: int = record * RECORD
+			var x: float = bake.stones[o]
+			var z: float = bake.stones[o + 2]
+			var r_light: float = rng.randf()
+			var r_hue: float = rng.randf()
+			var r_kind: float = rng.randf()
+			var r_seed: float = rng.randf()
+			var centre: Vector3 = Vector3(
+				x - period / 2.0, bake.stones[o + 1] + base_y, z + period / 2.0
+			)
+			var reach: float = _write_instance(
+				whole, input, bake, o, centre, r_light, r_hue, r_kind, r_seed
+			)
+			data.top_y_range.x = minf(data.top_y_range.x, centre.y - reach)
+			data.top_y_range.y = maxf(data.top_y_range.y, centre.y + reach)
+			if k < border_fills:
+				var part: int = _part_of(x, period, strip) + 3 * _part_of(z + period, period, strip)
+				_write_instance(parts[part], input, bake, o, centre, r_light, r_hue, r_kind, r_seed)
 		data.top_tiles.append(whole)
 		if k < border_fills:
 			data.top_tiles.append_array(parts)
@@ -607,6 +582,8 @@ static func _build_chunks(
 	var count: int = world.size() / RECORD
 	var counts: PackedInt32Array = PackedInt32Array()
 	counts.resize(slots)
+	var seen: PackedInt32Array = PackedInt32Array()
+	seen.resize(slots)
 	var slot_of: PackedInt32Array = PackedInt32Array()
 	slot_of.resize(count)
 	# pass 1: the chunk and variant of every stone
@@ -620,10 +597,15 @@ static func _build_chunks(
 		var slot: int = (iz * nx + ix) * variants + (0 if is_sand else mini(v, variants - 1))
 		slot_of[i] = slot
 		counts[slot] += 1
+		if (int(world[o + 8]) & SEEN_FLAGS) != 0:
+			seen[slot] += 1
+	# In a buffer the stones seen from above or through a pane come first, the stones kept
+	# behind them last, so a far chunk can leave the hidden row out.
 	var buffers: Array[PackedFloat32Array] = []
 	buffers.resize(slots)
 	var cursors: PackedInt32Array = PackedInt32Array()
 	cursors.resize(slots)
+	var behind_cursors: PackedInt32Array = seen.duplicate()
 	for s: int in slots:
 		var buffer: PackedFloat32Array = PackedFloat32Array()
 		buffer.resize(counts[s] * FLOATS)
@@ -660,13 +642,18 @@ static func _build_chunks(
 			basis = basis.scaled_local(Vector3(size, size, size))
 		var origin: Vector3 = Vector3(world[o], world[o + 1], world[o + 2])
 		var buffer: PackedFloat32Array = buffers[slot]
-		var w: int = cursors[slot] * FLOATS
+		var w: int = 0
+		if (packed & SEEN_FLAGS) != 0:
+			w = cursors[slot] * FLOATS
+			cursors[slot] += 1
+		else:
+			w = behind_cursors[slot] * FLOATS
+			behind_cursors[slot] += 1
 		_store(buffer, w, basis, origin)
 		var exposure: int = (
 			(packed >> SubstrateBakeData.EXPOSURE_SHIFT) & SubstrateBakeData.EXPOSURE_MASK
 		)
 		_store_tint(buffer, w + 12, input, r_light, r_hue, r_kind, r_seed, exposure)
-		cursors[slot] += 1
 		var column: int = slot / variants
 		var reach: Vector3 = Vector3.ONE * (reach_of[v] * size)
 		lows[column] = lows[column].min(origin - reach)
@@ -687,5 +674,6 @@ static func _build_chunks(
 			for v: int in variants:
 				entry.buffers.append(buffers[column * variants + v])
 				entry.counts.append(counts[column * variants + v])
+				entry.seen_counts.append(seen[column * variants + v])
 			data.chunks.append(entry)
 	return true

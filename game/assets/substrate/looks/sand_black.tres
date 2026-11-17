@@ -12,24 +12,25 @@ shader_parameter/substrate_tint = Color(0.18039216, 0.17647059, 0.18823529, 1)
 shader_parameter/occlusion_top_depth = 2.2
 shader_parameter/occlusion_glass_depth = 2.2
 shader_parameter/occlusion_floor = 0.4
-shader_parameter/wet_gain = 0.8
-shader_parameter/fill_light = 0.4
+shader_parameter/wet_gain = 0.45
+shader_parameter/fill_light = 0.25
 shader_parameter/fill_color = Color(0.94, 0.97, 1.0, 1)
-shader_parameter/grain_roughness = 0.45
-shader_parameter/grain_specular = 0.5
-shader_parameter/lamp_tint = 0.2
+shader_parameter/grain_roughness = 0.55
+shader_parameter/grain_specular = 0.3
+shader_parameter/lamp_tint = 0.1
 
 [sub_resource type="ShaderMaterial" id="sand_black_top"]
 resource_name = "sand_black_top"
 shader = ExtResource("3_top")
 shader_parameter/substrate_tint = Color(0.18039216, 0.17647059, 0.18823529, 1)
-shader_parameter/wet_gain = 0.8
+shader_parameter/wet_gain = 0.45
 shader_parameter/tone_spread = 0.08
 shader_parameter/glint_share = 0.045
 shader_parameter/glint_gain = 1.45
+shader_parameter/surface_specular = 0.18
 shader_parameter/shade_begin = 0.65
 shader_parameter/shade_end = 1.0
-shader_parameter/lamp_tint = 0.2
+shader_parameter/lamp_tint = 0.1
 
 [sub_resource type="ShaderMaterial" id="sand_black_core"]
 resource_name = "sand_black_core"
@@ -37,7 +38,7 @@ shader = ExtResource("4_core")
 shader_parameter/substrate_tint = Color(0.18039216, 0.17647059, 0.18823529, 1)
 shader_parameter/core_darkness = 0.5
 shader_parameter/core_light = 0.7
-shader_parameter/lamp_tint = 0.2
+shader_parameter/lamp_tint = 0.1
 
 [resource]
 script = ExtResource("1_look")
