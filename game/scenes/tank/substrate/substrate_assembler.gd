@@ -21,8 +21,10 @@ extends RefCounted
 const PACKING_VERSION: int = 1
 const RECORD: int = SubstrateBakeData.FLOATS
 const FLOATS: int = SubstrateBedData.FLOATS
-## Stones between two looks at the cancel token inside a pass.
-const CANCEL_STRIDE: int = 1024
+## Stones between two looks at the cancel token inside a pass. Plan 1.8: at most 2 ms of work
+## between two looks, so leaving the tree never waits long for the worker; 128 stones take about
+## 0.6 ms in the slowest pass on the reference machine, which leaves room for slower ones.
+const CANCEL_STRIDE: int = 128
 const NO_CLIP: Rect2 = Rect2(-1000.0, -1000.0, 2000.0, 2000.0)
 ## Draw parts of a chunk buffer, in buffer order (SubstrateChunkData).
 const DRAW_ABOVE: int = 0
@@ -71,14 +73,16 @@ static func assemble(
 	if bake.mode() == SubstrateBakeData.MODE_TANK:
 		world = bake.get_set("tank")
 	else:
-		world = _place_ring(input, bake, rng)
+		# a pass that noticed the cancel returns at once; the token stays cancelled
+		world = _place_ring(input, bake, rng, cancel)
 		if _stop(cancel):
 			return null
 		var fills: PackedInt32Array = _pick_top_fills(input, bake, rng, is_sand)
 		if is_sand:
-			_build_sand_tiles(input, bake, rng, data, fills)
+			if not _build_sand_tiles(input, bake, rng, data, fills, cancel):
+				return null
 		else:
-			world = _place_top(input, bake, world, data, fills)
+			world = _place_top(input, bake, world, data, fills, cancel)
 		if _stop(cancel):
 			return null
 	if not _build_chunks(input, bake, world, rng, data, cancel):
@@ -118,9 +122,13 @@ static func _quarter(turns: int) -> Basis:
 # --- tiles: ring ---
 
 
-## The ring stones of the four panes in the tank frame (9 floats per stone).
+## The ring stones of the four panes in the tank frame (9 floats per stone); empty when the token
+## was cancelled.
 static func _place_ring(
-	input: SubstrateAssemblyInput, bake: SubstrateBakeData, rng: RandomNumberGenerator
+	input: SubstrateAssemblyInput,
+	bake: SubstrateBakeData,
+	rng: RandomNumberGenerator,
+	cancel: SubstrateCancelToken = null
 ) -> PackedFloat32Array:
 	var lx: float = input.interior_size_m.x
 	var lz: float = input.interior_size_m.z
@@ -153,16 +161,26 @@ static func _place_ring(
 	for face: int in 4:
 		var rot: Basis = _quarter(face)
 		var origin: Vector3 = origins[face]
-		cursor = _append(out, cursor, bake.stones, corner_set, rot, origin, Vector3.ZERO, NO_CLIP)
+		cursor = _append(
+			out, cursor, bake.stones, corner_set, rot, origin, Vector3.ZERO, NO_CLIP, cancel
+		)
 		for j: int in cells[face] + 1:
+			if cursor < 0:
+				break
 			var at: Vector3 = Vector3(corner + j * period, 0.0, 0.0)
-			cursor = _append(out, cursor, bake.stones, seam_set, rot, origin, at, NO_CLIP)
+			cursor = _append(out, cursor, bake.stones, seam_set, rot, origin, at, NO_CLIP, cancel)
 		var previous: int = -1
 		for j: int in cells[face]:
+			if cursor < 0:
+				break
 			var k: int = _pick(rng, fills, previous, -1)
 			previous = k
 			var at: Vector3 = Vector3(corner + j * period, 0.0, 0.0)
-			cursor = _append(out, cursor, bake.stones, fill_sets[k], rot, origin, at, NO_CLIP)
+			cursor = _append(
+				out, cursor, bake.stones, fill_sets[k], rot, origin, at, NO_CLIP, cancel
+			)
+		if cursor < 0:
+			return PackedFloat32Array()
 	out.resize(cursor)
 	return out
 
@@ -182,7 +200,8 @@ static func _pick(rng: RandomNumberGenerator, count: int, avoid_a: int, avoid_b:
 
 ## Appends the records `span` (first record, count) of `src`, moved by `offset` in the set frame,
 ## then rotated by `rot` and moved to `origin`. Stones whose centre (x, z) is outside `clip` are
-## skipped. Returns the new cursor (in floats).
+## skipped. Returns the new cursor (in floats), or -1 when the token was cancelled (asked before
+## the first record and then every CANCEL_STRIDE records).
 static func _append(
 	out: PackedFloat32Array,
 	cursor: int,
@@ -191,14 +210,21 @@ static func _append(
 	rot: Basis,
 	origin: Vector3,
 	offset: Vector3,
-	clip: Rect2
+	clip: Rect2,
+	cancel: SubstrateCancelToken = null
 ) -> int:
 	var turned: bool = not rot.is_equal_approx(Basis.IDENTITY)
 	var q: Quaternion = Quaternion(rot)
 	var shift: Vector3 = origin + rot * offset
 	var i: int = span.x * RECORD
 	var end: int = (span.x + span.y) * RECORD
+	var stride: int = CANCEL_STRIDE * RECORD
+	var next_look: int = i
 	while i < end:
+		if i == next_look:
+			if _stop(cancel):
+				return -1
+			next_look += stride
 		var p: Vector3 = Vector3(src[i], src[i + 1], src[i + 2])
 		if turned:
 			p = rot * p
@@ -268,13 +294,15 @@ static func _pick_top_fills(
 
 
 ## Stone types: adds the top stones of every cell to the ring stones and resolves the junction
-## (ring stones win). Fills data.top_placements. Returns all stones in the tank frame.
+## (ring stones win). Fills data.top_placements. Returns all stones in the tank frame; empty when
+## the token was cancelled.
 static func _place_top(
 	input: SubstrateAssemblyInput,
 	bake: SubstrateBakeData,
 	ring: PackedFloat32Array,
 	data: SubstrateBedData,
-	fills: PackedInt32Array
+	fills: PackedInt32Array,
+	cancel: SubstrateCancelToken = null
 ) -> PackedFloat32Array:
 	var lx: float = input.interior_size_m.x
 	var lz: float = input.interior_size_m.z
@@ -309,8 +337,18 @@ static func _place_top(
 				-lx / 2.0 + a * period, base_y, -lz / 2.0 + (b + 1) * period
 			)
 			cursor = _append(
-				out, cursor, bake.stones, fill_sets[k], Basis.IDENTITY, origin, Vector3.ZERO, clip
+				out,
+				cursor,
+				bake.stones,
+				fill_sets[k],
+				Basis.IDENTITY,
+				origin,
+				Vector3.ZERO,
+				clip,
+				cancel
 			)
+			if cursor < 0:
+				return PackedFloat32Array()
 			var at: int = cell * SubstrateBedData.PLACEMENT_FLOATS
 			data.top_placements[at] = origin.x + period / 2.0
 			data.top_placements[at + 1] = origin.z - period / 2.0
@@ -318,19 +356,22 @@ static func _place_top(
 			data.top_placements[at + 3] = 0.0
 			# stone types: the tile index is the fill; the stones are in the chunk buffers
 			data.top_placements[at + 4] = float(k)
-	cursor = _resolve_junction(input, bake, out, ring_floats, cursor)
+	cursor = _resolve_junction(input, bake, out, ring_floats, cursor, cancel)
+	if cursor < 0:
+		return PackedFloat32Array()
 	out.resize(cursor)
 	return out
 
 
 ## Drops the top stones (floats ring_floats..cursor of `out`) that overlap a ring stone near the
-## inner edge of the ring. Returns the new cursor.
+## inner edge of the ring. Returns the new cursor, or -1 when the token was cancelled.
 static func _resolve_junction(
 	input: SubstrateAssemblyInput,
 	bake: SubstrateBakeData,
 	out: PackedFloat32Array,
 	ring_floats: int,
-	cursor: int
+	cursor: int,
+	cancel: SubstrateCancelToken = null
 ) -> int:
 	var lx: float = input.interior_size_m.x
 	var lz: float = input.interior_size_m.z
@@ -339,8 +380,11 @@ static func _resolve_junction(
 	var cell: float = max_size
 	var low: float = input.depth() - bake.tile_value("top", "thickness_m") - max_size
 	var grid: Dictionary[Vector2i, PackedInt32Array] = {}
+	var stride: int = CANCEL_STRIDE * RECORD
 	var i: int = 0
 	while i < ring_floats:
+		if i % stride == 0 and _stop(cancel):
+			return -1
 		var x: float = out[i]
 		var z: float = out[i + 2]
 		var inward: float = minf(lx / 2.0 - absf(x), lz / 2.0 - absf(z))
@@ -354,6 +398,8 @@ static func _resolve_junction(
 	var write: int = ring_floats
 	i = ring_floats
 	while i < cursor:
+		if (i - ring_floats) % stride == 0 and _stop(cancel):
+			return -1
 		var x: float = out[i]
 		var y: float = out[i + 1]
 		var z: float = out[i + 2]
@@ -389,14 +435,15 @@ static func _resolve_junction(
 ## the baked tile I<k> relative to the centre of the cell. The first tiles are the whole tiles of
 ## every fill (inner cells); then, for each border fill, nine parts: the strips and corners inside
 ## the ring strip at a border and the middle. A cell at a pane draws the parts that are not in the
-## ring strip of its panes.
+## ring strip of its panes. False when the token was cancelled.
 static func _build_sand_tiles(
 	input: SubstrateAssemblyInput,
 	bake: SubstrateBakeData,
 	rng: RandomNumberGenerator,
 	data: SubstrateBedData,
-	fills: PackedInt32Array
-) -> void:
+	fills: PackedInt32Array,
+	cancel: SubstrateCancelToken = null
+) -> bool:
 	var lx: float = input.interior_size_m.x
 	var lz: float = input.interior_size_m.z
 	var period: float = bake.tile_value("top", "period_m")
@@ -418,6 +465,8 @@ static func _build_sand_tiles(
 		# a tile covers x in [0, period) and z in (-period, 0] from its origin
 		var span: Vector2i = bake.set_range("I%d" % k)
 		for record: int in range(span.x, span.x + span.y):
+			if (record - span.x) % CANCEL_STRIDE == 0 and _stop(cancel):
+				return false
 			var o: int = record * RECORD
 			var x: float = bake.stones[o]
 			var z: float = bake.stones[o + 2]
@@ -448,6 +497,8 @@ static func _build_sand_tiles(
 		whole_index.append(next)
 		next += 10 if k < border_fills else 1
 	for b: int in lattice.y:
+		if _stop(cancel):
+			return false
 		for a: int in lattice.x:
 			var k: int = fills[b * lattice.x + a]
 			var x: float = -lx / 2.0 + (a + 0.5) * period
@@ -466,6 +517,7 @@ static func _build_sand_tiles(
 				if (pz == PART_LOW and b == 0) or (pz == PART_HIGH and b == lattice.y - 1):
 					continue
 				_add_placement(data, x, z, whole_index[k] + 1 + part)
+	return true
 
 
 static func _part_of(value: float, period: float, strip: float) -> int:
@@ -634,6 +686,9 @@ static func _build_chunks(
 	var cursors: PackedInt32Array = PackedInt32Array()
 	cursors.resize(slots * DRAW_PARTS)
 	for s: int in slots:
+		# once per chunk: the new buffers of a large bed take a few ms to clear
+		if s % variants == 0 and _stop(cancel):
+			return false
 		var total: int = 0
 		for draw: int in DRAW_PARTS:
 			cursors[s * DRAW_PARTS + draw] = total
