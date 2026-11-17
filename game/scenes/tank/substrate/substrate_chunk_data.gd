@@ -7,12 +7,12 @@ extends RefCounted
 ## 4 x exposure, random 0..1).
 ##
 ## Draw order inside a buffer (the view draws a prefix of it, MultiMesh.visible_instance_count):
-## 1. stones seen from above, 2. stones seen only through a pane, 3. stones kept behind the
-## visible ones away from the glass, 4. stones kept behind at the glass. A camera on the inner
-## side of every pane of the chunk cannot see the outer face of the stones at that glass: far
-## away it draws 1, within the look's behind range 1 to 3. A camera beyond a pane of the chunk
-## draws 1 and 2 far away and everything within the behind range (ADR 0011 rule 11: culling by
-## the offline flags).
+## 1. stones seen from above, 2. stones kept behind the visible ones away from the glass,
+## 3. stones seen only through a pane, 4. stones kept behind at the glass. A camera on the inner
+## side of every pane of the chunk cannot see the outer face of the stones at that glass: it
+## draws 1, and 2 within the look's behind range. A camera beyond a pane of the chunk draws 1 to 3
+## far away and everything within the behind range (ADR 0011 rule 11: culling by the offline
+## flags).
 
 ## Panes of a chunk (bits of `panes`), in the tank frame: front +z, back -z, left -x, right +x.
 const PANE_FRONT: int = 1
@@ -51,8 +51,8 @@ func drawn_count(v: int, near: bool, outside: bool) -> int:
 	if ends.size() < (v + 1) * ENDS:
 		return counts[v]
 	if outside:
-		return counts[v] if near else ends[v * ENDS + 1]
-	return ends[v * ENDS + 2] if near else ends[v * ENDS]
+		return counts[v] if near else ends[v * ENDS + 2]
+	return ends[v * ENDS + 1] if near else ends[v * ENDS]
 
 
 ## True when `camera_local` lies beyond the inner glass plane of one of the chunk's panes

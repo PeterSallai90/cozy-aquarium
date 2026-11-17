@@ -26,8 +26,8 @@ const CANCEL_STRIDE: int = 1024
 const NO_CLIP: Rect2 = Rect2(-1000.0, -1000.0, 2000.0, 2000.0)
 ## Draw parts of a chunk buffer, in buffer order (SubstrateChunkData).
 const DRAW_ABOVE: int = 0
-const DRAW_PANE: int = 1
-const DRAW_SURFACE_BEHIND: int = 2
+const DRAW_SURFACE_BEHIND: int = 1
+const DRAW_PANE: int = 2
 const DRAW_PANE_BEHIND: int = 3
 const DRAW_PARTS: int = 4
 ## Sand: the fills whose tiles are also kept in nine parts for the cells at a pane.
@@ -565,8 +565,8 @@ static func _store_tint(
 
 
 ## Sorts the stones of `world` (tank frame, 9 floats each) into the chunk buffers of `data`, in
-## the draw order of SubstrateChunkData (seen from above, seen only through a pane, kept behind
-## away from the glass, kept behind at the glass). False when the token was cancelled.
+## the draw order of SubstrateChunkData (seen from above, kept behind away from the glass, seen
+## only through a pane, kept behind at the glass). False when the token was cancelled.
 static func _build_chunks(
 	input: SubstrateAssemblyInput,
 	bake: SubstrateBakeData,
@@ -698,8 +698,8 @@ static func _build_chunks(
 	return true
 
 
-## The draw part of a stone (SubstrateChunkData): 0 seen from above, 1 seen only through a pane,
-## 2 kept behind away from the glass (under the surface), 3 kept behind at the glass.
+## The draw part of a stone (SubstrateChunkData): 0 seen from above, 1 kept behind away from the
+## glass (under the surface), 2 seen only through a pane, 3 kept behind at the glass.
 static func _draw_part(packed: int, at_glass: bool) -> int:
 	if (packed & SubstrateBakeData.FLAG_ABOVE) != 0:
 		return DRAW_ABOVE
