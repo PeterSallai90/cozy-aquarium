@@ -83,7 +83,7 @@ static func make_input(
 func show_type(tank: TankDefinition, definition: SubstrateDefinition, colour: Color) -> void:
 	var started: int = Time.get_ticks_usec()
 	_show_type(tank, definition, colour)
-	_frame_usec += Time.get_ticks_usec() - started
+	_count_outside_frame(started)
 
 
 ## Sets the colour: on the pending view (and its core) while a change is pending, else on the
@@ -95,7 +95,7 @@ func set_tint(colour: Color) -> void:
 		_tint_pending()
 	elif _shown_view != null:
 		_shown_view.set_tint(colour)
-	_frame_usec += Time.get_ticks_usec() - started
+	_count_outside_frame(started)
 
 
 func get_tint() -> Color:
@@ -285,7 +285,8 @@ func _advance(started: int) -> void:
 		_swap(_pending_id, _pending_view)
 
 
-## The job is done: keep its baked data and bed in the cache and start the view, or give up.
+## The job is done: keep its baked data and bed in the cache and start the view, or give up with
+## one error (a placeholder core stays as the floor until the next type).
 func _take_job_result() -> void:
 	var job: SubstrateAssemblyJob = _pending_job
 	_pending_job = null
@@ -295,6 +296,7 @@ func _take_job_result() -> void:
 		push_error("SubstrateBed: the bed of %s could not be assembled" % _pending_id)
 		_pending_id = &""
 		_pending_look = null
+		_pending_path = ""
 		return
 	_get_cache().put_data(data)
 	_begin_view(data)
@@ -385,6 +387,13 @@ func _free_view(view: SubstrateBedView) -> void:
 	if view.get_parent() == self:
 		remove_child(view)
 	view.free()
+
+
+## Adds main-thread work done outside _process (show_type, set_tint: a swap of a built type
+## happens there) to the frame, so the maximum shows it at once.
+func _count_outside_frame(started: int) -> void:
+	_frame_usec += Time.get_ticks_usec() - started
+	_max_frame_usec = maxi(_max_frame_usec, _frame_usec)
 
 
 func _get_cache() -> SubstrateBedCache:
