@@ -24,7 +24,12 @@ const FLOATS: int = SubstrateBedData.FLOATS
 ## Stones between two looks at the cancel token inside a pass.
 const CANCEL_STRIDE: int = 1024
 const NO_CLIP: Rect2 = Rect2(-1000.0, -1000.0, 2000.0, 2000.0)
-const SEEN_FLAGS: int = SubstrateBakeData.FLAG_ABOVE | SubstrateBakeData.FLAG_PANE
+## Draw parts of a chunk buffer, in buffer order (SubstrateChunkData).
+const DRAW_ABOVE: int = 0
+const DRAW_PANE: int = 1
+const DRAW_SURFACE_BEHIND: int = 2
+const DRAW_PANE_BEHIND: int = 3
+const DRAW_PARTS: int = 4
 ## Sand: the fills whose tiles are also kept in nine parts for the cells at a pane.
 const BORDER_FILLS: int = 2
 ## Parts of a tile along one axis: inside the strip at the low border, the middle, the high one.
@@ -559,8 +564,9 @@ static func _store_tint(
 	buffer[w + 3] = r_seed
 
 
-## Sorts the stones of `world` (tank frame, 9 floats each) into the chunk buffers of `data`.
-## False when the token was cancelled.
+## Sorts the stones of `world` (tank frame, 9 floats each) into the chunk buffers of `data`, in
+## the draw order of SubstrateChunkData (seen from above, seen only through a pane, kept behind
+## away from the glass, kept behind at the glass). False when the token was cancelled.
 static func _build_chunks(
 	input: SubstrateAssemblyInput,
 	bake: SubstrateBakeData,
@@ -580,35 +586,50 @@ static func _build_chunks(
 	var cz: float = lz / nz
 	var slots: int = nx * nz * variants
 	var count: int = world.size() / RECORD
-	var counts: PackedInt32Array = PackedInt32Array()
-	counts.resize(slots)
-	var seen: PackedInt32Array = PackedInt32Array()
-	seen.resize(slots)
+	var reach_of: PackedFloat32Array = PackedFloat32Array()
+	for v: int in bake.variant_count():
+		reach_of.append(0.5 if is_sand else bake.half_extents[v].length())
+	# a stone kept behind belongs to the glass when its near side is this close to a pane
+	var glass_keep: float = bake.tile_value("keep", "glass_keep_m")
+	# pass 1: the chunk, variant and draw class of every stone
+	var class_counts: PackedInt32Array = PackedInt32Array()
+	class_counts.resize(slots * DRAW_PARTS)
+	var panes: PackedInt32Array = PackedInt32Array()
+	panes.resize(nx * nz)
 	var slot_of: PackedInt32Array = PackedInt32Array()
 	slot_of.resize(count)
-	# pass 1: the chunk and variant of every stone
+	var draw_of: PackedByteArray = PackedByteArray()
+	draw_of.resize(count)
 	for i: int in count:
 		if i % CANCEL_STRIDE == 0 and _stop(cancel):
 			return false
 		var o: int = i * RECORD
-		var v: int = int(world[o + 8]) & SubstrateBakeData.VARIANT_MASK
+		var packed: int = int(world[o + 8])
+		var v: int = packed & SubstrateBakeData.VARIANT_MASK
 		var ix: int = clampi(int((world[o] + lx * 0.5) / cx), 0, nx - 1)
 		var iz: int = clampi(int((world[o + 2] + lz * 0.5) / cz), 0, nz - 1)
 		var slot: int = (iz * nx + ix) * variants + (0 if is_sand else mini(v, variants - 1))
+		var to_glass: float = (
+			minf(lx * 0.5 - absf(world[o]), lz * 0.5 - absf(world[o + 2]))
+			- reach_of[v] * world[o + 7]
+		)
+		var draw: int = _draw_part(packed, to_glass <= glass_keep)
+		if draw == DRAW_PANE or draw == DRAW_PANE_BEHIND:
+			panes[iz * nx + ix] |= _nearest_pane(world[o], world[o + 2], lx, lz)
 		slot_of[i] = slot
-		counts[slot] += 1
-		if (int(world[o + 8]) & SEEN_FLAGS) != 0:
-			seen[slot] += 1
-	# In a buffer the stones seen from above or through a pane come first, the stones kept
-	# behind them last, so a far chunk can leave the hidden row out.
+		draw_of[i] = draw
+		class_counts[slot * DRAW_PARTS + draw] += 1
 	var buffers: Array[PackedFloat32Array] = []
 	buffers.resize(slots)
 	var cursors: PackedInt32Array = PackedInt32Array()
-	cursors.resize(slots)
-	var behind_cursors: PackedInt32Array = seen.duplicate()
+	cursors.resize(slots * DRAW_PARTS)
 	for s: int in slots:
+		var total: int = 0
+		for draw: int in DRAW_PARTS:
+			cursors[s * DRAW_PARTS + draw] = total
+			total += class_counts[s * DRAW_PARTS + draw]
 		var buffer: PackedFloat32Array = PackedFloat32Array()
-		buffer.resize(counts[s] * FLOATS)
+		buffer.resize(total * FLOATS)
 		buffers[s] = buffer
 	var lows: PackedVector3Array = PackedVector3Array()
 	var highs: PackedVector3Array = PackedVector3Array()
@@ -616,9 +637,6 @@ static func _build_chunks(
 	highs.resize(nx * nz)
 	lows.fill(Vector3(INF, INF, INF))
 	highs.fill(Vector3(-INF, -INF, -INF))
-	var reach_of: PackedFloat32Array = PackedFloat32Array()
-	for v: int in bake.variant_count():
-		reach_of.append(0.5 if is_sand else bake.half_extents[v].length())
 	# pass 2: transforms and tint data; the random numbers are drawn for every stone
 	for i: int in count:
 		if i % CANCEL_STRIDE == 0 and _stop(cancel):
@@ -642,13 +660,9 @@ static func _build_chunks(
 			basis = basis.scaled_local(Vector3(size, size, size))
 		var origin: Vector3 = Vector3(world[o], world[o + 1], world[o + 2])
 		var buffer: PackedFloat32Array = buffers[slot]
-		var w: int = 0
-		if (packed & SEEN_FLAGS) != 0:
-			w = cursors[slot] * FLOATS
-			cursors[slot] += 1
-		else:
-			w = behind_cursors[slot] * FLOATS
-			behind_cursors[slot] += 1
+		var cursor: int = slot * DRAW_PARTS + draw_of[i]
+		var w: int = cursors[cursor] * FLOATS
+		cursors[cursor] += 1
 		_store(buffer, w, basis, origin)
 		var exposure: int = (
 			(packed >> SubstrateBakeData.EXPOSURE_SHIFT) & SubstrateBakeData.EXPOSURE_MASK
@@ -663,7 +677,7 @@ static func _build_chunks(
 			var column: int = iz * nx + ix
 			var total: int = 0
 			for v: int in variants:
-				total += counts[column * variants + v]
+				total += buffers[column * variants + v].size() / FLOATS
 			if total == 0:
 				continue
 			if _stop(cancel):
@@ -671,9 +685,35 @@ static func _build_chunks(
 			var entry: SubstrateChunkData = SubstrateChunkData.new()
 			entry.key = Vector2i(ix, iz)
 			entry.aabb = AABB(lows[column], highs[column] - lows[column])
+			entry.panes = panes[column]
 			for v: int in variants:
-				entry.buffers.append(buffers[column * variants + v])
-				entry.counts.append(counts[column * variants + v])
-				entry.seen_counts.append(seen[column * variants + v])
+				var s: int = column * variants + v
+				entry.buffers.append(buffers[s])
+				entry.counts.append(buffers[s].size() / FLOATS)
+				var end: int = 0
+				for draw: int in SubstrateChunkData.ENDS:
+					end += class_counts[s * DRAW_PARTS + draw]
+					entry.ends.append(end)
 			data.chunks.append(entry)
 	return true
+
+
+## The draw part of a stone (SubstrateChunkData): 0 seen from above, 1 seen only through a pane,
+## 2 kept behind away from the glass (under the surface), 3 kept behind at the glass.
+static func _draw_part(packed: int, at_glass: bool) -> int:
+	if (packed & SubstrateBakeData.FLAG_ABOVE) != 0:
+		return DRAW_ABOVE
+	if (packed & SubstrateBakeData.FLAG_PANE) != 0:
+		return DRAW_PANE
+	if at_glass:
+		return DRAW_PANE_BEHIND
+	return DRAW_SURFACE_BEHIND
+
+
+## The pane bit (SubstrateChunkData) of the glass nearest to a point of the floor.
+static func _nearest_pane(x: float, z: float, lx: float, lz: float) -> int:
+	var to_x: float = lx / 2.0 - absf(x)
+	var to_z: float = lz / 2.0 - absf(z)
+	if to_z <= to_x:
+		return SubstrateChunkData.PANE_FRONT if z > 0.0 else SubstrateChunkData.PANE_BACK
+	return SubstrateChunkData.PANE_RIGHT if x > 0.0 else SubstrateChunkData.PANE_LEFT

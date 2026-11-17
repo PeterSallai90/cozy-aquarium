@@ -57,13 +57,27 @@ static func cell_bounds(data: SubstrateBedData, index: int) -> AABB:
 	)
 
 
+## Half the inner floor size of a bed (x, z), the planes of its panes; infinite without an input.
+static func floor_half(data: SubstrateBedData) -> Vector2:
+	if data == null or data.input == null:
+		return Vector2(INF, INF)
+	return Vector2(data.input.interior_size_m.x, data.input.interior_size_m.z) / 2.0
+
+
+## True when a chunk `distance` metres from the camera draws the stones kept behind the visible
+## ones (always when the look has no behind range).
+static func behind_near(distance: float, look: SubstrateBedLook) -> bool:
+	return look.behind_range_m <= 0.0 or distance <= look.behind_range_m
+
+
 ## The drawn-triangle estimate of a bed (AC 33): the sum over the chunks whose bounds intersect
-## the frustum of instances x the triangles of the LOD the distance to the chunk bounds selects
-## (beyond the look's behind range without the stones kept behind the visible ones).
-## Ray-cast sand grains count 2 triangles each; sand top cells count when they are in the frustum
-## and within the real-grain range. `triangles` holds one PackedInt32Array of triangle counts per
-## LOD for each mesh variant (empty for sand); `frustum` and `camera_local` are in the bed's
-## space.
+## the frustum of the instances the chunk draws for the camera x the triangles of the LOD the
+## distance to the chunk bounds selects. A chunk draws what SubstrateChunkData.drawn_count gives:
+## the stones seen only through a pane when the camera is beyond that pane, the stones kept
+## behind the visible ones within the look's behind range. Ray-cast sand grains count 2 triangles
+## each; sand top cells count when they are in the frustum and within the real-grain range.
+## `triangles` holds one PackedInt32Array of triangle counts per LOD for each mesh variant (empty
+## for sand); `frustum` and `camera_local` are in the bed's space.
 static func estimate_triangles(
 	data: SubstrateBedData,
 	look: SubstrateBedLook,
@@ -73,13 +87,17 @@ static func estimate_triangles(
 ) -> int:
 	var total: int = 0
 	var is_sand: bool = look.grain_class == SubstrateBedLook.CLASS_SAND
+	var half: Vector2 = floor_half(data)
 	for chunk: SubstrateChunkData in data.chunks:
 		if not in_frustum(chunk.aabb, frustum):
 			continue
-		if is_sand:
-			total += chunk.instance_count() * 2
-			continue
 		var distance: float = distance_to(chunk.aabb, camera_local)
+		var near: bool = behind_near(distance, look)
+		var outside: bool = chunk.is_outside(camera_local, half)
+		if is_sand:
+			for v: int in chunk.counts.size():
+				total += chunk.drawn_count(v, near, outside) * 2
+			continue
 		var lod: int = select(distance, look.lod_distances_m, -1, 0.0)
 		for v: int in chunk.counts.size():
 			if v >= triangles.size():
@@ -87,8 +105,7 @@ static func estimate_triangles(
 			var per_lod: PackedInt32Array = triangles[v]
 			if per_lod.is_empty():
 				continue
-			var drawn: int = chunk.drawn_count(v, distance, look.behind_range_m)
-			total += drawn * per_lod[mini(lod, per_lod.size() - 1)]
+			total += chunk.drawn_count(v, near, outside) * per_lod[mini(lod, per_lod.size() - 1)]
 	if not is_sand or data.top_tiles.is_empty():
 		return total
 	for index: int in data.top_placements.size() / SubstrateBedData.PLACEMENT_FLOATS:

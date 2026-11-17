@@ -39,8 +39,9 @@ var _next_placement: int = 0
 var _cell_number: int = -1
 var _cell_part: int = 0
 var _last_cell: Vector2 = Vector2(INF, INF)
-## Built chunks: {"box": AABB, "lod": int, "full": bool (the stones kept behind are drawn too),
-## "items": Array of [MultiMesh, variant, instances seen from above or through a pane]}.
+## Built chunks: {"data": SubstrateChunkData, "lod": int, "near": bool (the stones kept behind
+## are drawn), "outside": bool (the camera is beyond a pane of the chunk), "items": Array of
+## [MultiMesh, variant]}.
 var _chunks: Array[Dictionary] = []
 ## Built top cells: {"node": MultiMeshInstance3D, "box": AABB, "near": bool}.
 var _top_cells: Array[Dictionary] = []
@@ -161,17 +162,22 @@ func update_lod(camera_local: Vector3) -> void:
 	_has_camera = true
 	_lod_dirty = false
 	_camera_local = camera_local
-	if not _is_sand:
-		for chunk: Dictionary in _chunks:
-			var distance: float = SubstrateLod.distance_to(chunk["box"], camera_local)
-			var lod: int = SubstrateLod.select(
+	var half: Vector2 = SubstrateLod.floor_half(_data)
+	for chunk: Dictionary in _chunks:
+		var data: SubstrateChunkData = chunk["data"]
+		var distance: float = SubstrateLod.distance_to(data.aabb, camera_local)
+		var lod: int = 0
+		if not _is_sand:
+			lod = SubstrateLod.select(
 				distance, _look.lod_distances_m, chunk["lod"], _look.lod_hysteresis
 			)
-			var near: bool = _behind_drawn(distance, chunk["full"])
-			if lod != int(chunk["lod"]) or near != bool(chunk["full"]):
-				chunk["lod"] = lod
-				chunk["full"] = near
-				_apply_lod(chunk)
+		var near: bool = _behind_drawn(distance, chunk["near"])
+		var outside: bool = data.is_outside(camera_local, half)
+		if lod != int(chunk["lod"]) or near != bool(chunk["near"]) or outside != chunk["outside"]:
+			chunk["lod"] = lod
+			chunk["near"] = near
+			chunk["outside"] = outside
+			_apply_lod(chunk)
 	for cell: Dictionary in _top_cells:
 		var near: bool = (
 			SubstrateLod.distance_to(cell["box"], camera_local) < _look.sand_range_end_m
@@ -332,27 +338,22 @@ func _build_placement(index: int) -> void:
 func _build_chunk(chunk: SubstrateChunkData) -> void:
 	var items: Array = []
 	var lod: int = 0
+	# no camera yet: everything at the coarsest mesh, update_lod refines it
+	var near: bool = true
+	var outside: bool = true
 	if not _is_sand:
-		# no camera yet: the coarsest mesh, update_lod refines it
 		lod = _look.lod_distances_m.size()
-		if _has_camera:
-			lod = SubstrateLod.select(
-				SubstrateLod.distance_to(chunk.aabb, _camera_local), _look.lod_distances_m, -1, 0.0
-			)
-	var full: bool = true
-	if not _is_sand and _look.behind_range_m > 0.0:
-		full = (
-			_has_camera
-			and SubstrateLod.distance_to(chunk.aabb, _camera_local) <= _look.behind_range_m
-		)
+	if _has_camera:
+		var distance: float = SubstrateLod.distance_to(chunk.aabb, _camera_local)
+		if not _is_sand:
+			lod = SubstrateLod.select(distance, _look.lod_distances_m, -1, 0.0)
+		near = SubstrateLod.behind_near(distance, _look)
+		outside = chunk.is_outside(_camera_local, SubstrateLod.floor_half(_data))
 	for v: int in chunk.buffers.size():
 		if chunk.counts[v] == 0:
 			continue
 		var mesh: Mesh = _quad if _is_sand else _mesh_of(v, lod)
 		var multimesh: MultiMesh = _make_multimesh(chunk.buffers[v], mesh)
-		var seen: int = chunk.seen_counts[v] if v < chunk.seen_counts.size() else chunk.counts[v]
-		if not full:
-			multimesh.visible_instance_count = seen
 		var node: MultiMeshInstance3D = MultiMeshInstance3D.new()
 		node.name = "Chunk_%d_%d_v%d" % [chunk.key.x, chunk.key.y, v]
 		node.multimesh = multimesh
@@ -361,17 +362,26 @@ func _build_chunk(chunk: SubstrateChunkData) -> void:
 		node.visible = _stones_visible
 		add_child(node)
 		_stone_nodes.append(node)
-		items.append([multimesh, v, seen])
-	if not _is_sand:
-		_chunks.append({"box": chunk.aabb, "lod": lod, "full": full, "items": items})
+		items.append([multimesh, v])
+	var entry: Dictionary = {
+		"data": chunk, "lod": lod, "near": near, "outside": outside, "items": items
+	}
+	_chunks.append(entry)
+	_apply_lod(entry)
 
 
+## Gives the MultiMeshes of a built chunk the mesh of its LOD and the number of instances it
+## draws (SubstrateChunkData.drawn_count: a prefix of the buffer).
 func _apply_lod(chunk: Dictionary) -> void:
+	var data: SubstrateChunkData = chunk["data"]
 	var items: Array = chunk["items"]
 	for item: Array in items:
 		var multimesh: MultiMesh = item[0]
-		multimesh.mesh = _mesh_of(int(item[1]), int(chunk["lod"]))
-		multimesh.visible_instance_count = -1 if bool(chunk["full"]) else int(item[2])
+		var variant: int = int(item[1])
+		if not _is_sand:
+			multimesh.mesh = _mesh_of(variant, int(chunk["lod"]))
+		var drawn: int = data.drawn_count(variant, bool(chunk["near"]), bool(chunk["outside"]))
+		multimesh.visible_instance_count = -1 if drawn >= data.counts[variant] else drawn
 
 
 ## True when a chunk at `distance` draws the stones kept behind the visible ones too (with the
