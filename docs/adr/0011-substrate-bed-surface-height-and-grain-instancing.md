@@ -1,7 +1,8 @@
 # ADR 0011: Substrate bed: surface height (H1), settled baked stones and grain instancing
 
 - Status: Proposed (accepted when the #28 pull request merges; gated by `needs:owner`)
-- Date: 2026-11-15 (first draft 2026-11-14, rewritten for the look spike v2 approach)
+- Date: 2026-11-17 (first draft 2026-11-14, rewritten for the look spike v2 approach on
+  2026-11-15, updated to the built implementation and its measurement on 2026-11-17)
 - Decision log reference: none (no row D1 to D21 changes; D18 is the guard). Changes the meaning
   of item heights and of a flat heightmap in "Model conventions" and the save-format "Units" line
   of docs/architecture.md, without a `format_version` bump. Refines the "Substrate" and
@@ -176,6 +177,21 @@ floor and an empty heightmap is flat. Items do not exist yet (#31) and no save h
       view. The shown bed stays visible until the new view is complete; then, in one frame, the new
       view becomes visible with the current tint, the old one is hidden and `bed_swapped` is
       emitted. A new type change cancels the running job and drops the pending view.
+    - **Instance upload.** On a renderer with a `RenderingDevice` (Forward+) the instance data
+      is written straight into the GPU buffer of each `MultiMesh`
+      (`RenderingServer.multimesh_get_buffer_rd_rid` plus `RenderingDevice.buffer_update`,
+      run through `RenderingServer.call_on_render_thread`), and every `MultiMesh` gets the chunk
+      bounds as its custom AABB, because the server computes no bounds from data it never saw.
+      The `buffer` property is not set: through it, every mesh change of a LOD swap made the
+      server read the whole instance buffer back from the GPU (a stall of 0.1 to 0.85 ms per
+      swap), and the server kept a CPU copy and a second buffer half for per-instance motion
+      vectors (TAA). The stones never move, so TAA reprojects them with the camera; the GPU
+      buffer memory of the beds halves and a mesh swap costs about 0.5 microseconds. Without a
+      `RenderingDevice` (headless, Compatibility) the `buffer` property is set.
+    - **Engine dependency.** The direct upload relies on how Godot 4.7.2 stores `MultiMesh`
+      data (the buffer layout of `TRANSFORM_3D` with custom data, no motion-vector half when the
+      server never saw the data, no readback on a mesh change). Every Godot upgrade re-checks it:
+      the bed view tests, the drawn-triangle check and an orbit run of the measure script.
     - Views already built in the current tank are kept hidden and swap in within one frame
       ("cached type"). Assembled data is cached per (tank id, substrate id, packing version) for
       the session (LRU, 6 entries), so a return to a tank only re-instances.
@@ -191,7 +207,14 @@ floor and an empty heightmap is flat. Items do not exist yet (#31) and no save h
     swapping the mesh of the chunk's `MultiMesh`; sand top cells are shown only within the
     real-grain range. At most 800 `MultiMeshInstance3D` nodes per bed in the large tank; the LOD
     update costs at most 0.5 ms main-thread time per frame. Visibility culling is the offline
-    flags (rule 7); Godot frustum-culls the chunks.
+    flags (rule 7); Godot frustum-culls the chunks by their custom AABB (chunk bounds plus 1 mm)
+    and the sand top cells by the tile bounds at the cell (cell bounds plus 3 mm).
+    The LOD update is **incremental**: it runs only after the camera moved at least
+    `SubstrateLod.LOD_STEP_M` (5 mm) since the last update, and then works out again only the
+    chunks and sand top cells whose state the move may have changed (each keeps the camera
+    distance to its next LOD switch, behind-range, pane or real-grain-range hand-over); a property
+    is set only when its value changes. The result equals a full pass over every chunk. Building
+    a view runs no full LOD pass per step.
 12. **Materials.** Four shaders in `game/shaders/`: `substrate_stone`, `substrate_sand_grain`,
     `substrate_sand_top`, `substrate_core`. Per-type look values live in one look resource per
     type in `game/assets/substrate/looks/` (materials, LOD distances, sand range, core fraction,
@@ -241,9 +264,23 @@ floor and an empty heightmap is flat. Items do not exist yet (#31) and no save h
     - `top_12`: camera (0.1, h + 0.12, 0.12), target (0.1, h, 0.04);
     - `corner`: camera (-x/2 - 0.22, h + 0.1, o + 0.22), target (-x/2 + 0.06, 0.5 h, z_f - 0.06).
 18. **Measurement method.**
-    - Headless (CI): the drawn-triangle estimate = the sum over chunks whose bounds intersect the
-      camera frustum of instances x triangles of the LOD the chunk's distance selects (sand: top
-      cells in range and frustum, 2 per grain); unique stones; flags; shadow settings; node count.
+    - Headless (CI): the drawn-triangle estimate (`SubstrateLod.estimate_triangles`) = the sum
+      over chunks whose cull bounds intersect the camera frustum of instances x triangles of the
+      chosen LOD (sand: top cells in range and frustum, 2 per grain); unique stones; flags; shadow
+      settings; node count. The estimate is an **upper bound** of what Godot draws, so it can
+      stand in for the drawn count in CI:
+      - it tests the bounds the renderer culls by (`chunk_cull_bounds`: chunk bounds plus 1 mm;
+        `cell_cull_bounds`: cell bounds plus 3 mm), grown by 10 micrometres against rounding;
+        the view takes these bounds from `SubstrateLod`, so both use one definition;
+      - it counts each chunk at the finest LOD the hysteresis can keep at its distance
+        (`finest_lod`) and with the stones kept behind wherever the hysteresis may still draw
+        them (`may_draw_behind`);
+      - it allows for the 5 mm update step of rule 11: distances are taken 5 mm shorter and a
+        pane counts as passed within 5 mm of its glass plane.
+      Measured, the estimate is 1.0 to about 1.6 times the drawn primitives (never below 0.9996;
+      the shortfall is the 12 to 16 triangles of core, floor skin and sand surface, which the
+      budget does not count). Random headless camera walks (15 beds x 300 steps) found no step
+      where it was below the triangles drawn.
     - Owner machine (`game/tests/measure/substrate_budget_measure.gd`, not headless, vsync off):
       GPU time from `RenderingServer.viewport_get_measured_render_time_gpu`, 600 warm-up frames,
       then 4 alternating pairs of 300-frame blocks bed visible / bed hidden; added time = median
@@ -294,32 +331,49 @@ this is a known uncertainty of the estimate, removed only by measuring a card of
 ## Measured results
 
 Look spike v2 numbers (RX 6800 XT, large tank, 1080p, TAA, stand-in load, 5 cm chunks; not the
-final implementation) are kept here for comparison. The technical-artist replaces them with the
-measurement of the implementation before the pull request; the tester can repeat it (AC 34).
+final implementation) are kept for comparison.
 
-Implementation column: measured by the technical-artist on 2026-11-17 with the method of rule 18
-(600 warm-up frames, 4 alternating pairs of 300-frame blocks, every pair within 0.02 ms) for all
-five types at the default camera and the eight close-up views of rule 17, large tank, 1920 x 1080,
-TAA, stand-in load of rule 16. Every check passed: added GPU time at most 0.45 ms in every view
-(limit 0.5 ms on this card), primitives at most 0.44 M at the default camera and 0.93 M at a
-close-up, the headless estimate at least 0.95 of the reported primitives. The bed was a
-SubstrateBedView driven directly, because the SubstrateBed node of the developer group did not
-exist yet; the type-change hitch (rule 15) is measured after it does.
+Implementation column: the final measurement of the built code (instance upload and incremental
+LOD of rules 10 and 11, estimate of rule 18) on 2026-11-17, by the technical-artist (GPU,
+triangles) and the tester (hitch, orbit, colour), with the method of rule 18: 600 warm-up frames,
+4 alternating pairs of 300-frame blocks, every pair within 0.02 ms; all five types at the default
+camera and the eight close-up views of rule 17, large tank, TAA, stand-in load of rule 16. The
+frame was drawn at exactly **1920 x 1080** in a borderless window (`--borderless`); a normal
+window on a 1080-line screen only reaches 1920 x 1061, and the earlier implementation numbers
+were taken at that size. The extra cases of the small and medium tanks (AC 34, a smaller tank
+with a higher estimate than the large one) used the stand-in load scaled to the floor area
+(small 15 fish and 25 decor, medium 27 fish and 45 decor). Every check passed.
 
 | Item | Spike v2 (provisional) | Implementation |
 | --- | --- | --- |
-| GPU and driver | AMD Radeon RX 6800 XT | AMD Radeon RX 6800 XT, Vulkan 1.4.315, Godot 4.7.2 |
+| GPU and driver | AMD Radeon RX 6800 XT | AMD Radeon RX 6800 XT, Vulkan 1.4.315, Godot 4.7.2, Windows 11 |
 | Unique stones, worst type | 93,043 (gravel_natural) | 96,938 (gravel_natural) |
-| Triangles drawn, default camera, worst type | 558 k (gravel_natural) | 438 k (gravel_natural) |
-| Triangles drawn, worst close-up | 993 k (gravel_natural, glass 12 cm) | 932 k (pebbles_river, glass_close_left) |
-| Added GPU, default camera, worst type | 0.22 ms (gravel_natural) | 0.20 ms (gravel_natural) |
-| Added GPU, worst close-up | 0.37 ms (sand_fine, glass 35 cm) | 0.45 ms (sand_fine, corner) |
-| Mid-range estimate (x F = 3) | 1.11 ms | 1.36 ms |
+| Triangles drawn, default camera, worst type | 558 k (gravel_natural) | 437,936 (gravel_natural) |
+| Triangles drawn, worst close-up | 993 k (gravel_natural, glass 12 cm) | 931,630 (pebbles_river, glass_close_left) |
+| Headless estimate, largest close-up (rule 18) | not measured | 992,314 (gravel_natural, glass_close_left), 0.77 % under 1.0 M |
+| Estimate / drawn | not measured | 0.9996 to 1.62 |
+| Added GPU, default camera, worst type | 0.22 ms (gravel_natural) | 0.196 ms (gravel_natural) |
+| Added GPU, worst view | 0.37 ms (sand_fine, glass 35 cm) | 0.488 ms (sand_fine, corner) |
+| Mid-range estimate (x F = 3) | 1.11 ms | 1.46 ms |
+| Added GPU, extra cases of other tanks | not measured | at most 0.27 ms (small sand_fine default; 0.263 ms in the tester's run) |
 | MultiMesh nodes, worst type | 640 (gravel_natural) | 640 (gravel_natural), up to 642 draw calls |
 | Render-server CPU, worst type | 0.31 ms (gravel_natural) | 0.33 ms (gravel_natural) |
-| Build (one blocking step, GDScript) | 0.87 s (gravel_natural) | assembly 0.33 s on one thread (gravel_natural, headless); threaded build to be measured with SubstrateBed |
-| Type change: longest frame (median of 10), time to swap | not measured | to be measured |
+| Main-thread work per frame (poll, instancing, swap) | one blocking step | at most 3.2 ms |
+| Build of a new bed (time to swap) | 0.87 s blocking (gravel_natural) | at most 349 ms (gravel_natural), threaded |
+| Cached type (time to swap) | not measured | at most 1.6 ms |
+| Type change: longest frame, median of the new types | not measured | 5.08 ms (largest single frame 20.4 ms, a tank change) |
+| LOD update while orbiting (3 tanks x 5 types, 2 runs) | not measured | at most 0.38 ms, p99 0.12 ms |
+| Black sand colour (AC 41), chroma / max channel | not measured | 0.079 / 0.240 (limits 0.20 / 0.25) |
+| Instance data in memory, worst type | not measured | 6.2 MB (gravel_natural) |
 | Baked data size | 103 to 373 KB per type | 46 to 295 KB per file, 790 KB in total |
+
+Before the direct instance upload, LOD swaps while orbiting cost up to 15 ms in one frame
+(gravel_natural) and creating a `MultiMesh` occasionally 11.6 to 49.9 ms; both are gone in four
+runs of 10 type and 5 tank changes.
+
+Raw data (JSON and logs, not committed, on the owner machine):
+`.claude/state/previews/28/measure-ta/` (GPU and triangles) and
+`.claude/state/previews/28/measure-tester/` (GPU, hitch, orbit, colour with screenshots).
 
 ## Alternatives considered
 
@@ -356,13 +410,23 @@ exist yet; the type-change hitch (rule 15) is measured after it does.
   (ADR 0009) and the default framing (ADRs 0005 and 0006) do not change. Caustics and fog read the
   depth buffer; sand grains provide the depth of their front disc.
 - The substrate takes a large share of the frame budget at close range (up to 1.0 M triangles);
-  #49 confirms it in the full scene. With F = 3 the spike's worst view (0.37 ms) leaves 0.13 ms of
-  headroom against the 0.5 ms limit on the RX 6800 XT; an RX 5500 XT class card is not covered by
-  the estimate.
+  #49 confirms it in the full scene. With F = 3 the worst measured view (0.488 ms, 1.46 ms
+  mid-range estimate) leaves 0.012 ms of headroom against the 0.5 ms limit on the RX 6800 XT; an
+  RX 5500 XT class card is not covered by the estimate.
+- **Triangle headroom is thin.** The largest headless estimate (992,314, large tank,
+  gravel_natural, glass_close_left) is 0.77 % under the 1.0 M cap. Any re-bake, new stone mesh,
+  LOD distance change or chunk size change can break the AC 33 cap and needs the estimate re-run
+  before it merges.
+- **Driver allocation hitch.** A one-off driver allocation can still cost 10 to 50 ms in a single
+  frame when the GPU memory of the beds crosses a block boundary. It was not seen in 4 runs after
+  the direct instance upload; #49 watches for it in the full scene.
+- **Godot internals.** The direct instance upload (rule 10) depends on `MultiMesh` internals of
+  Godot 4.7.2; every engine upgrade re-checks it before the version changes.
 - The tank and cabinet assets do not change: the lamp-lit cabinet top and the bottom pane edge
   still show below and in front of the tank (out of scope of #28).
 - TAA changes the look of every frame (softness, ghosting on moving fish and ripples, residual
   shimmer on the finest grains); the owner judges it at PR time.
 - Memory: assembled data up to about 6 MB RAM per (tank, type) for gravel, LRU of 6 entries; built
-  views of the current tank stay in video memory (about 20 MB for all five types in the large
-  tank). Both are reported in the measurement.
+  views of the current tank stay in video memory (the instance data of all five types in the
+  large tank is about 21 MB; the direct upload keeps a single GPU copy with no motion-vector half
+  and no CPU copy in the rendering server). Both are reported in the measurement.
