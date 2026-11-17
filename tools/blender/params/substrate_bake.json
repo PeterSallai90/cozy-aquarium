@@ -102,8 +102,19 @@
       "seam_half_m": 0.0045,
       "seam_extra_m": 0.012,
       "fills": 4,
-      "surface_bias_m": 0.0013,
-      "seam_balance": 1.05
+      "surface_bias_m": 0.0011,
+      "seam_balance": 1.05,
+      "hole_fill": {
+        "cell_m": 0.0005,
+        "low_m": 0.0035,
+        "min_cells": 6,
+        "band_m": 0.003,
+        "samples": 400,
+        "rounds": 4,
+        "frames": 200
+      },
+      "context_passes": 3,
+      "fill_overfill_m": 0.0009
     },
     "pour": {
       "max_active": 900,
@@ -166,7 +177,18 @@
       "seam_extra_m": 0.013,
       "fills": 4,
       "surface_bias_m": 0.001,
-      "seam_balance": 1.05
+      "seam_balance": 1.05,
+      "hole_fill": {
+        "cell_m": 0.0005,
+        "low_m": 0.0045,
+        "min_cells": 8,
+        "band_m": 0.0035,
+        "samples": 400,
+        "rounds": 4,
+        "frames": 200
+      },
+      "context_passes": 3,
+      "fill_overfill_m": 0.0009
     },
     "pour": {
       "max_active": 900,

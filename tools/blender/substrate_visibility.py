@@ -604,38 +604,55 @@ class Pass:
                 shift(seam_x, 0.0, -period),
                 shift(seam_z, period, 0.0),
             ]
-            others = []
-            for i_a in (-1, 0, 1):
-                for i_b in (-1, 0, 1):
+            # The fills around the cell are random at run time (any fill but k). With
+            # `top.context_passes` > 1 the flags are worked out with as many neighbourhoods,
+            # every neighbour cell taking another fill in each, and OR-ed: a stone that shows
+            # next to any neighbour is written (one neighbourhood dropped the seam stones that
+            # only another neighbour leaves open, holes in rows along the tile borders).
+            result = None
+            for context in range(max(1, int(top.get("context_passes", 1)))):
+                others = []
+                for i_a in (-1, 0, 1):
+                    for i_b in (-1, 0, 1):
+                        dx, dz = i_a * period, -i_b * period
+                        if (i_a, i_b) != (0, 0):
+                            if context == 0:
+                                neighbour = (k + i_a + 2 * i_b) % fills
+                            else:
+                                step = (i_a + 2 * i_b + context) % max(1, fills - 1)
+                                neighbour = (k + 1 + step) % fills
+                            others.append(shift(fill[neighbour], dx, dz))
+                        if (i_a, i_b) not in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                            others.append(shift(node, dx, dz))
+                        if (i_a, i_b) not in ((0, 0), (0, 1)):
+                            others.append(shift(seam_x, dx, dz))
+                        if (i_a, i_b) not in ((0, 0), (1, 0)):
+                            others.append(shift(seam_z, dx, dz))
+                for i_a, i_b in ((2, -1), (2, 0), (2, 1), (-1, 2), (0, 2), (1, 2), (2, 2)):
                     dx, dz = i_a * period, -i_b * period
-                    if (i_a, i_b) != (0, 0):
-                        others.append(shift(fill[(k + i_a + 2 * i_b) % fills], dx, dz))
-                    if (i_a, i_b) not in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                        others.append(shift(node, dx, dz))
-                    if (i_a, i_b) not in ((0, 0), (0, 1)):
+                    others.append(shift(node, dx, dz))
+                    if i_a < 2:
                         others.append(shift(seam_x, dx, dz))
-                    if (i_a, i_b) not in ((0, 0), (1, 0)):
+                    if i_b < 2:
                         others.append(shift(seam_z, dx, dz))
-            for i_a, i_b in ((2, -1), (2, 0), (2, 1), (-1, 2), (0, 2), (1, 2), (2, 2)):
-                dx, dz = i_a * period, -i_b * period
-                others.append(shift(node, dx, dz))
-                if i_a < 2:
-                    others.append(shift(seam_x, dx, dz))
-                if i_b < 2:
-                    others.append(shift(seam_z, dx, dz))
-            got = flags_for(
-                pieces + others, self.samples, self.cell, TOP_DIRS, [], self.min_cells,
-                len(pieces),
-            )
+                got = flags_for(
+                    pieces + others, self.samples, self.cell, TOP_DIRS, [], self.min_cells,
+                    len(pieces),
+                )
+                found = (
+                    np.concatenate([g[0] for g in got]),
+                    np.concatenate([g[1] for g in got]),
+                )
+                result = found if result is None else merge(result, found)
             stones = np.concatenate(pieces)
-            flags = np.concatenate([g[0] for g in got])
-            exposure = np.concatenate([g[1] for g in got])
+            flags, exposure = result
             inside = (stones[:, 0] >= 0.0) & (stones[:, 0] < period)
             inside &= (stones[:, 2] > -period) & (stones[:, 2] <= 0.0)
             stones, flags, exposure = stones[inside], flags[inside], exposure[inside]
             behind = behind_mask(stones, self.shapes, top["thickness_m"], [], self.top_keep, 0.0)
             name = f"I{k}"
-            out[name] = self._balance_seams(name, *self._finish(name, stones, (flags, exposure), behind))
+            finished = self._finish(name, stones, (flags, exposure), behind)
+            out[name] = self._balance_seams(name, *finished)
             # surface report: the top height field of the tile
             points = self.shapes.top_points(out[name][0], top["thickness_m"] * 0.5)
             field = height_field(points, 0.0, -period, cells, cells) + base

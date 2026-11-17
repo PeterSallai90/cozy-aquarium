@@ -363,6 +363,11 @@ def parse_args(argv: list[str]):  # noqa: ANN201
     return parser.parse_args(blender_common.script_args(argv))
 
 
+# Top block values that act after the pour (placement, visibility, extra stones), not part of
+# the cached pour.
+AFTER_POUR_TOP = ("lift_m", "surface_bias_m", "seam_balance", "hole_fill", "context_passes")
+
+
 def _part_key(type_name: str, params: dict, part: str, seed: int, tank: str) -> str:
     after_pour = ("keep", "visibility", "data_set", "seam_trim_share", "glass_fill")
     relevant = {k: v for k, v in params.items() if k not in after_pour}
@@ -374,7 +379,7 @@ def _part_key(type_name: str, params: dict, part: str, seed: int, tank: str) -> 
         relevant["top"] = {
             k: v
             for k, v in params["top"].items()
-            if k not in ("lift_m", "surface_bias_m", "seam_balance")
+            if k not in AFTER_POUR_TOP
         }
     text = json.dumps([type_name, part, seed, tank, relevant], sort_keys=True)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
@@ -530,6 +535,14 @@ def bake(argv: list[str]) -> None:
         reports.append(report)
         if part == "tank" and "glass_fill" in params and not args.part:
             reports.append(_fill_notches(args, params, built, sets, log))
+        if part == "top" and "hole_fill" in params["top"] and not args.part:
+            import substrate_sim as sim  # noqa: PLC0415
+            import substrate_tiles as tiles  # noqa: PLC0415
+
+            sim_args = {"type": args.type, "seed": args.seed}
+            reports.append(
+                tiles.fill_top_holes(sim_args, params, sim.Variants(built), sets, log)
+            )
         blender_sets.update(sets)
     if args.part:
         log(f"{name}.{args.part}: poured in {time.time() - t0:.1f} s (cache only, no data file)")

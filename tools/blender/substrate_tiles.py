@@ -207,10 +207,14 @@ class TileBaker:
                 _shift(seam_z, period, 0.0),
             ]
         )
+        # The seams settle a little higher in their narrow trough than a fill poured to the same
+        # target, which leaves a low band in the middle of every tile; `fill_overfill_m` pours
+        # the fills that much higher (the lift of the layer then re-centres the mean surface).
+        fill_target = target + top.get("fill_overfill_m", 0.0)
         for k in range(top["fills"]):
             self._pour(
                 f"I{k}", (0.0, period, 0.0, period), (-h, period + h, -h, period + h), set(),
-                frame, target, (0.0, period, 0.0, period), True,
+                frame, fill_target, (0.0, period, 0.0, period), True,
             )
 
 
@@ -270,3 +274,166 @@ def bake_part(args: dict, params: dict, variants: sim.Variants, part: str, log) 
     report["timing_s"] = baker.timing
     report["sim_seconds"] = round(baker.world.sim_seconds, 1)
     return report, baker.sets
+
+
+def _surface_samples(variants: sim.Variants, per_stone: int) -> list[np.ndarray]:
+    """Points on the LOD0 surface of every variant at unit size (vertices plus seeded points
+    inside the triangles), Blender frame."""
+    out = []
+    rng = np.random.default_rng(28)
+    for variant in variants.variants:
+        verts = np.asarray(variant["lods"][0]["verts"], dtype=float)
+        tris = np.asarray(variant["lods"][0]["tris"], dtype=int)
+        a, b, c = verts[tris[:, 0]], verts[tris[:, 1]], verts[tris[:, 2]]
+        parts = [verts]
+        for _ in range(max(1, per_stone // max(1, len(tris)))):
+            u = rng.random((len(tris), 1))
+            v = rng.random((len(tris), 1))
+            flip = (u + v) > 1.0
+            u = np.where(flip, 1.0 - u, u)
+            v = np.where(flip, 1.0 - v, v)
+            parts.append(a + (b - a) * u + (c - a) * v)
+        out.append(np.concatenate(parts))
+    return out
+
+
+def _top_heights(
+    stones: np.ndarray, samples: list[np.ndarray], period: float, cell: float
+) -> np.ndarray:
+    """The highest drawn point per `cell` over the top cell 0 <= x, y < period (Blender frame),
+    from points on the stone surfaces. Cells without a stone read 0 (the tile floor)."""
+    n = max(1, int(round(period / cell)))
+    grid = np.zeros((n, n))
+    if len(stones) == 0:
+        return grid
+    rot = sim.quat_to_matrix(stones[:, 3:7])
+    variant = stones[:, 8].astype(int)
+    for vi, points in enumerate(samples):
+        sel = np.nonzero(variant == vi)[0]
+        if len(sel) == 0:
+            continue
+        world = np.einsum("nij,kj->nki", rot[sel], points) * stones[sel, 7][:, None, None]
+        world = (world + stones[sel, 0:3][:, None, :]).reshape(-1, 3)
+        ix = np.floor(world[:, 0] / cell).astype(int)
+        iy = np.floor(world[:, 1] / cell).astype(int)
+        inside = (ix >= 0) & (ix < n) & (iy >= 0) & (iy < n)
+        np.maximum.at(grid, (ix[inside], iy[inside]), world[inside, 2])
+    return grid
+
+
+def _low_spots(low: np.ndarray, minimum: int) -> list[list[tuple[int, int]]]:
+    """Connected (4-neighbour) groups of True cells with at least `minimum` cells."""
+    seen = np.zeros_like(low, dtype=bool)
+    groups = []
+    n, m = low.shape
+    for i in range(n):
+        for j in range(m):
+            if not low[i, j] or seen[i, j]:
+                continue
+            stack = [(i, j)]
+            seen[i, j] = True
+            group = []
+            while stack:
+                a, b = stack.pop()
+                group.append((a, b))
+                for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    c, d = a + da, b + db
+                    if 0 <= c < n and 0 <= d < m and low[c, d] and not seen[c, d]:
+                        seen[c, d] = True
+                        stack.append((c, d))
+            if len(group) >= minimum:
+                groups.append(group)
+    return groups
+
+
+def fill_top_holes(args: dict, params: dict, variants: sim.Variants, sets: dict, log) -> dict:
+    """Top tiles: drops extra stones into the holes of every fill I<k> (params top.hole_fill).
+    A fill is poured against frozen seam stones and settles looser in a band beside them, which
+    leaves holes down to the core in rows along every tile border: a grid from above. A hole is
+    a group of at least `min_cells` cells of `cell_m` in the band from the seam band out to
+    `band_m` beyond it, whose highest drawn point (from `samples` points per stone surface) lies
+    more than `low_m` below the pour target. One stone of the smallest
+    size class falls into each hole onto the frozen frame and fill, `rounds` passes; a stone
+    whose top would be cropped by the visibility pass is not kept. Adds the stones to the sets in
+    place and returns the settling report."""
+    top = params["top"]
+    fill = top["hole_fill"]
+    period, h = top["period_m"], top["seam_half_m"]
+    target = top["thickness_m"] + top.get("overfill_m", params["overfill_m"])
+    crop_top = top["thickness_m"] + params["keep"]["crop_above_m"] - 0.0005
+    cell = fill.get("cell_m", 0.0005)
+    low = fill["low_m"]
+    band = fill.get("band_m", 1.0)
+    samples = _surface_samples(variants, int(fill.get("samples", 400)))
+    small = [min(params["size_classes"], key=lambda c: c[0])]
+    world = sim.SimWorld(variants, params["sim_scale"], params["physics"])
+    world.set_walls(
+        _walls(-h, period + h, -h, period + h, target + 0.6, set(), params["physics"])
+    )
+    node, seam_x, seam_z = sets["C"], sets["X"], sets["Z"]
+    frame = _cat(
+        [
+            node,
+            _shift(node, period, 0.0),
+            _shift(node, 0.0, period),
+            _shift(node, period, period),
+            seam_x,
+            _shift(seam_x, 0.0, period),
+            seam_z,
+            _shift(seam_z, period, 0.0),
+        ]
+    )
+    n = max(1, int(round(period / cell)))
+    centres = (np.arange(n) + 0.5) * cell
+    border = np.minimum(
+        np.minimum(centres[:, None], period - centres[:, None]),
+        np.minimum(centres[None, :], period - centres[None, :]),
+    )
+    # the holes are looked for beside the seams: from the seam band out to `band_m` beyond it
+    outside_seams = (border >= h) & (border < h + band)
+    added_total = 0
+    for k in range(top["fills"]):
+        name = f"I{k}"
+        rng = random.Random(f"{args['type']}|hole_fill|{name}|{args['seed']}")
+        added = np.zeros((0, sim.STONE_COLS))
+        for round_index in range(fill.get("rounds", 6)):
+            everything = _cat([frame, sets[name], added])
+            heights = _top_heights(everything, samples, period, cell)
+            holes = _low_spots((heights < target - low) & outside_seams, fill.get("min_cells", 4))
+            if not holes:
+                break
+            batch = []
+            for group in holes:
+                a, b = min(group, key=lambda c: heights[c[0], c[1]])
+                size = sim.sample_size(rng, small)
+                around = heights[max(0, a - 3) : a + 4, max(0, b - 3) : b + 4]
+                q = sim.random_quat(rng)
+                batch.append(
+                    [
+                        (a + 0.5) * cell,
+                        (b + 0.5) * cell,
+                        float(around.max()) + 0.6 * size,
+                        q[0],
+                        q[1],
+                        q[2],
+                        q[3],
+                        size,
+                        rng.randrange(len(variants.variants)),
+                    ]
+                )
+            part = np.array(batch)
+            reach = float(part[:, 2].min()) - 3.0 * float(part[:, 7].max())
+            near = everything[everything[:, 2] + variants.vertical_half(everything) > reach]
+            settled = world.run_batch(near, part, int(fill.get("frames", 200)))
+            ok = np.isfinite(settled).all(axis=1) & (settled[:, 2] > 0.0)
+            ok &= (settled[:, 0] >= 0.0) & (settled[:, 0] < period)
+            ok &= (settled[:, 1] >= 0.0) & (settled[:, 1] < period)
+            ok &= sim.drawn_tops(settled, variants) < crop_top
+            added = _cat([added, settled[ok]])
+            log(f"  {name} holes round {round_index}: {len(holes)} holes, {int(ok.sum())} kept")
+        sets[name] = _cat([sets[name], added])
+        added_total += len(added)
+    log(f"top holes: {added_total} stones added")
+    report = world.settling_report()
+    report["sim_seconds"] = round(world.sim_seconds, 1)
+    return report
