@@ -28,6 +28,9 @@ var _substrates: SubstrateCatalog = null
 var _fog_settings: WaterFogSettings = null
 var _caustic_settings: WaterCausticSettings = null
 var _displayed_tank_id: StringName = &""
+var _displayed_tank: TankDefinition = null
+## Assembled substrate beds and baked data for the session, shared by the bed of every tank shown.
+var _substrate_cache: SubstrateBedCache = SubstrateBedCache.new()
 var _camera_distance: float = 0.0
 ## The tank instance made while resolving the definition; _show_tank adds it to the room.
 var _resolved_tank: Node3D = null
@@ -118,6 +121,7 @@ func _show_tank() -> void:
 		stand_z = _stand_z(definition)
 	_add_furniture(&"Cabinet", definition, stand_z)
 	_displayed_tank_id = &""
+	_displayed_tank = null
 	var tank: Node3D = _resolved_tank
 	var water: TankWater = null
 	_resolved_tank = null
@@ -129,6 +133,7 @@ func _show_tank() -> void:
 			water.build(definition, _fog_settings, _caustic_settings)
 		add_child(tank)
 		_displayed_tank_id = definition.id
+		_displayed_tank = definition
 		_apply_substrate()
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)
 	var mount: Node3D = null
@@ -156,16 +161,23 @@ func _on_substrate_changed(_substrate_id: StringName, _colour: Color) -> void:
 	_apply_substrate()
 
 
-## Gives the substrate layer of the shown tank the colour and look of the model's substrate. An
-## empty or unknown id shows the default type with its default colour, silently (ADR 0010). Reads
-## the model only.
+## Shows the model's substrate on the bed of the shown tank (Tank/SubstrateAnchor/Substrate, made
+## here when the tank has none). The bed decides between a tint change, a swap of a type it has
+## built and a new build. An empty or unknown id shows the default type with its default colour,
+## silently (ADR 0010). Reads the model only.
 func _apply_substrate() -> void:
 	var tank: Node = get_node_or_null("Tank")
-	if tank == null:
+	if tank == null or _displayed_tank == null:
 		return
-	var layer: SubstrateLayer = tank.get_node_or_null("SubstrateAnchor/Substrate") as SubstrateLayer
-	if layer == null:
+	var anchor: Node3D = tank.get_node_or_null("SubstrateAnchor") as Node3D
+	if anchor == null:
 		return
+	var bed: SubstrateBed = anchor.get_node_or_null("Substrate") as SubstrateBed
+	if bed == null:
+		bed = SubstrateBed.new()
+		bed.name = &"Substrate"
+		bed.setup(_substrate_cache)
+		anchor.add_child(bed)
 	var id: StringName = _model.get_substrate_id()
 	var colour: Color = _model.get_substrate_colour()
 	var definition: SubstrateDefinition = _substrates.get_definition(id)
@@ -174,9 +186,7 @@ func _apply_substrate() -> void:
 		if definition == null:
 			return
 		colour = definition.default_colour
-	layer.apply_look(
-		colour, definition.grain_scale, int(definition.grain_shape), definition.grain_contrast
-	)
+	bed.show_type(_displayed_tank, definition, colour)
 
 
 ## The definition to show: the model's tank, else the default tank (one warning for an unknown id,

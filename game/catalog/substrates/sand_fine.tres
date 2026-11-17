@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SubstrateDefinition" format=3]
 
 [ext_resource type="Script" path="res://catalog/substrate_definition.gd" id="1_def"]
+[ext_resource type="Resource" path="res://assets/substrate/looks/sand_fine.tres" id="2_look"]
 
 [resource]
 script = ExtResource("1_def")
@@ -10,14 +11,16 @@ description_key = "substrate.sand_fine.description"
 sort_order = 1
 default_colour = Color(0.90980392, 0.85098039, 0.69019608, 1)
 colour_swatches = Array[Color]([Color(0.90980392, 0.85098039, 0.69019608, 1), Color(0.83921569, 0.74901961, 0.55686275, 1), Color(0.76078431, 0.65882353, 0.47058824, 1), Color(0.70980392, 0.68627451, 0.63921569, 1), Color(0.43137255, 0.41568627, 0.39215686, 1)])
-grain_scale = 0.0015
+grain_scale = 0.0013
 grain_shape = 0
 grain_contrast = 0.5
+fill_depth_m = 0.03
+bed_look = ExtResource("2_look")
 ph_effect = 1
 hardness_effect = 1
 bulk_density_kg_per_l = 1.6
 layer_depth_min_cm = 2.0
-layer_depth_max_cm = 4.0
+layer_depth_max_cm = 5.0
 layer_depth_default_cm = 3.0
 grain_size_min_mm = 0.2
 grain_size_max_mm = 1.0
