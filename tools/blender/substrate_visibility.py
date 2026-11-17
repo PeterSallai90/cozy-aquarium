@@ -635,7 +635,7 @@ class Pass:
             stones, flags, exposure = stones[inside], flags[inside], exposure[inside]
             behind = behind_mask(stones, self.shapes, top["thickness_m"], [], self.top_keep, 0.0)
             name = f"I{k}"
-            out[name] = self._finish(name, stones, (flags, exposure), behind)
+            out[name] = self._balance_seams(name, *self._finish(name, stones, (flags, exposure), behind))
             # surface report: the top height field of the tile
             points = self.shapes.top_points(out[name][0], top["thickness_m"] * 0.5)
             field = height_field(points, 0.0, -period, cells, cells) + base
@@ -645,6 +645,51 @@ class Pass:
             )
         self.report["top_field"] = spread(np.concatenate(fields))
         return out
+
+    def _balance_seams(self, name: str, stones: np.ndarray, flags: np.ndarray,
+                       exposure: np.ndarray) -> tuple:
+        """Evens out the stone density across a top tile (`top.seam_balance`, the largest allowed
+        density of a border band against the middle of the tile; absent = off). The seam sets
+        are poured in a narrow trough and settle denser than the fills, so the bands along the
+        tile borders carry more stones than the rest of the tile. In every 1.5 mm band from the
+        border that is denser than allowed, stones that are only kept behind the visible ones
+        (never seen themselves) are dropped, in a seeded order, until the band is back at the
+        limit; no stone that is seen from above is touched."""
+        top = self.params["top"]
+        limit = top.get("seam_balance")
+        if limit is None or len(stones) == 0:
+            return stones, flags, exposure
+        period = top["period_m"]
+        band = 0.0015
+        bands = 4
+        x = stones[:, 0]
+        z = stones[:, 2] + period
+        d = np.minimum(np.minimum(x, period - x), np.minimum(z, period - z))
+        index = np.floor(d / band).astype(np.int64)
+        middle = index >= bands
+        inner = period - 2.0 * bands * band
+        reference = int(middle.sum()) / (inner * inner)
+        keep = np.ones(len(stones), dtype=bool)
+        rng = np.random.default_rng(sum(map(ord, name)))
+        dropped = 0
+        for b in range(bands):
+            outer = period - 2.0 * b * band
+            area = outer * outer - (outer - 2.0 * band) ** 2
+            members = np.nonzero(index == b)[0]
+            allowed = int(np.floor(reference * area * limit))
+            excess = len(members) - allowed
+            if excess <= 0:
+                continue
+            hidden = members[flags[members] == BEHIND]
+            if len(hidden) == 0:
+                continue
+            chosen = rng.permutation(hidden)[: min(excess, len(hidden))]
+            keep[chosen] = False
+            dropped += len(chosen)
+        stats = self.statistics.setdefault(name, {})
+        stats["seam_balanced"] = dropped
+        stats["written"] = int(keep.sum())
+        return stones[keep], flags[keep], exposure[keep]
 
     def lift_top(self, written: dict, lift: float) -> None:
         """Applies the lift of the top layer to the report and drops the few top stones that

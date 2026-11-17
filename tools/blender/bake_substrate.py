@@ -372,7 +372,9 @@ def _part_key(type_name: str, params: dict, part: str, seed: int, tank: str) -> 
         relevant.pop("ring", None)
         # placing the settled layer is not part of the pour
         relevant["top"] = {
-            k: v for k, v in params["top"].items() if k not in ("lift_m", "surface_bias_m")
+            k: v
+            for k, v in params["top"].items()
+            if k not in ("lift_m", "surface_bias_m", "seam_balance")
         }
     text = json.dumps([type_name, part, seed, tank, relevant], sort_keys=True)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]

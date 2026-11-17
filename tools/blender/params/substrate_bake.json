@@ -102,7 +102,8 @@
       "seam_half_m": 0.0045,
       "seam_extra_m": 0.012,
       "fills": 4,
-      "surface_bias_m": 0.001
+      "surface_bias_m": 0.001,
+      "seam_balance": 1.05
     },
     "pour": {
       "max_active": 900,
@@ -164,7 +165,8 @@
       "seam_half_m": 0.0055,
       "seam_extra_m": 0.013,
       "fills": 4,
-      "surface_bias_m": 0.001
+      "surface_bias_m": 0.001,
+      "seam_balance": 1.05
     },
     "pour": {
       "max_active": 900,
