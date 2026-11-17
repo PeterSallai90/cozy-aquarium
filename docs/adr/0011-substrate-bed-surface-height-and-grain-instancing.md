@@ -205,7 +205,7 @@ floor and an empty heightmap is flat. Items do not exist yet (#31) and no save h
     sharing one `MultiMesh` per tile variant. LOD is chosen per chunk from the camera distance to
     the chunk bounds, with per-class switch distances and 5 percent hysteresis (look values), by
     swapping the mesh of the chunk's `MultiMesh`; sand top cells are shown only within the
-    real-grain range. At most 800 `MultiMeshInstance3D` nodes per bed in the large tank; the LOD
+    real-grain range. At most 800 `MultiMeshInstance3D` nodes per bed in every tank; the LOD
     update costs at most 0.5 ms main-thread time per frame. Visibility culling is the offline
     flags (rule 7); Godot frustum-culls the chunks by their custom AABB (chunk bounds plus 1 mm)
     and the sand top cells by the tile bounds at the cell (cell bounds plus 3 mm).
@@ -233,17 +233,29 @@ floor and an empty heightmap is flat. Items do not exist yet (#31) and no save h
 
 ### Budget and measurement
 
-15. **Budget** (owner decision 6901003645; large tank, 1920 x 1080, TAA, worst type, stand-in D18
-    load of rule 16). Raising any ceiling is an owner decision.
+15. **Budget** (owner decisions 6901003645 and 6901857494; scope per BA decision 6957276105).
+    The caps below hold **in each of the three tanks and for each of the five types**, at
+    1920 x 1080 with TAA; the large tank is not the bound for the other two. Raising any ceiling
+    is an owner decision.
     - **Added GPU time at most 1.5 ms on the mid-range class** (binding), at the default camera and
       at every close-up view of rule 17. Until a card of the class is measured, the figure is the
       added time measured on the development GPU (RX 6800 XT) times **F = 3**, so the measured
-      added time on the RX 6800 XT must be at most **0.5 ms** in every listed view (default camera
-      and the views of rule 17). Derivation of F under "Mid-range factor".
-    - At most 0.6 M triangles drawn at the default camera and 1.0 M at each close-up view (sand
-      quads count 2 each); no more in the smaller tanks.
+      added time on the RX 6800 XT must be at most **0.5 ms** in every measured case.
+      Derivation of F under "Mid-range factor".
+    - At most 0.6 M triangles drawn at the default camera and 1.0 M at each close-up view of
+      rule 17 (sand quads count 2 each), in every tank and type (headless estimate of rule 18).
     - At most 100,000 unique stones per bed (unique buffer entries; a shared tile buffer counts
-      once; sand at most 90,000 unique ring grains plus the shared top tiles).
+      once; sand at most 90,000 unique ring grains plus the shared top tiles), in every tank and
+      type.
+    - At most 800 `MultiMeshInstance3D` nodes per bed (rule 11), in every tank and type.
+    - **Measured cases** (owner machine, AC 34): the large tank with all five types at the default
+      camera and every view of rule 17, with the stand-in load of rule 16; in addition the tank
+      and type with the highest headless estimate at the default camera, and every other-tank view
+      and type whose headless estimate exceeds the large tank's for the same type and view (the
+      list is recomputed from the estimate and named in the report). These extra cases use the
+      stand-in load scaled to the floor area. Each must stay within 0.5 ms added GPU on the
+      RX 6800 XT and within the triangle caps above; F x the worst measured added time over all
+      cases must be at most 1.5 ms.
     - Type or tank change: longest frame at most 33 ms (median of the changes), the new bed within
       2 s, a cached type within one frame, at most 4 ms main-thread assembly and instancing per
       frame.
@@ -252,7 +264,9 @@ floor and an empty heightmap is flat. Items do not exist yet (#31) and no save h
     x within the interior minus 6 cm, z within the interior minus 5 cm, y 12 to 45 cm, random yaw;
     and 100 `SphereMesh` decor stand-ins (radial segments 32, rings 24), diameter 3 to 8 cm,
     opaque `StandardMaterial3D`, casting shadows, resting on the nominal surface
-    (centre y = S + d / 2). Everything static.
+    (centre y = S + d / 2). Everything static. For the extra cases of rule 15 in the small and
+    medium tanks the counts are scaled to the floor area (small 15 fish and 25 decor, medium 27
+    fish and 45 decor).
 17. **Views.** Default camera = the room's default framing (ADRs 0005, 0006). Close-up views, with
     h = S, front glass plane z_f = interior z / 2 and outer face o = z_f + glass thickness (each
     camera looks at the given target):
@@ -340,8 +354,8 @@ triangles) and the tester (hitch, orbit, colour), with the method of rule 18: 60
 camera and the eight close-up views of rule 17, large tank, TAA, stand-in load of rule 16. The
 frame was drawn at exactly **1920 x 1080** in a borderless window (`--borderless`); a normal
 window on a 1080-line screen only reaches 1920 x 1061, and the earlier implementation numbers
-were taken at that size. The extra cases of the small and medium tanks (AC 34, a smaller tank
-with a higher estimate than the large one) used the stand-in load scaled to the floor area
+were taken at that size. The extra cases of the small and medium tanks (rule 15: the heaviest
+default-camera estimate and each other-tank view above the large tank's estimate) used the stand-in load scaled to the floor area
 (small 15 fish and 25 decor, medium 27 fish and 45 decor). Every check passed.
 
 | Item | Spike v2 (provisional) | Implementation |
