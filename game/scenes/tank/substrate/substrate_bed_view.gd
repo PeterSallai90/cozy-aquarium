@@ -24,12 +24,10 @@ extends Node3D
 ## value changes. The result is the same as working out every chunk on every call.
 
 const TINT_PARAMETER: StringName = &"substrate_tint"
-## The camera must move this far before the LOD is worked out again.
-const LOD_STEP_M: float = 0.005
+## The camera must move this far before the LOD is worked out again (the estimate of
+## SubstrateLod allows for it).
+const LOD_STEP_M: float = SubstrateLod.LOD_STEP_M
 const FLOOR_SKIN_Y_M: float = 0.00005
-## Margin of the custom bounds of a chunk's MultiMesh around the chunk bounds (rounding only: the
-## chunk bounds already hold the bounding sphere of every stone).
-const BOUNDS_MARGIN_M: float = 0.001
 ## Bits of the draw state of a chunk: the stones kept behind are drawn, the camera is beyond a
 ## pane of the chunk (SubstrateChunkData.drawn_count).
 const STATE_NEAR: int = 1
@@ -358,12 +356,9 @@ func _build_placement(index: int) -> void:
 	if _data.tile_instance_count(tile) == 0:
 		return
 	if _tile_multimeshes[tile] == null:
-		var half: float = _data.top_pitch_m / 2.0 + 0.003
-		var bounds: AABB = AABB(
-			Vector3(-half, _data.top_y_range.x - 0.003, -half),
-			Vector3(2.0 * half, _data.top_y_range.y - _data.top_y_range.x + 0.006, 2.0 * half)
+		_tile_multimeshes[tile] = _make_multimesh(
+			_data.top_tiles[tile], _quad, SubstrateLod.tile_bounds(_data)
 		)
-		_tile_multimeshes[tile] = _make_multimesh(_data.top_tiles[tile], _quad, bounds)
 	var node: MultiMeshInstance3D = MultiMeshInstance3D.new()
 	node.name = "SandTop_%d_%d" % [_cell_number, _cell_part]
 	_cell_part += 1
@@ -428,7 +423,8 @@ func _build_chunk(chunk: SubstrateChunkData) -> void:
 	_chunk_due.append(due)
 	_chunk_panes.append(chunk.panes)
 	_next_due = minf(_next_due, due)
-	var bounds: AABB = chunk.aabb.grow(BOUNDS_MARGIN_M)
+	# the renderer culls the chunk by these bounds; the estimate tests the same ones
+	var bounds: AABB = SubstrateLod.chunk_cull_bounds(chunk)
 	for v: int in chunk.buffers.size():
 		if chunk.counts[v] == 0:
 			continue
