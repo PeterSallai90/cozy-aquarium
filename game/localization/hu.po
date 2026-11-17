@@ -53,7 +53,7 @@ msgid "substrate.gravel_natural.name"
 msgstr "Kavics"
 
 msgid "substrate.pebbles_river.description"
-msgstr "Sima, kerekített folyami kövek, mint egy csendes patak medre."
+msgstr "Sima, lekerekített folyami kövek, mint egy csendes patak medre."
 
 msgid "substrate.pebbles_river.name"
 msgstr "Folyami kavics"
