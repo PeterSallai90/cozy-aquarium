@@ -70,6 +70,9 @@ MultiMesh, one instance or one clump).
 - **Rule:** repeated plants, carpets and grass use `MultiMeshInstance3D`.
 - **Rule:** D18 wins over the budgets. D18 is 60 fish and 100 decor items at 60 FPS on a
   mid-range PC. A budget that would break D18 is not accepted.
+- **Rule:** Substrate bed (large tank, 1080p, worst type): 0.6 M triangles drawn at the default
+  camera, 1.0 M at the worst close-up, 100 k unique stones, 1.5 ms added GPU time on the mid-range
+  class (ADR 0011).
 - **Rule:** the worst-case tank triangle total at the D18 load is "to be measured (#49)". Issue
   #49 records it and confirms or lowers the budgets.
 - For orientation only (informal estimate, not a limit): about 0.4 to 0.5 million triangles at the
@@ -152,6 +155,9 @@ These are tint ranges, not fixed colours; the colour tint parameter picks a valu
 - **Guideline:** driftwood: warm browns from light tan to near-black, with grain from a gradient or
   mask.
 - **Guideline:** sand: cream to beige and dark grey. Gravel: a natural brown and grey mix.
+- **Rule:** sand grains may be drawn larger than real (1.0 to 2.5 mm, real 0.2 to 1.0 mm; a cozy
+  simplification the owner accepted on #28); every other substrate type is drawn within 0.8 x its
+  real minimum and 1.2 x its real maximum grain size (ADR 0011).
 - **Guideline:** natural hardscape stays unsaturated. Coloured decor (ruins, ship, ceramic) may be
   more saturated.
 
