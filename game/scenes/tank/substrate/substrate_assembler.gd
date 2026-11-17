@@ -63,12 +63,9 @@ static func assemble(
 	var data: SubstrateBedData = SubstrateBedData.new()
 	data.input = input
 	data.median_size_m = bake.median_size()
-	var size: Vector3 = input.interior_size_m
-	var core_height: float = maxf(input.depth() - input.core_drop_m, 0.001)
-	data.core_size = Vector3(
-		size.x - 2.0 * input.core_inset_m, core_height, size.z - 2.0 * input.core_inset_m
-	)
-	data.core_centre = Vector3(0.0, core_height / 2.0, 0.0)
+	var core: AABB = core_box(input)
+	data.core_size = core.size
+	data.core_centre = core.get_center()
 	var world: PackedFloat32Array = PackedFloat32Array()
 	var is_sand: bool = input.grain_class == SubstrateBedLook.CLASS_SAND
 	if bake.mode() == SubstrateBakeData.MODE_TANK:
@@ -87,6 +84,19 @@ static func assemble(
 	if not _build_chunks(input, bake, world, rng, data, cancel):
 		return null
 	return data
+
+
+## The dark core box of the bed of the input, tank-local: inset from the panes by core_inset_m,
+## from the floor up to the fill depth less core_drop_m (at least 1 mm high). It depends on the
+## input only, so a placeholder can show the core before the bed is assembled.
+static func core_box(input: SubstrateAssemblyInput) -> AABB:
+	var interior: Vector3 = input.interior_size_m
+	var size: Vector3 = Vector3(
+		interior.x - 2.0 * input.core_inset_m,
+		maxf(input.depth() - input.core_drop_m, 0.001),
+		interior.z - 2.0 * input.core_inset_m
+	)
+	return AABB(Vector3(-size.x / 2.0, 0.0, -size.z / 2.0), size)
 
 
 static func _stop(cancel: SubstrateCancelToken) -> bool:
