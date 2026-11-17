@@ -46,6 +46,16 @@
     "lean": {
       "strength": 0.2,
       "width_m": 0.045
+    },
+    "glass_fill": {
+      "cell_m": 0.005,
+      "strip_m": 0.005,
+      "low_m": 0.013,
+      "lean": 0.4,
+      "rounds": 12,
+      "small_after": 2,
+      "deep_after": 4,
+      "frames": 240
     }
   },
   "gravel_natural": {

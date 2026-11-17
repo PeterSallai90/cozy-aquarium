@@ -364,7 +364,7 @@ def parse_args(argv: list[str]):  # noqa: ANN201
 
 
 def _part_key(type_name: str, params: dict, part: str, seed: int, tank: str) -> str:
-    after_pour = ("keep", "visibility", "data_set", "seam_trim_share")
+    after_pour = ("keep", "visibility", "data_set", "seam_trim_share", "glass_fill")
     relevant = {k: v for k, v in params.items() if k not in after_pour}
     if part == "ring":
         relevant.pop("top", None)
@@ -395,19 +395,8 @@ def _stones_to_godot(rows):  # noqa: ANN001, ANN202 (numpy)
     return out
 
 
-def _pour_part(args, params: dict, part: str, built: list, log) -> tuple[dict, dict]:  # noqa: ANN001
-    """Pours one part; returns (settling report, sets in the Blender frame)."""
-    import numpy as np  # noqa: PLC0415
-
-    import substrate_sim as sim  # noqa: PLC0415
-
-    variants = sim.Variants(built)
-    sim_args = {"type": args.type, "seed": args.seed}
-    if part != "tank":
-        import substrate_tiles as tiles  # noqa: PLC0415
-
-        return tiles.bake_part(sim_args, params, variants, part, log)
-    lx, lz = tank_interior(args.tank)
+def _tank_world(sim, variants, params: dict, lx: float, lz: float):  # noqa: ANN001, ANN202
+    """A simulation world with the floor and the four glass walls of a whole-tank pour."""
     physics = params["physics"]
     world = sim.SimWorld(variants, params["sim_scale"], physics)
     t = 0.05
@@ -422,6 +411,47 @@ def _pour_part(args, params: dict, part: str, built: list, log) -> tuple[dict, d
             ((0, lz / 2 + t, top / 2), (lx / 2 + t, t, top / 2 + t), gf),
         ]
     )
+    return world
+
+
+def _fill_notches(args, params: dict, built: list, sets: dict, log) -> dict:  # noqa: ANN001
+    """Whole-tank pours: the glass notch pass after the (cached) pour (params "glass_fill",
+    substrate_sim.fill_glass_notches). Adds the new stones to the "tank" set in place and
+    returns the settling report of the pass."""
+    import numpy as np  # noqa: PLC0415
+
+    import substrate_sim as sim  # noqa: PLC0415
+
+    lx, lz = tank_interior(args.tank)
+    world = _tank_world(sim, sim.Variants(built), params, lx, lz)
+    rng = random.Random(f"{args.type}|glass_fill|{lx}|{lz}|{args.seed}")
+    target = params["fill_depth_m"] + params["overfill_m"]
+    crop_top = params["fill_depth_m"] + params["keep"]["crop_above_m"] - 0.001
+    added = sim.fill_glass_notches(
+        world, sets["tank"], lx, lz, target, params["size_classes"], rng, params["glass_fill"], log,
+        crop_top,
+    )
+    if len(added):
+        sets["tank"] = np.concatenate([sets["tank"], added])
+    report = world.settling_report()
+    report["sim_seconds"] = round(world.sim_seconds, 1)
+    return report
+
+
+def _pour_part(args, params: dict, part: str, built: list, log) -> tuple[dict, dict]:  # noqa: ANN001
+    """Pours one part; returns (settling report, sets in the Blender frame)."""
+    import numpy as np  # noqa: PLC0415
+
+    import substrate_sim as sim  # noqa: PLC0415
+
+    variants = sim.Variants(built)
+    sim_args = {"type": args.type, "seed": args.seed}
+    if part != "tank":
+        import substrate_tiles as tiles  # noqa: PLC0415
+
+        return tiles.bake_part(sim_args, params, variants, part, log)
+    lx, lz = tank_interior(args.tank)
+    world = _tank_world(sim, variants, params, lx, lz)
     region = sim.Region(-lx / 2, lx / 2, -lz / 2, lz / 2, 0.0, params["height_cell_m"])
     rng = random.Random(f"{args.type}|tank|{lx}|{lz}|{args.seed}")
     target = params["fill_depth_m"] + params["overfill_m"]
@@ -496,6 +526,8 @@ def bake(argv: list[str]) -> None:
             continue
         report, sets = _load_or_pour(args, params, part, built, log)
         reports.append(report)
+        if part == "tank" and "glass_fill" in params and not args.part:
+            reports.append(_fill_notches(args, params, built, sets, log))
         blender_sets.update(sets)
     if args.part:
         log(f"{name}.{args.part}: poured in {time.time() - t0:.1f} s (cache only, no data file)")

@@ -494,3 +494,170 @@ def pour(
             f"total {len(placed)}"
         )
     return placed
+
+
+def hull_points(stones: np.ndarray, variants: Variants) -> np.ndarray:
+    """World-space LOD0 vertices (the drawn shape) of all `stones`, (n, 3)."""
+    if len(stones) == 0:
+        return np.zeros((0, 3))
+    rot = quat_to_matrix(stones[:, 3:7])
+    parts = []
+    for vi, variant in enumerate(variants.variants):
+        sel = np.nonzero(stones[:, 8].astype(int) == vi)[0]
+        if len(sel) == 0:
+            continue
+        pv = np.asarray(variant["lods"][0]["verts"], dtype=float)
+        world = np.einsum("nij,kj->nki", rot[sel], pv) * stones[sel, 7][:, None, None]
+        world += stones[sel, 0:3][:, None, :]
+        parts.append(world.reshape(-1, 3))
+    return np.concatenate(parts) if parts else np.zeros((0, 3))
+
+
+def drawn_tops(stones: np.ndarray, variants: Variants) -> np.ndarray:
+    """The highest drawn (LOD0) point of every stone, (n,)."""
+    tops = np.zeros(len(stones))
+    if len(stones) == 0:
+        return tops
+    rot = quat_to_matrix(stones[:, 3:7])
+    for vi, variant in enumerate(variants.variants):
+        sel = np.nonzero(stones[:, 8].astype(int) == vi)[0]
+        if len(sel) == 0:
+            continue
+        pv = np.asarray(variant["lods"][0]["verts"], dtype=float)
+        world_z = np.einsum("nj,kj->nk", rot[sel, 2, :], pv) * stones[sel, 7][:, None]
+        tops[sel] = stones[sel, 2] + world_z.max(axis=1)
+    return tops
+
+
+def glass_edge_profiles(
+    stones: np.ndarray, variants: Variants, lx: float, ly: float, cell: float, strip: float
+) -> list[np.ndarray]:
+    """The highest drawn point per `cell` along each pane, within `strip` of the pane (Blender
+    frame; panes at x = -lx/2, x = lx/2, y = -ly/2, y = ly/2, in that order). A cell without a
+    stone reads 0 (the floor)."""
+    max_size = float(stones[:, 7].max()) if len(stones) else 0.0
+    reach = strip + max_size
+    near = (np.abs(stones[:, 0]) > lx / 2 - reach) | (np.abs(stones[:, 1]) > ly / 2 - reach)
+    points = hull_points(stones[near], variants)
+    profiles = []
+    for pane in range(4):
+        along = 1 if pane < 2 else 0
+        length = ly if pane < 2 else lx
+        if pane == 0:
+            sel = points[:, 0] < -lx / 2 + strip
+        elif pane == 1:
+            sel = points[:, 0] > lx / 2 - strip
+        elif pane == 2:
+            sel = points[:, 1] < -ly / 2 + strip
+        else:
+            sel = points[:, 1] > ly / 2 - strip
+        cells = max(1, int(round(length / cell)))
+        profile = np.zeros(cells)
+        p = points[sel]
+        index = np.clip(((p[:, along] + length / 2) / (length / cells)).astype(int), 0, cells - 1)
+        np.maximum.at(profile, index, p[:, 2])
+        profiles.append(profile)
+    return profiles
+
+
+def fill_glass_notches(
+    world: SimWorld,
+    stones: np.ndarray,
+    lx: float,
+    ly: float,
+    target: float,
+    size_classes: list,
+    rng: random.Random,
+    fill: dict,
+    log=print,
+    crop_top: float | None = None,
+) -> np.ndarray:
+    """Whole-tank pours: drops extra stones into the notches of the top edge at the glass, where
+    the top row along a pane leaves a gap that reaches far below the surface (the pour aims at
+    grid columns that are wider than that strip). A notch is a run of `cell_m` cells along a
+    pane whose highest point within `strip_m` of the glass lies more than `low_m` below
+    `target`. One stone per notch falls against the glass with the gravity tilted towards the
+    pane (`lean`) onto the settled pile, which stays frozen; at most `rounds` passes, from round
+    `small_after` on with stones of the smallest size class, from round `deep_after` on started
+    inside the notch. A stone whose top comes to rest at
+    or above `crop_top` (the crop height of the visibility pass) is not kept. Returns the new
+    settled stones."""
+    cell = fill.get("cell_m", 0.005)
+    strip = fill.get("strip_m", 0.005)
+    low = fill["low_m"]
+    lean_strength = fill.get("lean", 0.25)
+    frames = int(fill.get("frames", 240))
+    small_after = int(fill.get("small_after", 2))
+    deep_after = int(fill.get("deep_after", 4))
+    n_variants = len(world.variants.variants)
+    added = np.zeros((0, STONE_COLS))
+    if crop_top is not None:
+        # the stones the visibility pass will crop do not count for the edge
+        stones = stones[drawn_tops(stones, world.variants) < crop_top]
+    for round_index in range(fill.get("rounds", 6)):
+        drops = 0
+        for pane in range(4):
+            everything = np.concatenate([stones, added]) if len(added) else stones
+            profile = glass_edge_profiles(everything, world.variants, lx, ly, cell, strip)[pane]
+            length = ly if pane < 2 else lx
+            step = length / len(profile)
+            notch = profile < target - low
+            batch = []
+            i = 0
+            while i < len(profile):
+                if not notch[i]:
+                    i += 1
+                    continue
+                j = i
+                while j + 1 < len(profile) and notch[j + 1]:
+                    j += 1
+                # a notch that is still open after `small_after` rounds is narrow: the
+                # smallest size class fits it best
+                size = sample_size(
+                    rng, size_classes[:1] if round_index >= small_after else size_classes
+                )
+                u = -length / 2 + (0.5 * (i + j) + 0.5) * step
+                inward = 0.5 * size + 0.001
+                drop_z = float(profile[max(0, i - 4) : j + 5].max()) + size
+                if round_index >= deep_after:
+                    # still open: the stone starts inside the notch, just above its floor, so
+                    # no stone that overhangs the notch can catch it on the way down
+                    drop_z = float(profile[i : j + 1].max()) + 0.6 * size
+                if pane == 0:
+                    x, y = -lx / 2 + inward, u
+                elif pane == 1:
+                    x, y = lx / 2 - inward, u
+                elif pane == 2:
+                    x, y = u, -ly / 2 + inward
+                else:
+                    x, y = u, ly / 2 - inward
+                q = random_quat(rng)
+                batch.append(
+                    [x, y, drop_z, q[0], q[1], q[2], q[3], size, rng.randrange(n_variants)]
+                )
+                # the next notch starts at least one stone further along the pane
+                i = max(j + 1, i + int(math.ceil(size / step)))
+            if not batch:
+                continue
+            tilt = (
+                -lean_strength if pane == 0 else (lean_strength if pane == 1 else 0.0),
+                -lean_strength if pane == 2 else (lean_strength if pane == 3 else 0.0),
+            )
+            part = np.array(batch)
+            low_z = float(part[:, 2].min()) - 3.0 * float(part[:, 7].max())
+            near_glass = (np.abs(everything[:, 0]) > lx / 2 - 0.06) | (
+                np.abs(everything[:, 1]) > ly / 2 - 0.06
+            )
+            near = everything[near_glass & (everything[:, 2] > low_z)]
+            settled = world.run_batch(near, part, frames, tilt, int(frames * 0.5))
+            ok = np.isfinite(settled).all(axis=1) & (settled[:, 2] > 0.0)
+            if crop_top is not None and len(settled):
+                # a stone that came to rest so high that the visibility pass would crop it
+                # does not fill the notch: drop it here, the next round tries a smaller one
+                ok &= drawn_tops(settled, world.variants) < crop_top
+            added = np.concatenate([added, settled[ok]])
+            drops += len(batch)
+        log(f"  glass notches round {round_index}: {drops} stones dropped, {len(added)} kept")
+        if drops == 0:
+            break
+    return added
