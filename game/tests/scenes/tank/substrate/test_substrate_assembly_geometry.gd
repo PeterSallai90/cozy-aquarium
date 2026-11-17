@@ -208,18 +208,39 @@ func test_ac14_no_stone_core_or_skin_lies_outside_the_footprint_or_below_the_flo
 	)
 
 
+## The band and the cell occupancy follow the code-reviewer decision (issue #28 comment
+## 6957252973): only the cells whose centre lies at or below the local top edge count, and a cell
+## holds a stone when the silhouette of a stone within 1 mm of the glass meets the cell. The old
+## centre-sampled share (band up to S) is printed for the test report only.
 func test_ac27_at_least_90_percent_of_the_glass_cells_hold_a_stone_touching_the_pane() -> void:
 	_each_pair(
 		func(tank_id: StringName, id: StringName, analysis: Dictionary) -> void:
 			var cell: float = maxf(MIN_CELL_M, _median(tank_id, id))
+			var min_top: float = Api.fill_depth(id) + _u(_largest(tank_id, id))
 			for face: int in Geo.FACES:
-				var share: float = Geo.glass_contact_share(analysis, face, cell, Api.fill_depth(id))
+				var label: String = "%s, %s face" % [_label(tank_id, id), Geo.FACE_NAMES[face]]
+				var result: Dictionary = Geo.glass_cell_share(analysis, face, cell, min_top)
+				var share: float = result["share"]
+				var centre_share: float = Geo.glass_contact_share(
+					analysis, face, cell, Api.fill_depth(id)
+				)
+				print(
+					(
+						"[#28 AC 27] %s: cell share %.3f (%d of %d cells), centre-sampled %.3f"
+						% [label, share, int(result["covered"]), int(result["band"]), centre_share]
+					)
+				)
+				(
+					assert_int(int(result["band"]))
+					. override_failure_message("%s: no cell below the top edge" % label)
+					. is_greater(0)
+				)
 				(
 					assert_float(share)
 					. override_failure_message(
 						(
-							"%s, %s face: glass contact %.3f of the cells (cell %.4f m)"
-							% [_label(tank_id, id), Geo.FACE_NAMES[face], share, cell]
+							"%s: glass contact %.3f of the %d band cells (cell %.4f m)"
+							% [label, share, int(result["band"]), cell]
 						)
 					)
 					. is_greater_equal(GLASS_SHARE)

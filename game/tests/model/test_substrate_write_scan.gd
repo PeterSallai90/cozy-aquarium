@@ -67,6 +67,21 @@ const NONDETERMINISM: Array[String] = [
 	"\\.(randomize|hash)\\s*\\(",
 ]
 const SUBSTRATE_DIR := "res://scenes/tank/substrate/"
+const INPUT_PATH := "res://scenes/tank/substrate/substrate_assembly_input.gd"
+## The scripts outside the catalog that may name fill_depth_m: the surface helper, and the assembly
+## input with its own plain-value field (plan 3.1).
+const FILL_DEPTH_HOLDERS: Array[String] = [
+	"res://model/substrate_surface.gd",
+	INPUT_PATH,
+]
+## Calls of the model's writers: apply_(set|insert|remove|replace)_*, reset_from, set_save_times.
+const MODEL_WRITER_CALLS: Array[String] = [
+	"\\bapply_(set|insert|remove|replace)_\\w+\\s*\\(",
+	"\\breset_from\\s*\\(",
+	"\\bset_save_times\\s*\\(",
+]
+## Every apply_ writer the model declares must match this, or MODEL_WRITER_CALLS falls behind.
+const MODEL_WRITER_PREFIX := "^apply_(set|insert|remove|replace)_"
 const MODE_2_PATTERN := (
 	"\\b(ph_effect|hardness_effect|bulk_density_kg_per_l|rooting_suitability|"
 	+ "nutrient_retention|burrowing_suitability|edge_smoothness|waste_trapping|"
@@ -251,30 +266,66 @@ func test_ac18_compaction_risk_is_nowhere() -> void:
 			assert_str(text).not_contains("compaction_risk")
 
 
+## The model's writers, an allowlist of their prefixes (code-reviewer decision, issue #28 comment
+## 6958042040): apply_(set|insert|remove|replace)_*, reset_from and set_save_times. Other apply_*
+## helpers (WaterFogSettings.apply_to_*, private _apply_* methods) are not model writers. A guard
+## over aquarium_model.gd keeps the allowlist in step with the model.
 func test_ac18_the_bed_the_view_the_job_and_the_room_never_call_a_model_writer() -> void:
-	var patterns: Array[RegEx] = SourceScan.compile(PackedStringArray(["\\bapply_\\w+\\s*\\("]))
+	var declared: PackedStringArray = PackedStringArray()
+	var declaration: RegEx = RegEx.create_from_string("\\bfunc\\s+(apply_\\w+)")
+	for hit: RegExMatch in declaration.search_all(_source("res://model/aquarium_model.gd")):
+		declared.append(hit.get_string(1))
+	(
+		assert_array(declared)
+		. override_failure_message("res://model/aquarium_model.gd declares no apply_ writer")
+		. is_not_empty()
+	)
+	var known: RegEx = RegEx.create_from_string(MODEL_WRITER_PREFIX)
+	for writer: String in declared:
+		(
+			assert_object(known.search(writer))
+			. override_failure_message(
+				(
+					"model writer %s is not covered by %s; the scan pattern needs extending"
+					% [writer, MODEL_WRITER_PREFIX]
+				)
+			)
+			. is_not_null()
+		)
+	var patterns: Array[RegEx] = SourceScan.compile(PackedStringArray(MODEL_WRITER_CALLS))
 	for path: String in READERS:
 		var source: String = _source(path)
 		assert_str(source).override_failure_message("%s is missing or empty" % path).is_not_empty()
+		var hits: PackedStringArray = SourceScan.find_matches(source, patterns)
 		(
-			assert_array(SourceScan.find_matches(source, patterns))
-			. override_failure_message("%s calls an apply_ function of the model" % path)
+			assert_array(hits)
+			. override_failure_message("%s calls a model writer: %s" % [path, hits])
 			. is_empty()
 		)
 
 
+## The assembly input keeps the depth in its own plain field fill_depth_m (plan 3.1, code-reviewer
+## decision, issue #28 comment 6957252973); it only receives the depth and never reads a
+## SubstrateDefinition.
 func test_ac18_fill_depth_m_is_read_only_through_the_surface_helper_and_the_catalog() -> void:
 	var found: PackedStringArray = _scripts_matching("\\bfill_depth_m\\b")
 	for path: String in found:
 		(
-			assert_bool(
-				path.begins_with("res://catalog/") or path == "res://model/substrate_surface.gd"
-			)
+			assert_bool(path.begins_with("res://catalog/") or FILL_DEPTH_HOLDERS.has(path))
 			. override_failure_message(
 				"%s reads fill_depth_m; only SubstrateSurface and the catalog may" % path
 			)
 			. is_true()
 		)
+	var input_source: String = _source(INPUT_PATH)
+	assert_str(input_source).override_failure_message("%s is missing" % INPUT_PATH).is_not_empty()
+	(
+		assert_str(input_source)
+		. override_failure_message(
+			"%s must receive the depth, not read it from a SubstrateDefinition" % INPUT_PATH
+		)
+		. not_contains("SubstrateDefinition")
+	)
 	(
 		assert_bool(found.has("res://model/substrate_surface.gd"))
 		. override_failure_message("model/substrate_surface.gd does not read fill_depth_m")

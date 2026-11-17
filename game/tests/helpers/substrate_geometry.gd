@@ -400,6 +400,85 @@ static func glass_contact_share(
 	return covered_fraction(grid)
 
 
+## AC 27 as worded (code-reviewer decision, issue #28 comment 6957252973): the face is cut into
+## square cells of `cell` (u along the pane from its left end, v up from the floor). A cell is in
+## the band when its centre lies at or below the top edge of the face at that u (edge_heights, the
+## 5 mm cell row touching the pane); the grid reaches max(`min_top`, highest edge) so the cells
+## under a high edge are counted too. A band cell is covered when the silhouette of a stone whose
+## outer point lies within 1 mm of the glass plane (the ellipse inscribed in its u/v bounding
+## rectangle) intersects the cell rectangle (exact: scaled by the semi-axes, the point of the
+## rectangle nearest to the centre lies inside the unit circle). Returns {"share", "band",
+## "covered"}; share is 0 when the band is empty.
+static func glass_cell_share(
+	analysis: Dictionary, face: int, cell: float, min_top: float
+) -> Dictionary:
+	var interior: Vector3 = analysis["interior"]
+	var bbox: PackedFloat32Array = analysis["bbox"]
+	var u_length: float = interior.x if normal_axis(face) == 2 else interior.z
+	var edges: PackedFloat32Array = edge_heights(analysis, face)
+	var top: float = maxf(min_top, max_of(edges))
+	var cols: int = ceili(u_length / cell - 1e-6)
+	var rows: int = ceili(top / cell - 1e-6)
+	var origin: Vector2 = Vector2(-u_length / 2.0, 0.0)
+	var in_band: PackedByteArray = PackedByteArray()
+	in_band.resize(cols * rows)
+	var band: int = 0
+	for c: int in cols:
+		var u: float = origin.x + (float(c) + 0.5) * cell
+		var edge_index: int = clampi(int(floor((u - origin.x) / CELL_M)), 0, edges.size() - 1)
+		var edge: float = edges[edge_index]
+		for r: int in rows:
+			if (float(r) + 0.5) * cell <= edge + EPS:
+				in_band[r * cols + c] = 1
+				band += 1
+	var grid: PackedByteArray = PackedByteArray()
+	grid.resize(cols * rows)
+	for index: int in int(analysis["count"]):
+		var depth: float = stone_depth(bbox, index, interior, face)
+		if depth > GLASS_REACH_M or depth < -EPS:
+			continue
+		var rect: Array[Vector2] = _face_rect(bbox, index, face)
+		_paint_overlap(grid, cols, rows, cell, origin, rect[0], rect[1])
+	var covered: int = 0
+	for at: int in grid.size():
+		if grid[at] == 1 and in_band[at] == 1:
+			covered += 1
+	return {
+		"share": float(covered) / float(band) if band > 0 else 0.0,
+		"band": band,
+		"covered": covered,
+	}
+
+
+## Marks the cells of a cols x rows grid (origin = lower corner of cell 0) whose rectangle meets
+## the ellipse inscribed in the rectangle lo..hi.
+static func _paint_overlap(
+	grid: PackedByteArray,
+	cols: int,
+	rows: int,
+	cell: float,
+	origin: Vector2,
+	lo: Vector2,
+	hi: Vector2
+) -> void:
+	var c0: int = maxi(0, int(floor((lo.x - origin.x) / cell)))
+	var c1: int = mini(cols - 1, int(floor((hi.x - origin.x) / cell)))
+	var r0: int = maxi(0, int(floor((lo.y - origin.y) / cell)))
+	var r1: int = mini(rows - 1, int(floor((hi.y - origin.y) / cell)))
+	var centre: Vector2 = (lo + hi) / 2.0
+	var half: Vector2 = ((hi - lo) / 2.0).max(Vector2(1e-9, 1e-9))
+	for r: int in range(r0, r1 + 1):
+		var y0: float = origin.y + float(r) * cell
+		var near_y: float = clampf(centre.y, y0, y0 + cell)
+		var dy: float = (near_y - centre.y) / half.y
+		for c: int in range(c0, c1 + 1):
+			var x0: float = origin.x + float(c) * cell
+			var near_x: float = clampf(centre.x, x0, x0 + cell)
+			var dx: float = (near_x - centre.x) / half.x
+			if dx * dx + dy * dy <= 1.0:
+				grid[r * cols + c] = 1
+
+
 ## The share of the 5 mm grid points of a face (floor to `band_top`) whose perpendicular ray from
 ## the pane meets a stone before the wall of the core (AC 39). A stone is met when its silhouette
 ## (the ellipse inscribed in its bounding rectangle) contains the point and its nearest point lies

@@ -177,6 +177,58 @@ func test_helper_glass_contact_is_full_on_a_packed_face_and_zero_when_the_row_is
 	assert_float(Geo.glass_contact_share(gap, Geo.BACK, CELL, DEPTH)).is_equal_approx(1.0, 1e-9)
 
 
+## AC 27 cells (code-reviewer decision 6957252973): with 2 mm cells the gaps between the 4.9 mm
+## stones hold no cell centre inside a silhouette, but every cell rectangle meets one, so the cell
+## share is full where the centre-sampled share is not; the row above the 4.9 mm edge is outside
+## the band, also when the minimum band top lies higher or lower.
+func test_helper_glass_cells_count_a_silhouette_overlap_and_only_the_cells_below_the_edge() -> void:
+	var full: Dictionary = _analysis()
+	var small_cell: float = 0.002
+	for face: int in Geo.FACES:
+		var columns: int = 30 if face <= Geo.BACK else 20
+		for min_top: float in [0.001, DEPTH, 0.01]:
+			var result: Dictionary = Geo.glass_cell_share(full, face, small_cell, min_top)
+			var label: String = "%s face, band top at least %.3f" % [Geo.FACE_NAMES[face], min_top]
+			assert_int(int(result["band"])).override_failure_message(label).is_equal(2 * columns)
+			assert_float(float(result["share"])).override_failure_message(label).is_equal_approx(
+				1.0, 1e-9
+			)
+		(
+			assert_float(Geo.glass_contact_share(full, face, small_cell, DEPTH))
+			. override_failure_message(Geo.FACE_NAMES[face])
+			. is_less(0.9)
+		)
+
+
+## A front row 2 mm behind the glass raises the edge but does not touch the pane: no band cell is
+## covered on the front, the back stays full.
+func test_helper_glass_cells_need_a_stone_within_1_mm_of_the_pane() -> void:
+	var entries: Array[Dictionary] = _bed()
+	var buffer: PackedFloat32Array = entries[0]["buffer"]
+	for index: int in range(7 * 12, 8 * 12):
+		buffer[index * Geo.FLOATS + 11] -= 0.002
+	entries[0]["buffer"] = buffer
+	var lod0: Array[PackedVector3Array] = [_cube()]
+	var analysis: Dictionary = Geo.analyse(entries, lod0, INTERIOR, CORE_CENTRE, CORE_SIZE, false)
+	var front: Dictionary = Geo.glass_cell_share(analysis, Geo.FRONT, CELL, DEPTH)
+	assert_int(int(front["band"])).is_equal(12)
+	assert_int(int(front["covered"])).is_equal(0)
+	assert_float(float(front["share"])).is_equal(0.0)
+	var back: Dictionary = Geo.glass_cell_share(analysis, Geo.BACK, CELL, DEPTH)
+	assert_float(float(back["share"])).is_equal_approx(1.0, 1e-9)
+
+
+func test_helper_glass_cells_report_an_empty_band_as_zero() -> void:
+	var front_row_missing: Array[Vector2i] = []
+	for column: int in 12:
+		front_row_missing.append(Vector2i(column, 7))
+	var result: Dictionary = Geo.glass_cell_share(
+		_analysis(front_row_missing), Geo.FRONT, CELL, DEPTH
+	)
+	assert_int(int(result["band"])).is_equal(0)
+	assert_float(float(result["share"])).is_equal(0.0)
+
+
 func test_helper_rays_meet_stones_before_the_core_where_the_shell_is_and_miss_where_it_is_not(
 ) -> void:
 	var full: Dictionary = _analysis()

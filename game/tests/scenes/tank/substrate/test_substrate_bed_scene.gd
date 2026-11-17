@@ -114,8 +114,27 @@ func test_ac14_no_tank_scene_keeps_a_flat_plane_or_the_old_layer() -> void:
 					)
 					. is_false()
 				)
+		# The only PlaneMesh of a tank is the protected water surface (AC 36), outside the anchor
+		# (code-reviewer decision, issue #28 comment 6957252973).
+		for node: Node in tank_node.find_children("*", "MeshInstance3D", true, false):
+			if not (node as MeshInstance3D).mesh is PlaneMesh:
+				continue
+			var path: String = String(tank_node.get_path_to(node))
+			(
+				assert_bool(anchor != null and anchor.is_ancestor_of(node))
+				. override_failure_message(
+					"%s: the PlaneMesh %s lies under SubstrateAnchor" % [tank_id, path]
+				)
+				. is_false()
+			)
+			(
+				assert_str(path)
+				. override_failure_message(
+					"%s: PlaneMesh at %s, only WaterVolume/Surface may carry one" % [tank_id, path]
+				)
+				. is_equal("WaterVolume/Surface")
+			)
 		var text: String = FileAccess.get_file_as_string(Table.scene_path(tank_id))
-		assert_str(text).not_contains("PlaneMesh")
 		assert_str(text).not_contains("substrate_layer")
 		assert_str(text).not_contains("substrate.gdshader")
 

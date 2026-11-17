@@ -1,17 +1,18 @@
 extends GdUnitTestSuite
 ## #28 criterion 33, the automated budget (owner: technical-artist for the assembler, the LOD helper
 ## and the view; the measured GPU numbers of AC 34 are in tests/measure/substrate_budget_measure.gd,
-## not here). For each of the three tanks and each of the five types:
-## (a) at most 100,000 unique stones per bed in the large tank (sand: at most 90,000 unique ring
-##     grains plus each shared top tile counted once), no more in the other two tanks;
+## not here). For each of the three tanks and each of the five types (the caps hold in every tank:
+## BA decision, issue #28 comment 6957276105; the large tank is no longer the bound of the others):
+## (a) at most 100,000 unique stones per bed (sand: at most 90,000 unique ring grains plus each
+##     shared top tile counted once);
 ## (b) the drawn-triangle estimate (chunks in the frustum, the LOD the distance selects, ray-cast
 ##     quads count 2) is at most 600,000 at the default camera and at most 1,000,000 at each of the
-##     eight close-up views in the large tank, and no more in the other tanks of the same type at
-##     the same views;
+##     eight close-up views; the estimates of the small and medium tanks are printed next to the
+##     large tank's so the extra AC 34 cases can be picked;
 ## (c) every instance comes from a baked record with at least one visibility flag;
 ## (d) no stone or grain casts a shadow, the core floor skin does;
-## (e) the MultiMeshInstance3D count is within the ceiling of 800 in the large tank and no more in
-##     the others; the counts are printed for the test report.
+## (e) the MultiMeshInstance3D count is within the ceiling of 800; the counts are printed per tank
+##     and type for the test report.
 
 const Api := preload("res://tests/helpers/substrate_bed_api.gd")
 const Fixture := preload("res://tests/helpers/substrate_bed_fixture.gd")
@@ -67,28 +68,19 @@ func _estimate(tank_id: StringName, id: StringName, view_name: String) -> int:
 # --- (a) unique stones ---
 
 
-func test_ac33_unique_stones_per_bed_are_at_most_100000_and_no_more_than_the_large_tank() -> void:
-	for id: StringName in Sub.IDS:
-		if not _ready_for(Table.LARGE, id):
-			return
-		var large: int = _unique_stones(Fixture.bed_of(Table.LARGE, id))
-		print("[#28 budget] unique stones %s in %s: %d" % [id, Table.LARGE, large])
-		assert_int(large).override_failure_message("%s: %d unique stones" % [id, large]).is_between(
-			1, MAX_UNIQUE
-		)
-		for tank_id: StringName in [Table.SMALL, Table.MEDIUM]:
+func test_ac33_unique_stones_per_bed_are_at_most_100000_in_every_tank() -> void:
+	for tank_id: StringName in Table.IDS:
+		for id: StringName in Sub.IDS:
 			if not _ready_for(tank_id, id):
 				return
 			var count: int = _unique_stones(Fixture.bed_of(tank_id, id))
+			print("[#28 budget] unique stones %s in %s: %d" % [id, tank_id, count])
 			(
 				assert_int(count)
 				. override_failure_message(
-					(
-						"%s in %s: %d unique stones, the large tank has %d"
-						% [id, tank_id, count, large]
-					)
+					"%s in %s: %d unique stones, cap %d" % [id, tank_id, count, MAX_UNIQUE]
 				)
-				. is_less_equal(large)
+				. is_between(1, MAX_UNIQUE)
 			)
 
 
@@ -155,26 +147,62 @@ func test_ac33_the_triangle_estimate_is_within_the_budget_at_every_view_of_the_l
 			)
 
 
-func test_ac33_the_smaller_tanks_draw_no_more_than_the_large_tank_at_the_same_views() -> void:
+## The small and medium tanks against the same absolute caps (BA decision 6957276105). Each line
+## names the large tank's estimate for the same type and view and marks the cases above it: those
+## are the extra AC 34 GPU cases, with the other tank and type of the highest estimate at the
+## default camera.
+func test_ac33_every_tank_stays_within_the_triangle_caps_at_every_view() -> void:
+	var heaviest: String = ""
+	var heaviest_count: int = -1
+	var heaviest_other: String = ""
+	var heaviest_other_count: int = -1
 	for id: StringName in Sub.IDS:
 		if not _ready_for(Table.LARGE, id):
 			return
 		for view_name: String in Views.all_names():
 			var large: int = _estimate(Table.LARGE, id, view_name)
+			var limit: int = (
+				MAX_DEFAULT_TRIANGLES if view_name == Views.DEFAULT_VIEW else MAX_CLOSE_UP_TRIANGLES
+			)
+			if view_name == Views.DEFAULT_VIEW and large > heaviest_count:
+				heaviest_count = large
+				heaviest = "%s %s" % [Table.LARGE, id]
 			for tank_id: StringName in [Table.SMALL, Table.MEDIUM]:
 				if not _ready_for(tank_id, id):
 					return
 				var count: int = _estimate(tank_id, id, view_name)
+				var marker: String = (
+					" (above the large tank: extra AC 34 case)" if count > large else ""
+				)
+				print(
+					(
+						"[#28 budget] triangles %s at %s: %s %d, %s %d%s"
+						% [id, view_name, tank_id, count, Table.LARGE, large, marker]
+					)
+				)
+				if view_name == Views.DEFAULT_VIEW and count > heaviest_count:
+					heaviest_count = count
+					heaviest = "%s %s" % [tank_id, id]
+				if view_name == Views.DEFAULT_VIEW and count > heaviest_other_count:
+					heaviest_other_count = count
+					heaviest_other = "%s %s" % [tank_id, id]
 				(
 					assert_int(count)
 					. override_failure_message(
 						(
-							"%s at %s: %d triangles in %s, %d in the large tank"
-							% [id, view_name, count, tank_id, large]
+							"%s at %s in %s: %d triangles, limit %d (large tank %d)"
+							% [id, view_name, tank_id, count, limit, large]
 						)
 					)
-					. is_less_equal(large)
+					. is_between(1, limit)
 				)
+	print("[#28 budget] heaviest default camera: %s, %d triangles" % [heaviest, heaviest_count])
+	print(
+		(
+			"[#28 budget] heaviest default camera of the small and medium tanks: %s, %d triangles"
+			% [heaviest_other, heaviest_other_count]
+		)
+	)
 
 
 # --- (c) flags ---
@@ -256,33 +284,29 @@ func test_ac33_no_stone_or_grain_casts_a_shadow_and_the_core_floor_does() -> voi
 			)
 
 
-func test_ac33_the_multimesh_node_count_is_within_800_and_no_more_in_the_smaller_tanks() -> void:
-	for id: StringName in Sub.IDS:
-		if not _ready_for(Table.LARGE, id):
-			return
-		var large_view: Node3D = _view(Table.LARGE, id)
-		var large: int = int(large_view.call("get_multimesh_node_count"))
-		print("[#28 budget] MultiMesh nodes %s in %s: %d" % [id, Table.LARGE, large])
-		assert_int(large).override_failure_message("%s: %d nodes" % [id, large]).is_between(
-			1, MAX_NODES
-		)
-		var counted: int = 0
-		for instance: GeometryInstance3D in Rig.geometry_below(large_view):
-			if instance is MultiMeshInstance3D:
-				counted += 1
-		(
-			assert_int(large)
-			. override_failure_message("%s: get_multimesh_node_count is not the node count" % id)
-			. is_equal(counted)
-		)
-		for tank_id: StringName in [Table.SMALL, Table.MEDIUM]:
+func test_ac33_the_multimesh_node_count_is_within_800_in_every_tank() -> void:
+	for tank_id: StringName in Table.IDS:
+		for id: StringName in Sub.IDS:
 			if not _ready_for(tank_id, id):
 				return
-			var count: int = int(_view(tank_id, id).call("get_multimesh_node_count"))
+			var view: Node3D = _view(tank_id, id)
+			var count: int = int(view.call("get_multimesh_node_count"))
+			print("[#28 budget] MultiMesh nodes %s in %s: %d" % [id, tank_id, count])
 			(
 				assert_int(count)
 				. override_failure_message(
-					"%s in %s: %d nodes, the large tank has %d" % [id, tank_id, count, large]
+					"%s in %s: %d nodes, ceiling %d" % [id, tank_id, count, MAX_NODES]
 				)
-				. is_less_equal(large)
+				. is_between(1, MAX_NODES)
+			)
+			var counted: int = 0
+			for instance: GeometryInstance3D in Rig.geometry_below(view):
+				if instance is MultiMeshInstance3D:
+					counted += 1
+			(
+				assert_int(count)
+				. override_failure_message(
+					"%s in %s: get_multimesh_node_count is not the node count" % [id, tank_id]
+				)
+				. is_equal(counted)
 			)

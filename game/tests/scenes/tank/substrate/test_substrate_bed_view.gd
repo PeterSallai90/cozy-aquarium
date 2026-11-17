@@ -510,17 +510,25 @@ func test_ac33_a_second_lod_update_from_the_same_place_changes_nothing() -> void
 		index += 1
 
 
+## The camera stands 10 cm beyond the left glass, 35 cm above the bed (code-reviewer decision,
+## issue #28 comment 6957252973): the nearest top cells are about 0.37 m away, the farthest about
+## 1.14 m, so cells lie on both sides of the range. A precondition keeps the test from becoming
+## vacuous again.
 func test_ac40_sand_top_cells_near_the_camera_are_drawn_and_those_beyond_the_range_are_not(
 ) -> void:
+	var interior: Vector3 = Table.interior(Table.LARGE)
 	for id: StringName in Api.SAND_IDS:
 		if not _ready_for(Table.LARGE, id):
 			return
 		var view: Node3D = _built(Table.LARGE, id)
-		var camera_local: Vector3 = Vector3(0.1, Api.fill_depth(id) + 0.35, 0.02)
+		var camera_local: Vector3 = Vector3(
+			-interior.x / 2.0 - 0.10, Api.fill_depth(id) + 0.35, 0.0
+		)
 		view.call("update_lod", camera_local)
 		var range_end: float = float(Api.look_of(id).get("sand_range_end_m"))
 		var near: int = 0
 		var far: int = 0
+		var farthest: float = 0.0
 		for instance: GeometryInstance3D in Rig.geometry_below(view):
 			if not (
 				instance is MultiMeshInstance3D and String(instance.name).begins_with("SandTop_")
@@ -529,6 +537,7 @@ func test_ac40_sand_top_cells_near_the_camera_are_drawn_and_those_beyond_the_ran
 			var centre: Vector3 = (instance as Node3D).position
 			centre.y = Api.fill_depth(id)
 			var distance: float = centre.distance_to(camera_local)
+			farthest = maxf(farthest, distance)
 			if distance <= 0.7 - 0.05:
 				near += 1
 				(
@@ -553,6 +562,19 @@ func test_ac40_sand_top_cells_near_the_camera_are_drawn_and_those_beyond_the_ran
 					)
 					. is_false()
 				)
+		(
+			assert_float(farthest)
+			. override_failure_message(
+				(
+					(
+						"%s: from the camera at %s (tank-local, 10 cm beyond the left glass) the"
+						+ " farthest top cell is %.3f m away, need at least the range end %.2f + 0.05"
+					)
+					% [id, camera_local, farthest, range_end]
+				)
+			)
+			. is_greater_equal(range_end + 0.05)
+		)
 		(
 			assert_int(near)
 			. override_failure_message("%s: no sand cell near the camera" % id)
