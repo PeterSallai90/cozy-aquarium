@@ -102,7 +102,7 @@
       "seam_half_m": 0.0045,
       "seam_extra_m": 0.012,
       "fills": 4,
-      "surface_bias_m": 0.001,
+      "surface_bias_m": 0.0013,
       "seam_balance": 1.05
     },
     "pour": {
