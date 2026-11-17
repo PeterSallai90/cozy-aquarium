@@ -297,20 +297,29 @@ Look spike v2 numbers (RX 6800 XT, large tank, 1080p, TAA, stand-in load, 5 cm c
 final implementation) are kept here for comparison. The technical-artist replaces them with the
 measurement of the implementation before the pull request; the tester can repeat it (AC 34).
 
+Implementation column: measured by the technical-artist on 2026-11-17 with the method of rule 18
+(600 warm-up frames, 4 alternating pairs of 300-frame blocks, every pair within 0.02 ms) for all
+five types at the default camera and the eight close-up views of rule 17, large tank, 1920 x 1080,
+TAA, stand-in load of rule 16. Every check passed: added GPU time at most 0.45 ms in every view
+(limit 0.5 ms on this card), primitives at most 0.44 M at the default camera and 0.93 M at a
+close-up, the headless estimate at least 0.95 of the reported primitives. The bed was a
+SubstrateBedView driven directly, because the SubstrateBed node of the developer group did not
+exist yet; the type-change hitch (rule 15) is measured after it does.
+
 | Item | Spike v2 (provisional) | Implementation |
 | --- | --- | --- |
-| GPU and driver | AMD Radeon RX 6800 XT | to be measured |
-| Unique stones, worst type | 93,043 (gravel_natural) | to be measured |
-| Triangles drawn, default camera, worst type | 558 k (gravel_natural) | to be measured |
-| Triangles drawn, worst close-up | 993 k (gravel_natural, glass 12 cm) | to be measured |
-| Added GPU, default camera, worst type | 0.22 ms (gravel_natural) | to be measured |
-| Added GPU, worst close-up | 0.37 ms (sand_fine, glass 35 cm) | to be measured |
-| Mid-range estimate (x F = 3) | 1.11 ms | to be measured |
-| MultiMesh nodes, worst type | 640 (gravel_natural) | to be measured |
-| Render-server CPU, worst type | 0.31 ms (gravel_natural) | to be measured |
-| Build (one blocking step, GDScript) | 0.87 s (gravel_natural) | to be measured (threaded) |
+| GPU and driver | AMD Radeon RX 6800 XT | AMD Radeon RX 6800 XT, Vulkan 1.4.315, Godot 4.7.2 |
+| Unique stones, worst type | 93,043 (gravel_natural) | 96,938 (gravel_natural) |
+| Triangles drawn, default camera, worst type | 558 k (gravel_natural) | 438 k (gravel_natural) |
+| Triangles drawn, worst close-up | 993 k (gravel_natural, glass 12 cm) | 932 k (pebbles_river, glass_close_left) |
+| Added GPU, default camera, worst type | 0.22 ms (gravel_natural) | 0.20 ms (gravel_natural) |
+| Added GPU, worst close-up | 0.37 ms (sand_fine, glass 35 cm) | 0.45 ms (sand_fine, corner) |
+| Mid-range estimate (x F = 3) | 1.11 ms | 1.36 ms |
+| MultiMesh nodes, worst type | 640 (gravel_natural) | 640 (gravel_natural), up to 642 draw calls |
+| Render-server CPU, worst type | 0.31 ms (gravel_natural) | 0.33 ms (gravel_natural) |
+| Build (one blocking step, GDScript) | 0.87 s (gravel_natural) | assembly 0.33 s on one thread (gravel_natural, headless); threaded build to be measured with SubstrateBed |
 | Type change: longest frame (median of 10), time to swap | not measured | to be measured |
-| Baked data size | 103 to 373 KB per type | to be measured |
+| Baked data size | 103 to 373 KB per type | 46 to 295 KB per file, 790 KB in total |
 
 ## Alternatives considered
 
