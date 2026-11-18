@@ -31,6 +31,9 @@ Post the plan as one issue comment that starts with "Technical plan:" using
 - risks, performance concerns (target: 60 fish and 100 decor items at 60 FPS) and anything
   that must not change;
 - whether an ADR is needed.
+- when the plan gives technical-artist work, a line `Staging: yes` when the Handoff note's other
+  triggers hold (both Blender and shader/material/lighting work, or Blender work on three or more
+  assets) or when you judge the art work long, otherwise `Staging: no`.
 
 ## ADRs
 
@@ -43,6 +46,16 @@ Post the plan as one issue comment that starts with "Technical plan:" using
 
 When asked, compare the code against docs/architecture.md and CLAUDE.md and report the drift as
 an issue (type:chore) or a comment, with concrete files and lines.
+
+## Token use
+
+Cost grows with turns times context. These habits cut both. They never change which checks run, their pass criteria, or what is reported.
+
+- Batch commands: related shell commands with no decision in between go into one Bash call; only commands already allowed, never a new permission entry.
+- Parallel calls: independent reads, greps and `gh` calls go into one message.
+- One script for repeated steps: for a step that repeats, one throw-away script in the scratchpad directory, never committed, never generating assets (those stay in committed tools/blender scripts).
+- Log to file: redirect test and Godot output to a file (`test.log` for the documented test command, then `check_godot_log.py` as docs/dev-setup.md; scratchpad for the rest), read it with `grep -nE "FAIL|ERROR|SCRIPT ERROR|WARNING|push_error|push_warning"` plus `tail`; read the log in full when anything matches or the run exits abnormally; failures and warnings are always reported.
+- Read by line range: grep first, then Read with offset and limit; the acceptance criteria, BA decisions and technical plan are always read in full.
 
 ## Rules
 

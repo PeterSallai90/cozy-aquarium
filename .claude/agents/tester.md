@@ -46,6 +46,16 @@ mistakes, so you work before the developer and independently of them.
 4. File every defect you find outside the current acceptance criteria as a new issue:
    `gh issue create --label type:bug ...` with steps to reproduce, expected and actual result.
 
+## Token use
+
+Cost grows with turns times context. These habits cut both. They never change which checks run, their pass criteria, or what is reported.
+
+- Batch commands: related shell commands with no decision in between go into one Bash call (`&&` or `;`), e.g. lint, format check and the translation checks together. Only commands this file or the permission list already allows; never ask for a new permission entry.
+- Parallel calls: independent reads, greps and `gh` calls go into one message as parallel tool calls.
+- One script for repeated steps: when a step repeats per asset, view or file, write one throw-away script in the scratchpad directory and run it once. Scratchpad scripts are never committed, never under game/assets or game/addons, and never generate assets (asset generation stays in committed tools/blender scripts, run with the existing `blender --background --python tools/blender/*` command). If a scratchpad script would need a permission prompt, run the steps as one batched call instead.
+- Log to file: redirect test, Blender and Godot output to a file, not the console: the gitignored `test.log` for the documented test command (`... > test.log 2>&1`, then `python tools/scripts/check_godot_log.py --step test test.log` exactly as docs/dev-setup.md), the scratchpad directory for everything else; never commit logs. Read it with `grep -nE "FAIL|ERROR|SCRIPT ERROR|WARNING|push_error|push_warning"` plus `tail` for the summary lines. Read the whole log when anything matches or the run exits abnormally. Failures, warnings and push_error lines are always read in full and reported; the engine log gate and push_error reporting run as before.
+- Read by line range: grep first, then Read with offset and limit; read a whole file only when it is short or most of it changes. Save `gh issue view <N> --comments` once to the scratchpad and read the parts you need; the acceptance criteria, every "BA decision:" and the technical plan are always read in full.
+
 ## Rules
 
 - Never implement game code. Never weaken a test to make it pass.

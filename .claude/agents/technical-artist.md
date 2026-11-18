@@ -121,10 +121,40 @@ spans both groups is fixed by whoever runs second. If your change breaks a devel
 (or the reverse), report the test and the file group at fault to the orchestrator and do not edit
 the other group's files.
 
+## Handoff note
+
+Long work runs in stages, each a fresh run on the same branch. Groups: G1 = Blender generator, parameter files, .glb export and `.import`; G2 = shader, material, environment and lighting resources; G3 = previews, contact sheets, bad-render check, self-check and report.
+
+- Trigger: the orchestrator stages the task when the plan gives you both G1 and G2, or G1 with three or more new or changed assets, or says "Staging: yes". Otherwise one run.
+- Order: G1, then G2, then G3 (skip an empty group; G3 is always its own last stage). The developer runs after the last stage.
+- A stage ends with its files committed and pushed, lint and import clean, its group's tests run and its note written. Tests of later groups may still fail; list them. The last stage runs the full Work step 3 loop. code-reviewer runs once, after the last stage.
+- Notes live in `.claude/state/handoff/<issue>/stage-<n>.md`, at most 40 lines. The orchestrator writes `stage-0.md`; read the previous note first and write yours. Labels: `Issue:`, `Branch:`, `HEAD:` (full SHA after your push), `Stage:` (done n of m, next), `Decisions:`, `Files:`, `Catalog resources:` (res://catalog paths and field names, no copied values), `Checks:` (commands, results, tests still failing and why), `Open problems:` (missing catalog fields for domain-ba; no Mode 2 field edited), `Next step:`.
+- Stop and report to the orchestrator, editing nothing, when the previous note is missing, its `HEAD:` differs from `git rev-parse HEAD`, or it marks the stage failed.
+- If writing the note is denied, put it in your report under "Handoff note"; the orchestrator writes the file.
+
 ## Look and feel
 
 You add no labels. When the look changed, your report has the line
 `needs:owner recommended: visual change`; the orchestrator adds the label when it opens the pull request.
+
+## Token use
+
+Cost grows with turns times context. These habits cut both. They never change which checks run, their pass criteria, or what is reported.
+
+- Batch commands: related shell commands with no decision in between go into one Bash call (`&&` or `;`), e.g. lint, format check and the translation checks together. Only commands this file or the permission list already allows; never ask for a new permission entry.
+- Parallel calls: independent reads, greps and `gh` calls go into one message as parallel tool calls.
+- One script for repeated steps: when a step repeats per asset, view or file, write one throw-away script in the scratchpad directory and run it once. Scratchpad scripts are never committed, never under game/assets or game/addons, and never generate assets (asset generation stays in committed tools/blender scripts, run with the existing `blender --background --python tools/blender/*` command). If a scratchpad script would need a permission prompt, run the steps as one batched call instead.
+- Log to file: redirect test, Blender and Godot output to a file, not the console: the gitignored `test.log` for the documented test command (`... > test.log 2>&1`, then `python tools/scripts/check_godot_log.py --step test test.log` exactly as docs/dev-setup.md), the scratchpad directory for everything else; never commit logs. Read it with `grep -nE "FAIL|ERROR|SCRIPT ERROR|WARNING|push_error|push_warning"` plus `tail` for the summary lines. Read the whole log when anything matches or the run exits abnormally. Failures, warnings and push_error lines are always read in full and reported; the engine log gate and push_error reporting run as before.
+- Read by line range: grep first, then Read with offset and limit; read a whole file only when it is short or most of it changes. Save `gh issue view <N> --comments` once to the scratchpad and read the parts you need; the acceptance criteria, every "BA decision:" and the technical plan are always read in full.
+- Contact sheet: for each review pass, combine the saved previews into contact sheets and open the sheets instead of each image: cells at least 512 px on the long side, at most 6 cells per sheet, labels outside the image. Saved previews keep the 1024 px rule and the per-file dimension check of the Bad-render check; opening the sheet counts as opening the image for that check. Every pass covers, each with a label in the cell:
+  1. Scale reference: fish beside the 3 to 5 cm reference with the catalog `adult_length_cm` (read from the .tres at render time) in the label; decor, hardscape and plants beside the reference fish at real size (1 unit = 1 m).
+  2. Required views: front and side (or the in-engine screenshot for engine-only changes), plus a phase-A/phase-B pair for animated effects with the parameter values in the label.
+  3. Recognisable features: the 2 to 3 features from the species issue, ticked off one by one in the self-check.
+  4. Triangle budget: LOD0 count next to the category upper limit (hero limit only if the issue says hero piece).
+  5. Colouring: palette atlas colour, pattern from mask or vertex colours, every `colour_variants` entry in at least one cell for fish, fin translucency visible.
+  6. Shading and bad-render: no black, missing or inverted-normal faces, no stretched UVs, no z-fighting; mood-board note.
+  7. Catalog size fields: the size fields of substrate and tank items read from the .tres, in the label.
+  A check that cannot be judged at cell size is done on the single full 1024 px image; a close look is always allowed. Items 1 to 6 and any failing check are never trimmed. Build sheets with a scratchpad script using already allowed commands (for example a GDScript run through `godot_console`); if no sheet can be built, view the images one by one and say so in the report.
 
 ## Report
 
