@@ -119,6 +119,8 @@ func test_ac11_the_warning_matches_the_stable_substring_of_the_plan() -> void:
 		return
 	var model: AquariumModel = _model(Sub.UNKNOWN_ID, Color.WHITE)
 	var result: Array = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: result.append(Sub.normalise(model, _catalog)))
 		. is_push_warning(ErrorContains.new(Sub.WARN_UNKNOWN_ID))

@@ -53,6 +53,8 @@ func test_an_unsupported_language_gives_the_english_separator_without_a_warning(
 	for bad: Variant in ["", "de", "HU", 3, null, &"hu"]:
 		var rig: Rig = Rig.new(bad)
 		var result: Array[String] = []
+		# GdUnit4 needs this await on the error check.
+		@warning_ignore("redundant_await")
 		await (
 			assert_error(func() -> void: result.append(rig.format.format_number(3.5, 1)))
 			. is_success()
@@ -65,6 +67,8 @@ func test_an_invalid_language_callable_gives_the_english_separator() -> void:
 		Callable(), func() -> Variant: return 0, func() -> Variant: return 0
 	)
 	var result: Array[String] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await assert_error(func() -> void: result.append(format.format_number(3.5, 1))).is_success()
 	assert_array(result).is_equal(["3.5"])
 
@@ -206,6 +210,8 @@ func test_the_argument_is_not_changed() -> void:
 
 func test_a_negative_decimal_count_acts_as_zero_with_a_warning() -> void:
 	var result: Array[String] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: result.append(_text(3.5, -1)))
 		. is_push_warning(ErrorContains.new("LocalFormat: decimals clamped"))
@@ -215,6 +221,8 @@ func test_a_negative_decimal_count_acts_as_zero_with_a_warning() -> void:
 
 func test_a_decimal_count_above_six_acts_as_six_with_a_warning() -> void:
 	var result: Array[String] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: result.append(_text(3.5, 7)))
 		. is_push_warning(ErrorContains.new("LocalFormat: decimals clamped"))
@@ -225,10 +233,14 @@ func test_a_decimal_count_above_six_acts_as_six_with_a_warning() -> void:
 func test_the_entry_point_clamps_the_decimals_with_a_warning() -> void:
 	var rig: Rig = Rig.new("hu")
 	var result: Array[String] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: result.append(rig.format.format_number(3.5, 99)))
 		. is_push_warning(ErrorContains.new("LocalFormat: decimals clamped"))
 	)
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: result.append(rig.format.format_number(3.5, -5)))
 		. is_push_warning(ErrorContains.new("LocalFormat: decimals clamped"))
@@ -237,6 +249,8 @@ func test_the_entry_point_clamps_the_decimals_with_a_warning() -> void:
 
 
 func test_the_decimal_counts_zero_and_six_log_no_warning() -> void:
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (assert_error(func() -> void: _text_pair(Rig.new("hu"))).is_success())
 
 
@@ -254,6 +268,8 @@ func test_the_entry_point_gives_the_english_placeholder_and_a_warning() -> void:
 	var rig: Rig = Rig.new("en")
 	for bad: float in [NAN, INF, -INF]:
 		var result: Array[String] = []
+		# GdUnit4 needs this await on the error check.
+		@warning_ignore("redundant_await")
 		await (
 			assert_error(func() -> void: result.append(rig.format.format_number(bad, 1)))
 			. is_push_warning(ErrorContains.new("LocalFormat: number is not finite"))
@@ -266,6 +282,8 @@ func test_the_entry_point_gives_the_hungarian_placeholder_and_a_warning() -> voi
 	var rig: Rig = Rig.new("hu")
 	for bad: float in [NAN, INF, -INF]:
 		var result: Array[String] = []
+		# GdUnit4 needs this await on the error check.
+		@warning_ignore("redundant_await")
 		await (
 			assert_error(func() -> void: result.append(rig.format.format_number(bad, 1)))
 			. is_push_warning(ErrorContains.new("LocalFormat: number is not finite"))
@@ -277,6 +295,8 @@ func test_the_number_placeholder_follows_the_locale_not_the_injected_language() 
 	TranslationServer.set_locale("hu")
 	var rig: Rig = Rig.new("en")
 	var result: Array[String] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: result.append(rig.format.format_number(NAN, 1)))
 		. is_push_warning(ErrorContains.new("LocalFormat: number is not finite"))

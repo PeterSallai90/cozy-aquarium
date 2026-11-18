@@ -152,9 +152,9 @@ func test_file_at_current_version_runs_no_step() -> void:
 func test_steps_see_the_data_before_any_field_is_read() -> void:
 	# A step may repair data that would be damaged in the current shape.
 	var repair: Callable = func(data: Dictionary) -> Variant:
-		var result: Dictionary = data.duplicate(true)
-		result["name"] = "repaired"
-		return result
+		var repaired: Dictionary = data.duplicate(true)
+		repaired["name"] = "repaired"
+		return repaired
 	var codec: SaveCodec = SaveCodec.new(2, {1: repair})
 	var result: SaveResult = _decode_text('{"format_version": 1, "name": 5}', codec)
 	assert_int(result.kind).is_equal(SaveResult.Kind.OK)
@@ -200,9 +200,9 @@ func test_step_returning_a_non_dictionary_is_damaged() -> void:
 
 func test_migrated_data_invalid_is_damaged() -> void:
 	var break_it: Callable = func(data: Dictionary) -> Variant:
-		var result: Dictionary = data.duplicate(true)
-		result["name"] = 5
-		return result
+		var invalid: Dictionary = data.duplicate(true)
+		invalid["name"] = 5
+		return invalid
 	var codec: SaveCodec = SaveCodec.new(2, {1: break_it})
 	var result: SaveResult = _decode_text(SaveFixtures.to_text(SaveFixtures.base_dict()), codec)
 	assert_int(result.kind).is_equal(SaveResult.Kind.DAMAGED)

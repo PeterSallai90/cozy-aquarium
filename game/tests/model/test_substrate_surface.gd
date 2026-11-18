@@ -217,10 +217,10 @@ func test_ac26_sand_pebbles_sand_keeps_the_item_y_and_moves_the_standing_height(
 			_catalog, model.get_substrate_id(), model.get_substrate_colour(), id
 		)
 		assert_bool(_history.execute(Sub.command(model, _catalog, id, colour))).is_true()
-		var after: PlacedItem = model.get_item("a0000001")
-		assert_float(after.position.y).override_failure_message("model y moved").is_equal(0.0)
+		var value_after: PlacedItem = model.get_item("a0000001")
+		assert_float(value_after.position.y).override_failure_message("model y moved").is_equal(0.0)
 		(
-			assert_float(_absolute(_def(id), after.position))
+			assert_float(_absolute(_def(id), value_after.position))
 			. override_failure_message("standing height after %s" % id)
 			. is_equal_approx(expected[step], 1e-9)
 		)
@@ -231,16 +231,16 @@ func test_ac26_the_save_file_does_not_change_with_the_round_trip_through_pebbles
 		return
 	var codec: SaveCodec = SaveCodec.new()
 	var model: AquariumModel = Sub.furnished(Sub.SAND, Sub.SAND_DEFAULT)
-	var before: SaveResult = codec.encode(model, Sub.STAMP)
-	assert_bool(before.is_ok()).is_true()
+	var value_before: SaveResult = codec.encode(model, Sub.STAMP)
+	assert_bool(value_before.is_ok()).is_true()
 	for id: StringName in [Sub.PEBBLES, Sub.SAND]:
 		var colour: Color = Sub.pick(
 			_catalog, model.get_substrate_id(), model.get_substrate_colour(), id
 		)
 		assert_bool(_history.execute(Sub.command(model, _catalog, id, colour))).is_true()
-	var after: SaveResult = codec.encode(model, Sub.STAMP)
-	assert_str(after.text).is_equal(before.text)
-	var parsed: Variant = JSON.parse_string(after.text)
+	var value_after: SaveResult = codec.encode(model, Sub.STAMP)
+	assert_str(value_after.text).is_equal(value_before.text)
+	var parsed: Variant = JSON.parse_string(value_after.text)
 	assert_bool(parsed is Dictionary).is_true()
 	assert_int(int((parsed as Dictionary).get("format_version", -1))).is_equal(1)
 	assert_int(codec.get_current_version()).is_equal(1)

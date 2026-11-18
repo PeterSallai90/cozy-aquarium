@@ -77,8 +77,8 @@ func _floor_at(rig: Lim.TankRig, distance_m: float) -> float:
 	return OrbitMath.min_elevation_deg(_limit(), rig.home_pivot.y - Lim.cabinet_top(), distance_m)
 
 
-func _label(name: String, rig: Lim.TankRig) -> String:
-	return "%s tank=%s" % [name, rig.id]
+func _label(tank_name: String, rig: Lim.TankRig) -> String:
+	return "%s tank=%s" % [tank_name, rig.id]
 
 
 func _far_pose(rig: Lim.TankRig) -> void:

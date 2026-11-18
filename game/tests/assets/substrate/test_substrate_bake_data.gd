@@ -113,6 +113,8 @@ func _parse(path: String) -> Dictionary:
 		return result
 	result["header"] = parsed
 	var record_bytes: int = bytes.size() - PREAMBLE_BYTES - header_length
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	result["records"] = record_bytes / RECORD_BYTES
 	result["record_remainder"] = record_bytes % RECORD_BYTES
 	return result
@@ -416,11 +418,11 @@ func test_ac42_the_reader_loads_each_file_into_stones_and_sets() -> void:
 				. override_failure_message("%s: no sets" % entry["file"])
 				. is_not_empty()
 			)
-		for set_name: String in set_names:
-			var records: PackedFloat32Array = bake.call("get_set", set_name)
+		for set_label: String in set_names:
+			var records: PackedFloat32Array = bake.call("get_set", set_label)
 			(
 				assert_int(records.size() % RECORD_FLOATS)
-				. override_failure_message("%s set %s" % [entry["file"], set_name])
+				. override_failure_message("%s set %s" % [entry["file"], set_label])
 				. is_equal(0)
 			)
 			assert_int(records.size()).is_greater(0)

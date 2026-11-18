@@ -116,11 +116,11 @@ func test_text_built_in_code_is_rebuilt_in_the_new_language() -> void:
 	await get_tree().process_frame
 	var count: Label = _count(probe)
 	assert_str(count.text).is_equal(EN_COUNT)
-	var before: int = probe.refresh_count
+	var value_before: int = probe.refresh_count
 	assert_int(service.set_language("hu")).is_equal(OK)
 	await get_tree().process_frame
 	assert_str(count.text).is_equal(HU_COUNT)
-	assert_int(probe.refresh_count).is_greater(before)
+	assert_int(probe.refresh_count).is_greater(value_before)
 	assert_int(service.set_language("en")).is_equal(OK)
 	await get_tree().process_frame
 	assert_str(count.text).is_equal(EN_COUNT)
@@ -128,7 +128,7 @@ func test_text_built_in_code_is_rebuilt_in_the_new_language() -> void:
 
 func test_the_scene_and_the_model_are_kept_across_a_switch() -> void:
 	var model: AquariumModel = SaveFixtures.populated_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var service: LanguageService = _service()
 	service.start("en_US")
 	var probe: Control = _probe()
@@ -140,7 +140,7 @@ func test_the_scene_and_the_model_are_kept_across_a_switch() -> void:
 	assert_bool(probe.is_inside_tree()).is_true()
 	assert_int(probe.get_instance_id()).is_equal(probe_id)
 	assert_int(_title(probe).get_instance_id()).is_equal(title_id)
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 
 
 func test_the_signal_is_emitted_once_per_real_change() -> void:

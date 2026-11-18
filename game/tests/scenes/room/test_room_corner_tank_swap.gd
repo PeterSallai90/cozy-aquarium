@@ -18,6 +18,8 @@ const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 var _model: AquariumModel = null
 var _catalog: RefCounted = null
 var _history: CommandHistory = null
+# Member is assigned but not read.
+@warning_ignore("unused_private_class_variable")
 var _room: Node3D = null
 
 
@@ -256,14 +258,14 @@ func test_ac08_loading_into_a_live_model_swaps_the_room_and_clears_the_undo_hist
 func test_ac19_undo_brings_back_the_previous_tank_items_fish_heightmap_and_the_room_view() -> void:
 	var room: Node3D = await _open_room()
 	_furnish()
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	assert_bool(_change(Table.SMALL)).is_true()
 	await get_tree().process_frame
 	_assert_displays(room, Table.SMALL)
 	assert_int(_model.get_item_count()).is_equal(0)
 	assert_bool(_history.undo()).is_true()
 	await get_tree().process_frame
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 	_assert_displays(room, Table.MEDIUM)
 
 

@@ -111,12 +111,12 @@ func test_ac11_the_fallback_adds_no_history_and_the_file_is_unchanged() -> void:
 	if store == null:
 		return
 	var path: String = _write("tank.json", _file_with("pebbles_x", "#123456"))
-	var before: PackedByteArray = SaveFixtures.read_bytes(path)
+	var value_before: PackedByteArray = SaveFixtures.read_bytes(path)
 	assert_bool(_history.execute(AddItemCommand.new(_model, Factory.item("c0000001")))).is_true()
 	await EngineOutput.capture(func() -> void: store.load_into(path, _model, _history))
 	assert_bool(_history.can_undo()).is_false()
 	assert_bool(_history.can_redo()).is_false()
-	assert_that(SaveFixtures.read_bytes(path)).is_equal(before)
+	assert_that(SaveFixtures.read_bytes(path)).is_equal(value_before)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["tank.json"])
 
 

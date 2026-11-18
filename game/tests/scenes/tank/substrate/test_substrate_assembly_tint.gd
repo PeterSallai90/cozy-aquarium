@@ -39,6 +39,8 @@ func _custom(tank_id: StringName, id: StringName) -> PackedFloat32Array:
 
 func _column(custom: PackedFloat32Array, which: int) -> PackedFloat32Array:
 	var values: PackedFloat32Array = PackedFloat32Array()
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	for index: int in custom.size() / 4:
 		values.append(custom[index * 4 + which])
 	return values

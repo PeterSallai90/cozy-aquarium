@@ -186,6 +186,8 @@ static func require_api(suite: GdUnitTestSuite, camera: Node) -> bool:
 	for method: String in NEW_METHODS:
 		if camera == null or not camera.has_method(method):
 			missing.append(method)
+	# Called on the suite instance on purpose.
+	@warning_ignore("static_called_on_instance")
 	(
 		suite
 		. assert_bool(missing.is_empty())
@@ -205,6 +207,8 @@ static func open(
 ) -> Dictionary:
 	var rig: Dictionary = await Cam.open(suite, model, size)
 	var camera: Camera3D = Cam.camera_of(rig["room"])
+	# Called on the suite instance on purpose.
+	@warning_ignore("static_called_on_instance")
 	(
 		suite
 		. assert_bool(camera != null)

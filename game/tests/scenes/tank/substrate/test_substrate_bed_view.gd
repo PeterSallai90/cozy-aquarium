@@ -122,14 +122,14 @@ func test_ac32_a_tiny_budget_still_builds_something_each_step() -> void:
 	if not _ready_for(Table.SMALL, Sub.GRAVEL):
 		return
 	var view: Node3D = _begun(Table.SMALL, Sub.GRAVEL)
-	var before: int = int(view.call("get_multimesh_node_count"))
+	var value_before: int = int(view.call("get_multimesh_node_count"))
 	view.call("build_step", 1)
 	(
 		assert_int(int(view.call("get_multimesh_node_count")))
 		. override_failure_message(
 			"a step with a 1 microsecond budget built nothing, the build could stall"
 		)
-		. is_greater(before)
+		. is_greater(value_before)
 	)
 
 
@@ -315,19 +315,19 @@ func test_ac31_the_view_works_on_copies_and_never_changes_the_look_materials() -
 		if not _ready_for(Table.SMALL, id):
 			return
 		var look: Resource = Api.look_of(id)
-		var before: Dictionary = {}
+		var value_before: Dictionary = {}
 		for property: String in [
 			"stone_material", "grain_material", "top_material", "core_material"
 		]:
 			var material: ShaderMaterial = look.get(property) as ShaderMaterial
 			if material != null:
-				before[property] = Rig.tint_of_material(material)
+				value_before[property] = Rig.tint_of_material(material)
 		var view: Node3D = _built(Table.SMALL, id)
 		view.call("set_tint", SWATCH)
-		for property: String in before:
+		for property: String in value_before:
 			var material: ShaderMaterial = look.get(property) as ShaderMaterial
 			(
-				assert_bool(Rig.same_tint(Rig.tint_of_material(material), before[property]))
+				assert_bool(Rig.same_tint(Rig.tint_of_material(material), value_before[property]))
 				. override_failure_message("%s: the look's %s was changed" % [id, property])
 				. is_true()
 			)
@@ -346,19 +346,19 @@ func test_ac31_a_tint_change_keeps_every_multimesh_object() -> void:
 		if not _ready_for(Table.SMALL, id):
 			return
 		var view: Node3D = _built(Table.SMALL, id)
-		var before: Array[MultiMesh] = []
+		var value_before: Array[MultiMesh] = []
 		for instance: GeometryInstance3D in Rig.geometry_below(view):
 			if instance is MultiMeshInstance3D:
-				before.append((instance as MultiMeshInstance3D).multimesh)
+				value_before.append((instance as MultiMeshInstance3D).multimesh)
 		view.call("set_tint", SWATCH)
-		var after: Array[MultiMesh] = []
+		var value_after: Array[MultiMesh] = []
 		for instance: GeometryInstance3D in Rig.geometry_below(view):
 			if instance is MultiMeshInstance3D:
-				after.append((instance as MultiMeshInstance3D).multimesh)
-		assert_int(after.size()).is_equal(before.size())
-		for index: int in before.size():
+				value_after.append((instance as MultiMeshInstance3D).multimesh)
+		assert_int(value_after.size()).is_equal(value_before.size())
+		for index: int in value_before.size():
 			(
-				assert_bool(is_same(before[index], after[index]))
+				assert_bool(is_same(value_before[index], value_after[index]))
 				. override_failure_message(
 					"%s: MultiMesh %d was replaced by a tint change" % [id, index]
 				)
@@ -494,14 +494,14 @@ func test_ac33_a_second_lod_update_from_the_same_place_changes_nothing() -> void
 	var view: Node3D = _built(Table.MEDIUM, Sub.GRAVEL)
 	var camera_local: Vector3 = Vector3(0.1, 0.1, 0.3)
 	view.call("update_lod", camera_local)
-	var before: Array[Mesh] = []
+	var value_before: Array[Mesh] = []
 	for node: MultiMeshInstance3D in _chunk_nodes(view):
-		before.append(node.multimesh.mesh)
+		value_before.append(node.multimesh.mesh)
 	view.call("update_lod", camera_local)
 	var index: int = 0
 	for node: MultiMeshInstance3D in _chunk_nodes(view):
 		(
-			assert_bool(is_same(before[index], node.multimesh.mesh))
+			assert_bool(is_same(value_before[index], node.multimesh.mesh))
 			. override_failure_message(
 				"chunk %s changed its mesh without the camera moving" % node.name
 			)

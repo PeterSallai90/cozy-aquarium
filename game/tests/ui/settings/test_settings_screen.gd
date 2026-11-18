@@ -186,7 +186,7 @@ func test_the_close_button_closes_the_screen_and_emits_closed_once() -> void:
 func test_closing_leaves_the_scene_behind_it_unchanged() -> void:
 	var model: AquariumModel = SaveFixtures.populated_model()
 	var history: CommandHistory = CommandHistory.new()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var marker: Node2D = auto_free(Node2D.new())
 	marker.position = Vector2(3, 4)
 	add_child(marker)
@@ -200,7 +200,7 @@ func test_closing_leaves_the_scene_behind_it_unchanged() -> void:
 	assert_bool(get_tree().paused).is_false()
 	assert_bool(marker.visible).is_true()
 	assert_vector(marker.position).is_equal(Vector2(3, 4))
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(history.get_undo_count()).is_equal(0)
 
 
@@ -544,7 +544,7 @@ func test_changes_leave_save_files_the_model_and_the_history_alone() -> void:
 	var save_path: String = _dir.path_join("tank.json")
 	assert_int(SaveStore.new(clock).save(model, save_path).kind).is_equal(SaveResult.Kind.OK)
 	var saved_bytes: PackedByteArray = SaveFixtures.read_bytes(save_path)
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var screen: Control = await _open("en_US")
 	if screen == null:
 		return
@@ -553,6 +553,6 @@ func test_changes_leave_save_files_the_model_and_the_history_alone() -> void:
 	_settings.set_value(SettingsRig.volume_key(), 0.8)
 	screen.close()
 	assert_array(SaveFixtures.read_bytes(save_path)).is_equal(saved_bytes)
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(history.get_undo_count()).is_equal(0)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["settings.cfg", "tank.json"])

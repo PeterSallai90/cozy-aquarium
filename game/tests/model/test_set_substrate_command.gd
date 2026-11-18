@@ -141,7 +141,7 @@ func test_ac06_undo_and_redo_are_exact_for_all_ordered_pairs() -> void:
 				continue
 			_history = CommandHistory.new()
 			var model: AquariumModel = _at_default(from_id)
-			var before: Color = model.get_substrate_colour()
+			var value_before: Color = model.get_substrate_colour()
 			var target: Color = Sub.default_colour(_catalog, to_id)
 			var label: String = "%s -> %s" % [from_id, to_id]
 			assert_bool(_run(model, to_id, target)).override_failure_message(label).is_true()
@@ -149,12 +149,12 @@ func test_ac06_undo_and_redo_are_exact_for_all_ordered_pairs() -> void:
 			recorder.watch(model)
 			assert_bool(_history.undo()).override_failure_message(label).is_true()
 			assert_that(model.get_substrate_id()).override_failure_message(label).is_equal(from_id)
-			assert_that(model.get_substrate_colour()).is_equal(before)
+			assert_that(model.get_substrate_colour()).is_equal(value_before)
 			var undone: Array = _changes(recorder)
 			assert_int(undone.size()).override_failure_message(label).is_equal(1)
 			if undone.size() == 1:
 				assert_that(undone[0][0]).is_equal(from_id)
-				assert_that(undone[0][1]).is_equal(before)
+				assert_that(undone[0][1]).is_equal(value_before)
 			recorder.clear()
 			assert_bool(_history.redo()).override_failure_message(label).is_true()
 			assert_that(model.get_substrate_id()).override_failure_message(label).is_equal(to_id)
@@ -212,20 +212,24 @@ func test_ac07_everything_else_is_identical_after_a_type_change_and_after_undo()
 	var model: AquariumModel = Sub.furnished(Sub.SAND, Sub.SAND_DEFAULT)
 	assert_int(model.get_item_count()).is_equal(3)
 	assert_int(model.get_fish_count()).is_equal(2)
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	assert_bool(_run(model, Sub.PEBBLES, Sub.default_colour(_catalog, Sub.PEBBLES))).is_true()
-	assert_that(_without_substrate(ModelState.snapshot(model))).is_equal(_without_substrate(before))
+	assert_that(_without_substrate(ModelState.snapshot(model))).is_equal(
+		_without_substrate(value_before)
+	)
 	assert_bool(_history.undo()).is_true()
-	assert_that(ModelState.snapshot(model)).is_equal(before)
+	assert_that(ModelState.snapshot(model)).is_equal(value_before)
 
 
 func test_ac07_everything_else_is_identical_after_a_colour_change_and_after_undo() -> void:
 	var model: AquariumModel = Sub.furnished(Sub.GRAVEL, Sub.default_colour(_catalog, Sub.GRAVEL))
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	assert_bool(_run(model, Sub.GRAVEL, Sub.swatch(_catalog, Sub.GRAVEL, 2))).is_true()
-	assert_that(_without_substrate(ModelState.snapshot(model))).is_equal(_without_substrate(before))
+	assert_that(_without_substrate(ModelState.snapshot(model))).is_equal(
+		_without_substrate(value_before)
+	)
 	assert_bool(_history.undo()).is_true()
-	assert_that(ModelState.snapshot(model)).is_equal(before)
+	assert_that(ModelState.snapshot(model)).is_equal(value_before)
 
 
 func test_ac07_the_command_emits_only_substrate_changed_on_a_furnished_model() -> void:
@@ -312,7 +316,7 @@ func test_ac08_a_loaded_non_swatch_colour_repeated_is_a_silent_no_op() -> void:
 
 func _rejected(id: StringName, colour: Color, needle: String, label: String) -> void:
 	var model: AquariumModel = _at_default(Sub.SAND)
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	var seen: Dictionary = await EngineOutput.capture_result(
@@ -327,7 +331,7 @@ func _rejected(id: StringName, colour: Color, needle: String, label: String) -> 
 		assert_str(str(errors.keys()[0])).override_failure_message(label).contains(needle)
 		assert_int(int(errors.values()[0])).override_failure_message(label).is_equal(1)
 	assert_dict(seen["warnings"]).override_failure_message(label).is_empty()
-	assert_that(ModelState.snapshot(model)).override_failure_message(label).is_equal(before)
+	assert_that(ModelState.snapshot(model)).override_failure_message(label).is_equal(value_before)
 	assert_int(recorder.count()).override_failure_message(label).is_equal(0)
 	assert_int(_history.get_undo_count()).override_failure_message(label).is_equal(0)
 
@@ -367,7 +371,7 @@ func test_ac10_a_type_change_with_a_colour_that_is_not_its_swatch_is_refused() -
 
 func test_ac10_a_null_catalog_refuses_with_an_error_and_changes_nothing() -> void:
 	var model: AquariumModel = _at_default(Sub.SAND)
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var seen: Dictionary = await EngineOutput.capture_result(
 		func() -> Variant:
 			return _history.execute(Sub.command(model, null, Sub.GRAVEL, Sub.SAND_DEFAULT))
@@ -375,7 +379,7 @@ func test_ac10_a_null_catalog_refuses_with_an_error_and_changes_nothing() -> voi
 	assert_that(seen["result"]).is_equal(false)
 	var errors: Dictionary = seen["errors"]
 	assert_int(errors.size()).is_equal(1)
-	assert_that(ModelState.snapshot(model)).is_equal(before)
+	assert_that(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(_history.get_undo_count()).is_equal(0)
 
 

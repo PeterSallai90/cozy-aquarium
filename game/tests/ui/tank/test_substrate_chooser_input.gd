@@ -135,11 +135,15 @@ func test_ac16_a_drag_started_in_the_world_keeps_orbiting_over_the_panel() -> vo
 		return
 	Cam.right_press(_root(), _world_point())
 	assert_bool(Cam.dragging(_camera)).is_true()
-	var before: float = Cam.t_az(_camera)
+	var value_before: float = Cam.t_az(_camera)
 	Cam.motion(_root(), Vector2(-40.0, 0.0), _panel_point())
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(10.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
+		10.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 	Cam.motion(_root(), Vector2(-40.0, 0.0), _panel_point() + Vector2(5.0, 5.0))
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(20.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
+		20.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 	assert_bool(Cam.dragging(_camera)).is_true()
 
 
@@ -158,9 +162,9 @@ func test_ac16_a_release_over_the_panel_ends_the_world_drag() -> void:
 func test_ac16_a_world_drag_orbits_normally_with_the_panel_open() -> void:
 	if not await _open_main_with_panel():
 		return
-	var before: float = Cam.t_el(_camera)
+	var value_before: float = Cam.t_el(_camera)
 	Cam.drag(_root(), Vector2(0.0, -40.0), _world_point())
-	assert_float(Cam.t_el(_camera)).is_equal_approx(before + 10.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(Cam.t_el(_camera)).is_equal_approx(value_before + 10.0, Cam.ANGLE_TOLERANCE_DEG)
 
 
 func test_ac16_q_e_r_f_keep_working_with_the_panel_open() -> void:

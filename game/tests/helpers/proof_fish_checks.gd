@@ -62,6 +62,8 @@ static func surface_by_name(mesh: Mesh, wanted: String) -> int:
 static func triangle_count(mesh: Mesh) -> int:
 	var total: int = 0
 	for surface: int in mesh.get_surface_count():
+		# Intended integer division.
+		@warning_ignore("integer_division")
 		total += surface_triangles(mesh.surface_get_arrays(surface)).size() / 3
 	return total
 
@@ -219,6 +221,8 @@ static func triangle_cells(arrays: Array) -> Array[Vector2i]:
 	if uv2.is_empty():
 		return cells
 	var indices: PackedInt32Array = surface_triangles(arrays)
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	for t: int in indices.size() / 3:
 		var centroid: Vector2 = Vector2.ZERO
 		for k: int in 3:
@@ -638,6 +642,8 @@ static func darkest_cell(image: Image) -> Vector2i:
 	var best_luma: float = INF
 	for row: int in GRID:
 		for col: int in GRID:
+			# Intended integer division.
+			@warning_ignore("integer_division")
 			var middle: int = CELL_PIXELS / 2
 			var luma: float = luminance(
 				image.get_pixel(col * CELL_PIXELS + middle, row * CELL_PIXELS + middle)

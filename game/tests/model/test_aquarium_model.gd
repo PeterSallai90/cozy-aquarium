@@ -124,15 +124,15 @@ func test_new_model_timestamps_injected() -> void:
 
 
 func test_new_model_timestamps_from_clock() -> void:
-	var before: float = Time.get_unix_time_from_system()
+	var value_before: float = Time.get_unix_time_from_system()
 	var model: AquariumModel = AquariumModel.new()
-	var after: float = Time.get_unix_time_from_system()
+	var value_after: float = Time.get_unix_time_from_system()
 	var pattern: RegEx = RegEx.create_from_string("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$")
 	assert_object(pattern.search(model.get_created())).is_not_null()
 	assert_str(model.get_modified()).is_equal(model.get_created())
 	var created: float = Time.get_unix_time_from_datetime_string(model.get_created())
-	assert_float(created).is_greater_equal(before - 1.0)
-	assert_float(created).is_less_equal(after + 1.0)
+	assert_float(created).is_greater_equal(value_before - 1.0)
+	assert_float(created).is_less_equal(value_after + 1.0)
 
 
 func test_model_records_are_not_nodes() -> void:
@@ -277,13 +277,13 @@ func test_signals_are_emitted_synchronously() -> void:
 
 func test_apply_insert_rejects_duplicate_uid_across_items_and_fish() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
 	assert_bool(model.apply_insert_item(Factory.item("a0000001"), 0)).is_false()
 	assert_bool(model.apply_insert_item(Factory.item("f0000001"), 0)).is_false()
 	assert_bool(model.apply_insert_fish(Factory.fish("f0000002"), 0)).is_false()
 	assert_bool(model.apply_insert_fish(Factory.fish("a0000003"), 0)).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 
 
@@ -301,13 +301,13 @@ func test_apply_insert_rejects_null_and_empty_uid() -> void:
 
 func test_apply_insert_rejects_bad_index() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
 	assert_bool(model.apply_insert_item(Factory.item("b0000001"), -1)).is_false()
 	assert_bool(model.apply_insert_item(Factory.item("b0000001"), 4)).is_false()
 	assert_bool(model.apply_insert_fish(Factory.fish("b0000002"), -1)).is_false()
 	assert_bool(model.apply_insert_fish(Factory.fish("b0000002"), 3)).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 	# An index equal to the count is valid (append).
 	assert_bool(model.apply_insert_item(Factory.item("b0000001"), 3)).is_true()
@@ -315,24 +315,24 @@ func test_apply_insert_rejects_bad_index() -> void:
 
 func test_apply_remove_unknown_returns_false() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
 	assert_bool(model.apply_remove_item("zzzzzzzz")).is_false()
 	assert_bool(model.apply_remove_fish("zzzzzzzz")).is_false()
 	assert_bool(model.apply_remove_item("f0000001")).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 
 
 func test_apply_replace_unknown_returns_false() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
 	assert_bool(model.apply_replace_item(Factory.item("zzzzzzzz"))).is_false()
 	assert_bool(model.apply_replace_item(null)).is_false()
 	assert_bool(model.apply_replace_fish(Factory.fish("zzzzzzzz"))).is_false()
 	assert_bool(model.apply_replace_fish(null)).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 
 
@@ -444,25 +444,27 @@ func test_reset_does_not_touch_history() -> void:
 
 func test_reset_from_null_errors() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
 	# The message is fixed text at aquarium_model.gd:253.
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: model.reset_from(null))
 		. is_push_error("AquariumModel: reset_from() called with a null source")
 	)
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 
 
 func test_reset_from_self_keeps_state_and_emits_once() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var item: PlacedItem = model.get_item_at(0)
 	var recorder: SignalRecorder = _watched(model)
 	# No message may be logged: GdUnit fails the test on any unasserted push_error or push_warning.
 	model.reset_from(model)
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_equal([["model_reset", []]])
 	assert_int(model.get_item_count()).is_equal(3)
 	assert_int(model.get_fish_count()).is_equal(2)

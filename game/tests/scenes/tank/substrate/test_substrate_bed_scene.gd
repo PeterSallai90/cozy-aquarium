@@ -217,11 +217,11 @@ func test_ac31_a_colour_change_keeps_every_multimesh_and_assembles_nothing() -> 
 	if bed == null:
 		return
 	var view: Node3D = bed.call("get_shown_view")
-	var before: Array[MultiMesh] = []
+	var value_before: Array[MultiMesh] = []
 	for instance: GeometryInstance3D in Scene.geometry_below(view):
 		if instance is MultiMeshInstance3D:
-			before.append((instance as MultiMeshInstance3D).multimesh)
-	assert_int(before.size()).is_greater(0)
+			value_before.append((instance as MultiMeshInstance3D).multimesh)
+	assert_int(value_before.size()).is_greater(0)
 	(
 		assert_bool(
 			_history.execute(
@@ -230,18 +230,18 @@ func test_ac31_a_colour_change_keeps_every_multimesh_and_assembles_nothing() -> 
 		)
 		. is_true()
 	)
-	var after: Array[MultiMesh] = []
+	var value_after: Array[MultiMesh] = []
 	for instance: GeometryInstance3D in Scene.geometry_below(bed.call("get_shown_view")):
 		if instance is MultiMeshInstance3D:
-			after.append((instance as MultiMeshInstance3D).multimesh)
+			value_after.append((instance as MultiMeshInstance3D).multimesh)
 	(
 		assert_bool(is_same(view, bed.call("get_shown_view")))
 		. override_failure_message("the shown view was replaced")
 		. is_true()
 	)
-	assert_int(after.size()).is_equal(before.size())
-	for index: int in before.size():
-		assert_bool(is_same(before[index], after[index])).is_true()
+	assert_int(value_after.size()).is_equal(value_before.size())
+	for index: int in value_before.size():
+		assert_bool(is_same(value_before[index], value_after[index])).is_true()
 
 
 # --- the swap ---

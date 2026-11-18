@@ -75,14 +75,16 @@ func _open_details(parent: Node = null) -> bool:
 
 
 func _same_focus(expected: Control) -> void:
-	var owner: Control = Ui.focus_owner(_controls)
+	var focus_holder: Control = Ui.focus_owner(_controls)
+	# Branch types differ on purpose.
+	@warning_ignore("incompatible_ternary")
 	(
-		assert_bool(owner == expected)
+		assert_bool(focus_holder == expected)
 		. override_failure_message(
 			(
 				"the focus is on %s, expected %s"
 				% [
-					owner.name if owner != null else "nothing",
+					focus_holder.name if focus_holder != null else "nothing",
 					expected.name if expected != null else "nothing"
 				]
 			)
@@ -158,12 +160,12 @@ func test_ac11_while_the_change_dialog_is_open_the_details_button_does_nothing()
 	Ui.card(_controls, Table.LARGE).pressed.emit()
 	await _wait()
 	assert_bool(Ui.dialog_open(_controls)).is_true()
-	var before: Control = Ui.focus_owner(_controls)
+	var value_before: Control = Ui.focus_owner(_controls)
 	Ui.details_button(_controls).pressed.emit()
 	await _wait()
 	assert_bool(Ui.details_open(_controls)).is_false()
 	assert_bool(Ui.dialog_open(_controls)).is_true()
-	_same_focus(before)
+	_same_focus(value_before)
 	assert_that(_model.get_tank_id()).is_equal(Table.MEDIUM)
 
 
@@ -411,7 +413,7 @@ func test_ac14_a_mouse_press_outside_the_panel_reaches_the_world() -> void:
 func test_ac14_opening_refreshing_switching_language_and_closing_change_nothing() -> void:
 	if not await _build():
 		return
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(_model)
 	await Ui.open_details(self, _controls)
@@ -427,4 +429,4 @@ func test_ac14_opening_refreshing_switching_language_and_closing_change_nothing(
 	assert_int(_history.get_undo_count()).is_equal(0)
 	assert_int(_history.get_redo_count()).is_equal(0)
 	assert_array(recorder.names()).is_empty()
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)

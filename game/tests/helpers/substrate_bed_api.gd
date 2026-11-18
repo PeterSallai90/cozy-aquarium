@@ -306,5 +306,7 @@ static func chunk_instance_count(bed: RefCounted) -> int:
 	for chunk: RefCounted in chunks:
 		var buffers: Array = chunk.get("buffers")
 		for buffer: PackedFloat32Array in buffers:
+			# Intended integer division.
+			@warning_ignore("integer_division")
 			total += buffer.size() / 16
 	return total

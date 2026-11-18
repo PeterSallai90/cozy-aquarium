@@ -46,6 +46,8 @@ func test_error_contains_with_a_needle_still_matches_by_substring() -> void:
 
 
 func test_error_contains_stays_usable_for_push_warning() -> void:
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: push_warning("probe: warning text"))
 		. is_push_warning(ErrorContains.new("warning text"))
@@ -104,6 +106,8 @@ func test_capture_of_a_silent_action_returns_two_empty_maps() -> void:
 
 
 func test_capture_does_not_count_entries_logged_before_it_started() -> void:
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await assert_error(func() -> void: push_warning("before")).is_push_warning("before")
 	var seen: Dictionary = await _capture(func() -> void: push_warning("inside"))
 	assert_dict(seen.get("warnings", {})).is_equal({"inside": 1})

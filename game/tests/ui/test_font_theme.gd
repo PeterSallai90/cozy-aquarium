@@ -154,17 +154,17 @@ func test_a_language_switch_leaves_the_font_unchanged_without_a_restart() -> voi
 		return
 	var label: Label = auto_free(Label.new()) as Label
 	add_child(label)
-	var before: Font = label.get_theme_font("font")
-	assert_object(before).is_same(theme.default_font)
+	var value_before: Font = label.get_theme_font("font")
+	assert_object(value_before).is_same(theme.default_font)
 	var service: LanguageService = LanguageService.new(
 		SettingsStore.new(_dir.path_join("settings.cfg"))
 	)
 	service.start("en_US")
 	assert_int(service.set_language("hu")).is_equal(OK)
 	await get_tree().process_frame
-	assert_object(label.get_theme_font("font")).is_same(before)
-	assert_object(ThemeDB.get_project_theme().default_font).is_same(before)
+	assert_object(label.get_theme_font("font")).is_same(value_before)
+	assert_object(ThemeDB.get_project_theme().default_font).is_same(value_before)
 	assert_int(service.set_language("en")).is_equal(OK)
 	await get_tree().process_frame
-	assert_object(label.get_theme_font("font")).is_same(before)
-	assert_object(ThemeDB.get_project_theme().default_font).is_same(before)
+	assert_object(label.get_theme_font("font")).is_same(value_before)
+	assert_object(ThemeDB.get_project_theme().default_font).is_same(value_before)

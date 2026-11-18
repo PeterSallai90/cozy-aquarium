@@ -138,10 +138,10 @@ func test_ac32_the_input_copies_plain_values_and_has_no_colour() -> void:
 			. is_false()
 		)
 	# A later change of the look must not reach the input (the input is a copy).
-	var before: float = float(input.get("tone_lightness"))
-	look.set("tone_lightness", before + 0.5)
-	assert_float(float(input.get("tone_lightness"))).is_equal(before)
-	look.set("tone_lightness", before)
+	var value_before: float = float(input.get("tone_lightness"))
+	look.set("tone_lightness", value_before + 0.5)
+	assert_float(float(input.get("tone_lightness"))).is_equal(value_before)
+	look.set("tone_lightness", value_before)
 
 
 # --- identical buffers ---

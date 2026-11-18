@@ -17,6 +17,8 @@ const Sub := preload("res://tests/helpers/substrate_api.gd")
 
 const STAMP := "2026-11-01T12:00:00Z"
 
+# Member is assigned but not read.
+@warning_ignore("unused_private_class_variable")
 var _model: AquariumModel = null
 var _history: CommandHistory = null
 var _catalog: RefCounted = null
@@ -62,8 +64,8 @@ func _watch(model: AquariumModel) -> Recorder:
 
 func _count(recorder: Recorder, signal_name: String) -> int:
 	var found: int = 0
-	for name: String in recorder.names():
-		if name == signal_name:
+	for file_name: String in recorder.names():
+		if file_name == signal_name:
 			found += 1
 	return found
 
@@ -124,14 +126,14 @@ func test_ac24_the_empty_array_of_size_zero_is_flat_even_after_being_set_explici
 
 func test_ac04_tank_items_fish_and_heightmap_change_in_one_step() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	assert_bool(_change(model, Table.LARGE)).is_true()
 	assert_that(model.get_tank_id()).is_equal(Table.LARGE)
 	assert_int(model.get_item_count()).is_equal(0)
 	assert_int(model.get_fish_count()).is_equal(0)
 	assert_int(model.get_heightmap().size()).is_equal(0)
 	assert_that(model.get_heightmap_size()).is_equal(Vector2i.ZERO)
-	assert_str(model.get_aquarium_name()).is_equal(before["aquarium_name"])
+	assert_str(model.get_aquarium_name()).is_equal(value_before["aquarium_name"])
 	assert_int(_history.get_undo_count()).is_equal(1)
 
 
@@ -244,10 +246,10 @@ func test_ac04_every_catalog_tank_can_be_chosen_from_every_other() -> void:
 
 func test_ac05_undo_restores_tank_items_fish_heightmap_and_the_rest_exactly() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	_change(model, Table.LARGE)
 	assert_bool(_history.undo()).is_true()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 
 
 func test_ac05_undo_brings_back_the_same_instances_in_the_same_order() -> void:
@@ -286,10 +288,10 @@ func test_ac05_undo_announces_the_old_tank_before_the_contents_return() -> void:
 func test_ac05_redo_gives_the_state_after_the_change_again() -> void:
 	var model: AquariumModel = _furnished()
 	_change(model, Table.LARGE)
-	var after: Dictionary = ModelState.snapshot(model)
+	var value_after: Dictionary = ModelState.snapshot(model)
 	_history.undo()
 	assert_bool(_history.redo()).is_true()
-	assert_dict(ModelState.snapshot(model)).is_equal(after)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_after)
 	assert_that(model.get_tank_id()).is_equal(Table.LARGE)
 	assert_int(_history.get_undo_count()).is_equal(1)
 	assert_int(_history.get_redo_count()).is_equal(0)
@@ -297,14 +299,14 @@ func test_ac05_redo_gives_the_state_after_the_change_again() -> void:
 
 func test_ac05_undo_redo_undo_cycles_stay_exact() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	_change(model, Table.SMALL)
-	var after: Dictionary = ModelState.snapshot(model)
+	var value_after: Dictionary = ModelState.snapshot(model)
 	for cycle: int in 3:
 		_history.undo()
-		assert_dict(ModelState.snapshot(model)).is_equal(before)
+		assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 		_history.redo()
-		assert_dict(ModelState.snapshot(model)).is_equal(after)
+		assert_dict(ModelState.snapshot(model)).is_equal(value_after)
 
 
 func test_ac05_one_undo_step_undoes_the_whole_change() -> void:
@@ -325,14 +327,14 @@ func test_ac05_undo_of_a_change_on_an_empty_model_restores_the_old_id() -> void:
 
 func test_ac05_two_changes_undo_in_reverse_order() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	_change(model, Table.SMALL)
 	_change(model, Table.LARGE)
 	assert_int(_history.get_undo_count()).is_equal(2)
 	_history.undo()
 	assert_that(model.get_tank_id()).is_equal(Table.SMALL)
 	_history.undo()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 
 
 # --- AC 6 ---
@@ -340,7 +342,7 @@ func test_ac05_two_changes_undo_in_reverse_order() -> void:
 
 func test_ac06_the_same_id_changes_nothing_emits_nothing_and_adds_no_history() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = _watch(model)
 	var history_signals: Recorder = Recorder.new()
 	history_signals.watch(_history)
@@ -350,7 +352,7 @@ func test_ac06_the_same_id_changes_nothing_emits_nothing_and_adds_no_history() -
 	assert_bool(seen["result"]).is_false()
 	assert_dict(seen["errors"]).is_empty()
 	assert_dict(seen["warnings"]).is_empty()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(recorder.count()).is_equal(0)
 	assert_int(history_signals.count()).is_equal(0)
 	assert_int(_history.get_undo_count()).is_equal(0)
@@ -362,7 +364,7 @@ func test_ac06_the_same_id_changes_nothing_emits_nothing_and_adds_no_history() -
 
 func test_ac07_an_id_that_is_not_in_the_catalog_logs_one_error_and_changes_nothing() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = _watch(model)
 	var seen: Dictionary = await EngineOutput.capture_result(
 		func() -> bool: return _change(model, &"no_such_tank")
@@ -370,21 +372,21 @@ func test_ac07_an_id_that_is_not_in_the_catalog_logs_one_error_and_changes_nothi
 	assert_bool(seen["result"]).is_false()
 	assert_dict(seen["errors"]).is_equal({'ChangeTankCommand: unknown tank id "no_such_tank"': 1})
 	assert_dict(seen["warnings"]).is_empty()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(recorder.count()).is_equal(0)
 	assert_int(_history.get_undo_count()).is_equal(0)
 
 
 func test_ac07_an_empty_id_logs_one_error_and_changes_nothing() -> void:
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = _watch(model)
 	var seen: Dictionary = await EngineOutput.capture_result(
 		func() -> bool: return _change(model, &"")
 	)
 	assert_bool(seen["result"]).is_false()
 	assert_dict(seen["errors"]).is_equal({'ChangeTankCommand: unknown tank id ""': 1})
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(recorder.count()).is_equal(0)
 	assert_int(_history.get_undo_count()).is_equal(0)
 
@@ -405,7 +407,7 @@ func test_ac07_an_empty_catalog_rejects_every_id() -> void:
 
 func test_ac18_picking_medium_while_the_model_holds_an_unknown_id_is_a_real_change() -> void:
 	var model: AquariumModel = _furnished(&"tank_from_the_future")
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = _watch(model)
 	assert_bool(_change(model, Table.MEDIUM)).is_true()
 	assert_that(model.get_tank_id()).is_equal(Table.MEDIUM)
@@ -415,7 +417,7 @@ func test_ac18_picking_medium_while_the_model_holds_an_unknown_id_is_a_real_chan
 	assert_int(_count(recorder, "tank_changed")).is_equal(1)
 	assert_int(_history.get_undo_count()).is_equal(1)
 	_history.undo()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_that(model.get_tank_id()).is_equal(&"tank_from_the_future")
 
 
@@ -441,7 +443,7 @@ func test_ac22_a_catalog_tank_whose_scene_fails_to_load_is_still_written_by_the_
 	var broken: Resource = Rig.variant(&"tank_broken", null)
 	var catalog: RefCounted = Api.catalog_from([Rig.default_definition(), broken])
 	var model: AquariumModel = _furnished()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var seen: Dictionary = await EngineOutput.capture_result(
 		func() -> bool: return _history.execute(Api.change_tank(model, catalog, &"tank_broken"))
 	)
@@ -450,4 +452,4 @@ func test_ac22_a_catalog_tank_whose_scene_fails_to_load_is_still_written_by_the_
 	assert_that(model.get_tank_id()).is_equal(&"tank_broken")
 	assert_int(_history.get_undo_count()).is_equal(1)
 	_history.undo()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)

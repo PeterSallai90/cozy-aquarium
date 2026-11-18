@@ -206,10 +206,10 @@ func test_choosing_the_shown_language_again_changes_and_writes_nothing() -> void
 	var screen: Control = await _open("hu_HU")
 	if screen == null:
 		return
-	var before: PackedByteArray = SaveFixtures.read_bytes(_path())
+	var value_before: PackedByteArray = SaveFixtures.read_bytes(_path())
 	_option(screen).item_selected.emit(0)
 	assert_array(_languages).is_empty()
-	assert_array(SaveFixtures.read_bytes(_path())).is_equal(before)
+	assert_array(SaveFixtures.read_bytes(_path())).is_equal(value_before)
 	assert_str(_selected_code(_option(screen))).is_equal("en")
 
 

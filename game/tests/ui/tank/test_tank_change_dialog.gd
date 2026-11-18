@@ -93,8 +93,8 @@ func _only_zero_heightmap() -> AquariumModel:
 	return model
 
 
-func _assert_nothing_changed(before: Dictionary) -> void:
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+func _assert_nothing_changed(value_before: Dictionary) -> void:
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 	assert_int(_history.get_undo_count()).is_equal(0)
 	assert_bool(_history.can_undo()).is_false()
 
@@ -164,13 +164,13 @@ func test_ac24_the_dialog_opens_with_the_focus_on_cancel() -> void:
 
 func test_ac24_until_confirm_the_model_is_unchanged_and_there_is_no_history_entry() -> void:
 	_model = Ui.furnished_model(Table.MEDIUM)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(_model)
 	if not await _ask():
 		return
 	assert_int(recorder.count()).is_equal(0)
-	_assert_nothing_changed(before)
+	_assert_nothing_changed(value_before)
 	assert_that(Rig.displayed_id(_room)).is_equal(Table.MEDIUM)
 	assert_bool(Ui.is_open(_controls)).is_true()
 
@@ -204,7 +204,7 @@ func test_ac24_an_already_flat_empty_heightmap_set_explicitly_still_counts_as_em
 
 func test_ac25_cancel_closes_the_dialog_keeps_the_chooser_and_returns_focus_to_the_card() -> void:
 	_model = Ui.furnished_model(Table.MEDIUM)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	if not await _ask():
 		return
 	Ui.cancel_button(_controls).pressed.emit()
@@ -212,12 +212,12 @@ func test_ac25_cancel_closes_the_dialog_keeps_the_chooser_and_returns_focus_to_t
 	assert_bool(Ui.dialog_open(_controls)).is_false()
 	assert_bool(Ui.is_open(_controls)).is_true()
 	assert_object(Ui.focus_owner(_controls)).is_same(Ui.card(_controls, Table.LARGE))
-	_assert_nothing_changed(before)
+	_assert_nothing_changed(value_before)
 
 
 func test_ac25_esc_acts_as_cancel_and_closes_only_the_dialog() -> void:
 	_model = Ui.furnished_model(Table.MEDIUM)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	if not await _ask():
 		return
 	Ui.tap(_controls, KEY_ESCAPE)
@@ -229,7 +229,7 @@ func test_ac25_esc_acts_as_cancel_and_closes_only_the_dialog() -> void:
 		. is_true()
 	)
 	assert_object(Ui.focus_owner(_controls)).is_same(Ui.card(_controls, Table.LARGE))
-	_assert_nothing_changed(before)
+	_assert_nothing_changed(value_before)
 
 
 func test_ac25_a_second_esc_then_closes_the_chooser() -> void:
@@ -314,13 +314,13 @@ func test_ac25_tab_and_shift_tab_move_between_cancel_and_confirm_and_wrap() -> v
 
 func test_ac25_after_a_confirm_undo_brings_everything_back() -> void:
 	_model = Ui.furnished_model(Table.MEDIUM)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	if not await _ask():
 		return
 	Ui.confirm_button(_controls).pressed.emit()
 	await _wait()
 	assert_bool(_history.undo()).is_true()
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 
 
 # --- AC 26: edge cases ---
@@ -429,6 +429,8 @@ func test_ac25_arrow_keys_and_tab_stay_inside_the_change_dialog() -> void:
 			var focused: Control = Ui.focus_owner(_controls)
 			var inside: bool = focused == starts[0] or focused == starts[1]
 			if not inside:
+				# Branch types differ on purpose.
+				@warning_ignore("incompatible_ternary")
 				escaped.append(
 					(
 						"%s from %s -> %s"

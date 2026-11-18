@@ -118,6 +118,8 @@ func test_clear_emits_only_history_changed_false_false() -> void:
 func test_reentrant_execute_from_executed_handler_rejected() -> void:
 	_history.executed.connect(_on_try_execute)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(
 			func() -> void: outer.append(_history.execute(SetTankCommand.new(_model, &"tank_b")))
@@ -133,6 +135,8 @@ func test_reentrant_execute_from_executed_handler_rejected() -> void:
 func test_reentrant_execute_from_history_changed_handler_rejected() -> void:
 	_history.history_changed.connect(_on_try_execute_from_history_changed)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(
 			func() -> void: outer.append(_history.execute(SetTankCommand.new(_model, &"tank_b")))
@@ -148,6 +152,8 @@ func test_reentrant_execute_from_history_changed_handler_rejected() -> void:
 func test_reentrant_execute_from_model_signal_handler_during_do_rejected() -> void:
 	_model.tank_changed.connect(_on_try_execute_from_model_signal)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(
 			func() -> void: outer.append(_history.execute(SetTankCommand.new(_model, &"tank_b")))
@@ -164,6 +170,8 @@ func test_reentrant_execute_from_model_signal_handler_during_undo_rejected() -> 
 	assert_bool(_history.execute(SetTankCommand.new(_model, &"tank_b"))).is_true()
 	_model.tank_changed.connect(_on_try_execute_from_model_signal)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: outer.append(_history.undo()))
 		. is_push_error(ErrorContains.new("re-entrant"))
@@ -180,6 +188,8 @@ func test_reentrant_undo_during_undo_rejected() -> void:
 	assert_bool(_history.execute(SetTankCommand.new(_model, &"tank_c"))).is_true()
 	_history.undone.connect(_on_try_undo)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: outer.append(_history.undo()))
 		. is_push_error(ErrorContains.new("re-entrant"))
@@ -198,6 +208,8 @@ func test_reentrant_redo_rejected() -> void:
 	assert_bool(_history.undo()).is_true()
 	_history.redone.connect(_on_try_redo)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: outer.append(_history.redo()))
 		. is_push_error(ErrorContains.new("re-entrant"))
@@ -212,6 +224,8 @@ func test_reentrant_redo_rejected() -> void:
 func test_reentrant_clear_rejected() -> void:
 	_history.executed.connect(_on_try_clear)
 	var outer: Array[bool] = []
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(
 			func() -> void: outer.append(_history.execute(SetTankCommand.new(_model, &"tank_b")))
@@ -225,6 +239,8 @@ func test_reentrant_clear_rejected() -> void:
 
 func test_history_usable_after_a_rejected_reentrant_call() -> void:
 	_history.executed.connect(_on_try_execute)
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (
 		assert_error(func() -> void: _history.execute(SetTankCommand.new(_model, &"tank_b")))
 		. is_push_error(ErrorContains.new("re-entrant"))

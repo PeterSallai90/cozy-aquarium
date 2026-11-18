@@ -201,11 +201,11 @@ func test_modified_is_the_argument_not_the_model_value() -> void:
 
 func test_encode_does_not_change_the_model() -> void:
 	var model: AquariumModel = SaveFixtures.populated_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(model)
 	_encode(model)
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 
 

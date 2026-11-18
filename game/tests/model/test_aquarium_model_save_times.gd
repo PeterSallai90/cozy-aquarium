@@ -27,14 +27,14 @@ func test_set_save_times_sets_both_without_signal() -> void:
 
 func test_set_save_times_changes_nothing_else() -> void:
 	var model: AquariumModel = _filled_model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	model.set_save_times("2026-01-02T03:04:05Z", "2026-05-06T07:08:09Z")
-	var after: Dictionary = ModelState.snapshot(model)
-	assert_str(after["created"]).is_equal("2026-01-02T03:04:05Z")
-	assert_str(after["modified"]).is_equal("2026-05-06T07:08:09Z")
-	before["created"] = after["created"]
-	before["modified"] = after["modified"]
-	assert_dict(after).is_equal(before)
+	var value_after: Dictionary = ModelState.snapshot(model)
+	assert_str(value_after["created"]).is_equal("2026-01-02T03:04:05Z")
+	assert_str(value_after["modified"]).is_equal("2026-05-06T07:08:09Z")
+	value_before["created"] = value_after["created"]
+	value_before["modified"] = value_after["modified"]
+	assert_dict(value_after).is_equal(value_before)
 
 
 func test_set_save_times_does_not_validate() -> void:

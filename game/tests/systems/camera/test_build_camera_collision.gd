@@ -64,15 +64,15 @@ func _targets() -> Dictionary:
 	}
 
 
-func _same_targets(before: Dictionary, label: String) -> PackedStringArray:
+func _same_targets(value_before: Dictionary, label: String) -> PackedStringArray:
 	var failures: PackedStringArray = PackedStringArray()
-	if absf(Cam.t_az(_camera) - before["az"]) > 0.000001:
+	if absf(Cam.t_az(_camera) - value_before["az"]) > 0.000001:
 		failures.append("%s: target azimuth changed" % label)
-	if absf(Cam.t_el(_camera) - before["el"]) > 0.000001:
+	if absf(Cam.t_el(_camera) - value_before["el"]) > 0.000001:
 		failures.append("%s: target elevation changed to %s" % [label, Cam.t_el(_camera)])
-	if absf(Cam.t_dist(_camera) - before["dist"]) > 0.000001:
+	if absf(Cam.t_dist(_camera) - value_before["dist"]) > 0.000001:
 		failures.append("%s: target distance changed" % label)
-	if Cam.t_pivot(_camera).distance_to(before["pivot"]) > 0.000001:
+	if Cam.t_pivot(_camera).distance_to(value_before["pivot"]) > 0.000001:
 		failures.append("%s: target pivot changed" % label)
 	return failures
 
@@ -80,9 +80,11 @@ func _same_targets(before: Dictionary, label: String) -> PackedStringArray:
 ## Every rule of ADR 0009 at the current frame; empty when the camera is fine. `reference_el` is
 ## the elevation the shown elevation is compared with: the target when the pose is settled, the
 ## eased elevation while it is moving.
-func _frame_failures(label: String, before: Dictionary, reference_el: float) -> PackedStringArray:
+func _frame_failures(
+	label: String, value_before: Dictionary, reference_el: float
+) -> PackedStringArray:
 	var failures: PackedStringArray = Cz.pose_failures(_camera, _boxes, label)
-	failures.append_array(_same_targets(before, label))
+	failures.append_array(_same_targets(value_before, label))
 	var held: bool = Cz.is_held(_camera)
 	var requested: float = Cam.dist(_camera)
 	var pivot: Vector3 = Cam.pivot(_camera)
@@ -128,11 +130,11 @@ func _pose_failures(
 	label: String, azimuth: float, elevation: float, distance: float, pivot: Vector3
 ) -> PackedStringArray:
 	Cz.pose(_camera, azimuth, elevation, distance, pivot)
-	var before: Dictionary = _targets()
-	var failures: PackedStringArray = _frame_failures(label, before, Cam.t_el(_camera))
+	var value_before: Dictionary = _targets()
+	var failures: PackedStringArray = _frame_failures(label, value_before, Cam.t_el(_camera))
 	for frame: int in 10:
 		Cam.step(_camera, Cz.FRAME_S)
-	failures.append_array(_frame_failures(label + " later", before, Cam.t_el(_camera)))
+	failures.append_array(_frame_failures(label + " later", value_before, Cam.t_el(_camera)))
 	return failures
 
 
@@ -245,11 +247,11 @@ func test_ac10_the_camera_is_clear_at_every_frame_while_it_eases_to_a_blocked_po
 				Cz.set_pivot(_camera, pivot, false)
 				Cz.set_distance(_camera, Cz.zoom_in_distance(_default), false)
 				Cam.set_orbit(_camera, azimuth, -90.0, false)
-				var before: Dictionary = _targets()
+				var value_before: Dictionary = _targets()
 				for frame: int in 90:
 					Cam.step(_camera, Cz.FRAME_S)
 					var label: String = "%s az %s frame %d" % [id, azimuth, frame]
-					failures.append_array(_frame_failures(label, before, Cam.el(_camera)))
+					failures.append_array(_frame_failures(label, value_before, Cam.el(_camera)))
 		assert_array(failures).override_failure_message(Cz.summary(failures)).is_empty()
 
 
@@ -262,14 +264,14 @@ func test_ac10_a_very_large_wheel_event_keeps_the_camera_clear_at_every_frame() 
 			for azimuth: float in [90.0, 270.0]:
 				Cz.pose(_camera, azimuth, 5.0, _default, pivot)
 				Cz.wheel(_viewport, true, Cz.HUGE)
-				var before: Dictionary = _targets()
+				var value_before: Dictionary = _targets()
 				assert_float(Cam.t_dist(_camera)).is_equal_approx(
 					Cz.zoom_in_distance(_default), Cz.LENGTH_M
 				)
 				for frame: int in 90:
 					Cam.step(_camera, Cz.FRAME_S)
 					var label: String = "%s az %s frame %d" % [id, azimuth, frame]
-					failures.append_array(_frame_failures(label, before, Cam.el(_camera)))
+					failures.append_array(_frame_failures(label, value_before, Cam.el(_camera)))
 		assert_array(failures).override_failure_message(Cz.summary(failures)).is_empty()
 
 
@@ -337,9 +339,9 @@ func test_ac12_the_target_getters_are_never_changed_by_the_hold() -> void:
 		var pivot: Vector3 = _inner_side_pose()
 		var requested: float = Cz.zoom_in_distance(_default)
 		Cz.pose(_camera, 270.0, 5.0, requested, pivot)
-		var before: Dictionary = _targets()
+		var value_before: Dictionary = _targets()
 		Cam.settle(_camera)
-		assert_array(_same_targets(before, "held")).is_empty()
+		assert_array(_same_targets(value_before, "held")).is_empty()
 		assert_float(Cam.t_dist(_camera)).is_equal_approx(requested, Cz.LENGTH_M)
 		assert_float(Cam.t_el(_camera)).is_equal_approx(5.0, Cz.ANGLE_DEG)
 

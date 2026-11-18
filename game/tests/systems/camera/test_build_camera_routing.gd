@@ -120,9 +120,9 @@ func test_ac10_a_world_drag_orbits_with_the_details_panel_open() -> void:
 	assert_float(Cam.t_el(_camera)).is_less(0.0)
 	Cam.drag(_root(), Vector2(0.0, -HUGE), _world_point())
 	assert_float(Cam.t_el(_camera)).is_equal_approx(Cam.MAX_ELEVATION_DEG, 0.01)
-	var before: float = Cam.t_az(_camera)
+	var value_before: float = Cam.t_az(_camera)
 	Cam.drag(_root(), Vector2(80.0, 0.0), _world_point())
-	assert_float(absf(Cam.t_az(_camera) - before)).is_greater(1.0)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_greater(1.0)
 
 
 func test_ac10_the_world_drag_down_stops_at_the_lowest_elevation_with_the_panel_open() -> void:
@@ -160,11 +160,15 @@ func test_ac10_a_drag_that_starts_in_the_world_keeps_orbiting_over_the_panel() -
 	var panel: Control = Ui.details(_controls)
 	Cam.right_press(_root(), _world_point())
 	assert_bool(Cam.dragging(_camera)).is_true()
-	var before: float = Cam.t_az(_camera)
+	var value_before: float = Cam.t_az(_camera)
 	Cam.motion(_root(), Vector2(-40.0, 0.0), _panel_point(panel))
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(10.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
+		10.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 	Cam.motion(_root(), Vector2(-40.0, 0.0), _panel_point(panel) + Vector2(5.0, 5.0))
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(20.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
+		20.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 	assert_bool(Cam.dragging(_camera)).is_true()
 
 
@@ -187,9 +191,9 @@ func test_ac10_a_world_drag_orbits_with_the_chooser_open_too() -> void:
 	if not await _open_main():
 		return
 	await Ui.open_chooser(self, _controls)
-	var before: float = Cam.t_el(_camera)
+	var value_before: float = Cam.t_el(_camera)
 	Cam.drag(_root(), Vector2(0.0, -40.0), _world_point())
-	assert_float(Cam.t_el(_camera)).is_equal_approx(before + 10.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(Cam.t_el(_camera)).is_equal_approx(value_before + 10.0, Cam.ANGLE_TOLERANCE_DEG)
 
 
 func test_ac10_the_keys_keep_working_with_the_details_panel_open() -> void:

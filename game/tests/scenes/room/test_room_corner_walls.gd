@@ -504,10 +504,10 @@ func test_ac20_every_pose_leaves_the_floor_cabinet_tank_and_lamp_alone() -> void
 func test_ac20_the_wall_rule_does_not_write_the_model() -> void:
 	if not await _open(Table.LARGE):
 		return
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	Cam.pose(_room, 225.0, 10.0)
 	Cam.pose(_room, 0.0, 5.0)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 
 
 func _change(id: StringName) -> void:

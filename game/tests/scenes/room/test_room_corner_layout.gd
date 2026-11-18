@@ -300,13 +300,13 @@ func test_ac12_key_light_is_inside_the_tank_footprint_and_above_the_trim() -> vo
 func _hide_and_check(root_name: String) -> void:
 	var room: Node3D = _room()
 	var tank: Node3D = room.get_node("Tank") as Node3D
-	var before: Transform3D = tank.transform
+	var value_before: Transform3D = tank.transform
 	var seen: Dictionary = await EngineOutput.capture(
 		func() -> void: (room.get_node(root_name) as Node3D).visible = false
 	)
 	assert_dict(seen["errors"]).is_empty()
 	assert_dict(seen["warnings"]).is_empty()
-	assert_bool(tank.transform.is_equal_approx(before)).is_true()
+	assert_bool(tank.transform.is_equal_approx(value_before)).is_true()
 	assert_bool(tank.is_visible_in_tree()).is_true()
 	assert_bool((room.get_node(root_name) as Node3D).is_visible_in_tree()).is_false()
 	var light: SpotLight3D = room.get_node("Lamp/KeyLight") as SpotLight3D

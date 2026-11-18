@@ -83,9 +83,9 @@ func test_the_camera_stays_a_direct_child_of_the_room_and_is_current() -> void:
 func test_the_start_view_does_not_ease_from_the_origin() -> void:
 	if not await _open():
 		return
-	var before: Vector3 = _camera.global_position
+	var value_before: Vector3 = _camera.global_position
 	Cam.step(_camera, 0.5)
-	assert_vector(_camera.global_position).is_equal_approx(before, Vector3.ONE * 0.001)
+	assert_vector(_camera.global_position).is_equal_approx(value_before, Vector3.ONE * 0.001)
 
 
 # --- AC 1: the lowest elevation, per tank ---
@@ -226,9 +226,9 @@ func test_ac04_a_horizontal_drag_of_more_than_two_turns_orbits_without_a_limit()
 	Cam.right_press(_viewport)
 	var turned: float = 0.0
 	for index: int in 26:
-		var before: float = Cam.t_az(_camera)
+		var value_before: float = Cam.t_az(_camera)
 		Cam.motion(_viewport, Vector2(120.0, 0.0))
-		var step: float = Cam.t_az(_camera) - before
+		var step: float = Cam.t_az(_camera) - value_before
 		assert_float(absf(step)).is_equal_approx(per_event, Cam.ANGLE_TOLERANCE_DEG)
 		turned += step
 	Cam.right_release(_viewport)
@@ -275,19 +275,21 @@ func test_ac04_a_turn_of_more_than_one_circle_eases_the_whole_way_without_a_jump
 func test_ac04_a_horizontal_drag_converts_pixels_with_the_viewport_height() -> void:
 	if not await _open():
 		return
-	var before: float = Cam.t_az(_camera)
+	var value_before: float = Cam.t_az(_camera)
 	Cam.drag(_viewport, Vector2(80.0, 0.0))
 	# 80 px of 720 px at 180 degrees per viewport height is 20 degrees (direction is feel).
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(20.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
+		20.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 
 
 func test_ac04_the_same_drag_in_a_taller_viewport_turns_less() -> void:
 	if not await _open(Table.MEDIUM, Cam.SIZE_4_3):
 		return
-	var before: float = Cam.t_az(_camera)
+	var value_before: float = Cam.t_az(_camera)
 	Cam.drag(_viewport, Vector2(80.0, 0.0))
 	# 80 px of 768 px at 180 degrees per viewport height.
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
 		80.0 / 768.0 * 180.0, Cam.ANGLE_TOLERANCE_DEG
 	)
 
@@ -369,7 +371,7 @@ func test_ac09_a_left_button_drag_does_not_move_the_camera() -> void:
 		return
 	var az: float = Cam.t_az(_camera)
 	var el: float = Cam.t_el(_camera)
-	var before: Vector3 = _camera.global_position
+	var value_before: Vector3 = _camera.global_position
 	Cam.button(_viewport, MOUSE_BUTTON_LEFT, true)
 	assert_bool(Cam.dragging(_camera)).is_false()
 	Cam.motion(_viewport, Vector2(300.0, 200.0), Vector2(400.0, 300.0), MOUSE_BUTTON_MASK_LEFT)
@@ -378,7 +380,7 @@ func test_ac09_a_left_button_drag_does_not_move_the_camera() -> void:
 	Cam.step(_camera, 1.0)
 	assert_float(Cam.t_az(_camera)).is_equal(az)
 	assert_float(Cam.t_el(_camera)).is_equal(el)
-	assert_vector(_camera.global_position).is_equal_approx(before, Vector3.ONE * 0.0001)
+	assert_vector(_camera.global_position).is_equal_approx(value_before, Vector3.ONE * 0.0001)
 
 
 func test_ac09_a_middle_button_drag_does_not_move_the_camera() -> void:
@@ -434,9 +436,11 @@ func test_ac13_a_drag_that_leaves_the_viewport_keeps_orbiting_until_the_release(
 	if not await _open():
 		return
 	Cam.right_press(_viewport, Vector2(600.0, 300.0))
-	var before: float = Cam.t_az(_camera)
+	var value_before: float = Cam.t_az(_camera)
 	Cam.motion(_viewport, Vector2(40.0, 0.0), Vector2(2000.0, 300.0))
-	assert_float(absf(Cam.t_az(_camera) - before)).is_equal_approx(10.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(absf(Cam.t_az(_camera) - value_before)).is_equal_approx(
+		10.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 	Cam.right_release(_viewport, Vector2(2000.0, 300.0))
 
 

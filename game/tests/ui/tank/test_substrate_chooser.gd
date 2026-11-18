@@ -635,13 +635,13 @@ func test_ac21_the_mark_is_not_a_tint_change_of_the_swatch() -> void:
 func test_ac21_the_mark_moves_with_the_selection_and_the_colours_stay() -> void:
 	if not await _open(Sub.GRAVEL, Sub.default_colour(_substrates, Sub.GRAVEL)):
 		return
-	var before: Array[Color] = Sui.swatch_colours(_controls)
+	var value_before: Array[Color] = Sui.swatch_colours(_controls)
 	await _click_swatch(3)
 	assert_array(Sui.marked_swatches(_controls)).is_equal([2])
-	var after: Array[Color] = Sui.swatch_colours(_controls)
-	assert_int(after.size()).is_equal(before.size())
-	for index: int in mini(after.size(), before.size()):
-		_same(after[index], before[index])
+	var value_after: Array[Color] = Sui.swatch_colours(_controls)
+	assert_int(value_after.size()).is_equal(value_before.size())
+	for index: int in mini(value_after.size(), value_before.size()):
+		_same(value_after[index], value_before[index])
 
 
 # --- AC 23: no id is ever shown ---

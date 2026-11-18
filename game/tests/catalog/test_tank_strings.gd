@@ -42,8 +42,8 @@ func _text(key: String, locale: String) -> String:
 	return tr(key)
 
 
-func _file(name: String) -> String:
-	return FileAccess.get_file_as_string(LOCALIZATION_DIR + name)
+func _file(file_name: String) -> String:
+	return FileAccess.get_file_as_string(LOCALIZATION_DIR + file_name)
 
 
 func _has_digit(text: String) -> bool:
@@ -98,12 +98,16 @@ func test_ac03_no_description_text_contains_a_digit() -> void:
 
 
 func test_ac03_no_tank_medium_60l_key_remains_in_the_translation_files() -> void:
-	for name: String in ["en.po", "hu.po", "messages.pot"]:
-		var text: String = _file(name)
-		assert_str(text).override_failure_message("%s is empty or missing" % name).is_not_empty()
+	for file_name: String in ["en.po", "hu.po", "messages.pot"]:
+		var text: String = _file(file_name)
+		(
+			assert_str(text)
+			. override_failure_message("%s is empty or missing" % file_name)
+			. is_not_empty()
+		)
 		(
 			assert_bool(text.contains("tank.medium_60l"))
-			. override_failure_message("%s still holds a tank.medium_60l key" % name)
+			. override_failure_message("%s still holds a tank.medium_60l key" % file_name)
 			. is_false()
 		)
 
