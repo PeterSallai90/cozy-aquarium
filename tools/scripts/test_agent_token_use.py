@@ -239,6 +239,21 @@ class AgentTokenUseTest(unittest.TestCase):
             "stops the next run",
         ]:
             self.assertIn(phrase, step, f"CLAUDE.md step 4 lacks {phrase!r}")
+    # AC 8, trigger (c) of technical-artist Handoff note: says "Staging: yes"
+    def test_ac8_architect_writes_staging_line(self) -> None:
+        ta = agent_text("technical-artist")
+        self.assertIn('says "Staging: yes"', sections(ta, "Handoff note")[0])
+        lines = agent_text("architect").split("\n")
+        body = "\n".join(lines[lines.index("---", 1) + 1 :])
+        blocks = [b for b in re.split(r"\n\s*\n", body) if "Staging:" in b]
+        self.assertTrue(blocks, "architect.md body has no Staging rule")
+        self.assertTrue(
+            any(
+                "Staging: yes" in b and "Staging: no" in b and "technical-artist" in b
+                for b in blocks
+            ),
+            "architect.md: no one rule names Staging: yes, Staging: no and technical-artist",
+        )
 
 
 if __name__ == "__main__":
