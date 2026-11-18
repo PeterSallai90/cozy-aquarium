@@ -35,9 +35,9 @@ func _build(model: AquariumModel, catalog: RefCounted) -> Dictionary:
 	var made: Array[Node3D] = []
 	var seen: Dictionary = await EngineOutput.capture(
 		func() -> void:
-			var room: Node3D = Rig.instantiate(model, catalog)
-			add_child(room)
-			made.append(room)
+			var built_room: Node3D = Rig.instantiate(model, catalog)
+			add_child(built_room)
+			made.append(built_room)
 	)
 	var room: Node3D = made[0]
 	auto_free(room)

@@ -72,11 +72,15 @@ func _format(timestamp: Variant, with_date: bool, with_time: bool) -> String:
 		return tr("datetime.unknown")
 	var local: int = unix + offset_at(unix, offset, now) * 60
 	var sec: int = posmod(local, 86400)
+	# Intended integer division: whole days of the local time.
+	@warning_ignore("integer_division")
 	var civil: Vector3i = civil_from_days((local - sec) / 86400)
 	var parts: PackedStringArray = PackedStringArray()
 	if with_date:
 		parts.append(date_text(civil.x, civil.y, civil.z, language))
 	if with_time:
+		# Intended integer division: hours and minutes of the day.
+		@warning_ignore("integer_division")
 		parts.append(time_text(sec / 3600, (sec % 3600) / 60))
 	return " ".join(parts)
 
@@ -168,20 +172,36 @@ static func _days_in_month(y: int, m: int) -> int:
 
 static func days_from_civil(year: int, month: int, day: int) -> int:
 	var y: int = year - (1 if month <= 2 else 0)
+	# Intended integer division: era of the civil date algorithm.
+	@warning_ignore("integer_division")
 	var era: int = y / 400
 	var yoe: int = y - era * 400
+	# Intended integer division: civil date algorithm, expression unchanged.
+	@warning_ignore("integer_division")
 	var doy: int = (153 * (month - 3 if month > 2 else month + 9) + 2) / 5 + day - 1
+	# Intended integer division: civil date algorithm, expression unchanged.
+	@warning_ignore("integer_division")
 	var doe: int = yoe * 365 + yoe / 4 - yoe / 100 + doy
 	return era * 146097 + doe - 719468
 
 
 static func civil_from_days(days: int) -> Vector3i:
 	var z: int = days + 719468
+	# Intended integer division: era of the civil date algorithm.
+	@warning_ignore("integer_division")
 	var era: int = z / 146097
 	var doe: int = z - era * 146097
+	# Intended integer division: civil date algorithm, expression unchanged.
+	@warning_ignore("integer_division")
 	var yoe: int = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+	# Intended integer division: civil date algorithm, expression unchanged.
+	@warning_ignore("integer_division")
 	var doy: int = doe - (365 * yoe + yoe / 4 - yoe / 100)
+	# Intended integer division: civil date algorithm, expression unchanged.
+	@warning_ignore("integer_division")
 	var mp: int = (5 * doy + 2) / 153
+	# Intended integer division: civil date algorithm, expression unchanged.
+	@warning_ignore("integer_division")
 	var d: int = doy - (153 * mp + 2) / 5 + 1
 	var m: int = mp + 3 if mp < 10 else mp - 9
 	return Vector3i(yoe + era * 400 + (1 if m <= 2 else 0), m, d)
@@ -192,6 +212,8 @@ static func last_sunday(year: int, month: int) -> int:
 
 
 static func is_eu_dst(unix: int) -> bool:
+	# Intended integer division: whole days of the unix time.
+	@warning_ignore("integer_division")
 	var y: int = civil_from_days((unix - posmod(unix, 86400)) / 86400).x
 	var start: int = days_from_civil(y, 3, last_sunday(y, 3)) * 86400 + 3600
 	var end: int = days_from_civil(y, 10, last_sunday(y, 10)) * 86400 + 3600

@@ -23,7 +23,8 @@ var tone_dark_share: float = 0.0
 var junction_factor: float = 0.3
 var junction_overlap_m: float = 0.0
 var packing_version: int = 0
-var seed: int = 0
+# Public bake input name; it shadows the built-in seed() on purpose.
+@warning_ignore("shadowed_global_identifier") var seed: int = 0
 
 
 ## Copies the values of the look; the seed comes from SubstrateAssembler.seed_for.

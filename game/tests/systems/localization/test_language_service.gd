@@ -324,13 +324,13 @@ func test_a_language_change_leaves_save_files_and_the_model_alone() -> void:
 	assert_int(SaveStore.new(clock).save(model, save_path).kind).is_equal(SaveResult.Kind.OK)
 	var saved_bytes: PackedByteArray = SaveFixtures.read_bytes(save_path)
 	# Saving stamps the model, so the snapshot is taken after it.
-	var before: Dictionary = ModelState.snapshot(model)
+	var value_before: Dictionary = ModelState.snapshot(model)
 	var service: LanguageService = _service()
 	service.start("en_US")
 	assert_int(service.set_language("hu")).is_equal(OK)
 	assert_int(service.set_language("en")).is_equal(OK)
 	assert_array(SaveFixtures.read_bytes(save_path)).is_equal(saved_bytes)
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(value_before)
 	assert_int(history.get_undo_count()).is_equal(0)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["settings.cfg", "tank.json"])
 

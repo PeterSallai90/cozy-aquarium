@@ -173,6 +173,8 @@ static func estimate_triangles(
 			total += chunk.drawn_count(v, near, outside) * per_lod[mini(lod, per_lod.size() - 1)]
 	if not is_sand or data.top_tiles.is_empty():
 		return total
+	# Intended integer division: float count to placement count.
+	@warning_ignore("integer_division")
 	for index: int in data.top_placements.size() / SubstrateBedData.PLACEMENT_FLOATS:
 		var box: AABB = cell_bounds(data, index)
 		if distance_to(box, camera_local) - LOD_STEP_M >= look.sand_range_end_m:

@@ -147,6 +147,8 @@ func test_any_other_type_is_rejected() -> void:
 
 
 func test_the_parser_logs_nothing() -> void:
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await (assert_error(func() -> void: _parse_bad()).is_success())
 
 
@@ -158,6 +160,8 @@ func test_days_from_civil_known_days() -> void:
 	assert_int(LocalFormat.days_from_civil(1970, 1, 2)).is_equal(1)
 	assert_int(LocalFormat.days_from_civil(1969, 12, 31)).is_equal(-1)
 	assert_int(LocalFormat.days_from_civil(2000, 3, 1)).is_equal(11017)
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	assert_int(LocalFormat.days_from_civil(2026, 7, 1)).is_equal(JULY / 86400)
 	assert_int(LocalFormat.days_from_civil(9999, 12, 31)).is_equal(2932896)
 	assert_int(LocalFormat.days_from_civil(10000, 1, 1)).is_equal(2932897)
@@ -167,6 +171,8 @@ func test_civil_from_days_known_days() -> void:
 	assert_vector(LocalFormat.civil_from_days(0)).is_equal(Vector3i(1970, 1, 1))
 	assert_vector(LocalFormat.civil_from_days(-1)).is_equal(Vector3i(1969, 12, 31))
 	assert_vector(LocalFormat.civil_from_days(11017)).is_equal(Vector3i(2000, 3, 1))
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	assert_vector(LocalFormat.civil_from_days(JULY / 86400)).is_equal(Vector3i(2026, 7, 1))
 	assert_vector(LocalFormat.civil_from_days(2932896)).is_equal(Vector3i(9999, 12, 31))
 	assert_vector(LocalFormat.civil_from_days(2932897)).is_equal(Vector3i(10000, 1, 1))
@@ -337,10 +343,10 @@ func test_offsets_that_are_not_a_whole_hour_never_match() -> void:
 
 
 func test_the_change_over_instant_picks_the_offset_of_its_own_year() -> void:
-	var before: int = LocalFormat.parse_timestamp("2026-03-29T00:59:59Z")
-	var after: int = LocalFormat.parse_timestamp("2026-03-29T01:00:00Z")
-	assert_int(LocalFormat.offset_at(before, 60, NOVEMBER)).is_equal(60)
-	assert_int(LocalFormat.offset_at(after, 60, NOVEMBER)).is_equal(120)
+	var value_before: int = LocalFormat.parse_timestamp("2026-03-29T00:59:59Z")
+	var value_after: int = LocalFormat.parse_timestamp("2026-03-29T01:00:00Z")
+	assert_int(LocalFormat.offset_at(value_before, 60, NOVEMBER)).is_equal(60)
+	assert_int(LocalFormat.offset_at(value_after, 60, NOVEMBER)).is_equal(120)
 	var autumn_before: int = LocalFormat.parse_timestamp("2026-10-25T00:59:59Z")
 	var autumn_after: int = LocalFormat.parse_timestamp("2026-10-25T01:00:00Z")
 	assert_int(LocalFormat.offset_at(autumn_before, 60, NOVEMBER)).is_equal(120)

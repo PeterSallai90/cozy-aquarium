@@ -149,10 +149,10 @@ func test_golden_v1_loads_through_store_from_res_path() -> void:
 
 func test_load_never_modifies_the_file() -> void:
 	var path: String = _write("tank.json", SaveFixtures.base_dict())
-	var before: PackedByteArray = SaveFixtures.read_bytes(path)
+	var value_before: PackedByteArray = SaveFixtures.read_bytes(path)
 	var times: int = FileAccess.get_modified_time(path)
 	assert_int(_store().load_into(path, _model, _history).kind).is_equal(SaveResult.Kind.OK)
-	assert_bool(SaveFixtures.read_bytes(path) == before).is_true()
+	assert_bool(SaveFixtures.read_bytes(path) == value_before).is_true()
 	assert_int(FileAccess.get_modified_time(path)).is_equal(times)
 	assert_array(SaveFixtures.listing(_dir)).is_equal(["tank.json"])
 
@@ -217,10 +217,10 @@ func test_load_with_null_model_or_history_is_internal() -> void:
 	var store: SaveStore = _store()
 	var no_model: SaveResult = store.load_into(path, null, _history)
 	assert_int(no_model.kind).is_equal(SaveResult.Kind.INTERNAL)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var no_history: SaveResult = store.load_into(path, _model, null)
 	assert_int(no_history.kind).is_equal(SaveResult.Kind.INTERNAL)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 
 
 # --- refused loads touch nothing ------------------------------------------------------------
@@ -239,6 +239,8 @@ func _damaged_files() -> Array:
 	var partly: Dictionary = SaveFixtures.base_dict()
 	partly["items"] = items
 	var golden: String = SaveFixtures.read_text(SaveFixtures.GOLDEN_PATH)
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	return [
 		["empty", PackedByteArray()],
 		["truncated", golden.substr(0, golden.length() / 2).to_utf8_buffer()],
@@ -255,7 +257,7 @@ func _damaged_files() -> Array:
 func test_damaged_load_leaves_everything_untouched() -> void:
 	_busy_history()
 	var path: String = _path()
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var undo_count: int = _history.get_undo_count()
 	var redo_count: int = _history.get_redo_count()
 	var recorder: SignalRecorder = SignalRecorder.new()
@@ -269,7 +271,7 @@ func test_damaged_load_leaves_everything_untouched() -> void:
 		var result: SaveResult = store.load_into(path, _model, _history)
 		if result.kind != SaveResult.Kind.DAMAGED:
 			failures.append("%s: kind %d" % [case[0], result.kind])
-		if ModelState.snapshot(_model) != before:
+		if ModelState.snapshot(_model) != value_before:
 			failures.append("%s: model changed" % case[0])
 		if not recorder.events.is_empty():
 			failures.append("%s: signals %s" % [case[0], recorder.names()])
@@ -286,12 +288,12 @@ func test_partly_invalid_file_applies_nothing() -> void:
 	var partly: Array = rows[7]
 	var path: String = _path()
 	SaveFixtures.write_bytes(path, partly[1])
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(_model)
 	var result: SaveResult = _store().load_into(path, _model, _history)
 	assert_int(result.kind).is_equal(SaveResult.Kind.DAMAGED)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 
 
@@ -302,13 +304,13 @@ func test_newer_version_leaves_live_model_and_file_untouched() -> void:
 	var path: String = _write("future.json", data)
 	var file_before: PackedByteArray = SaveFixtures.read_bytes(path)
 	var time_before: int = FileAccess.get_modified_time(path)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(_model)
 	recorder.watch(_history)
 	var result: SaveResult = _store().load_into(path, _model, _history)
 	assert_int(result.kind).is_equal(SaveResult.Kind.NEWER_VERSION)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 	assert_bool(_history.can_undo()).is_true()
 	assert_bool(_history.can_redo()).is_true()
@@ -319,13 +321,13 @@ func test_newer_version_leaves_live_model_and_file_untouched() -> void:
 
 func test_missing_file_is_not_found() -> void:
 	_busy_history()
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(_model)
 	recorder.watch(_history)
 	var result: SaveResult = _store().load_into(_path("nothing_here.json"), _model, _history)
 	assert_int(result.kind).is_equal(SaveResult.Kind.NOT_FOUND)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 	assert_bool(_history.can_undo()).is_true()
 	assert_array(SaveFixtures.listing(_dir)).is_empty()
@@ -333,30 +335,30 @@ func test_missing_file_is_not_found() -> void:
 
 func test_folder_path_is_not_found() -> void:
 	DirAccess.make_dir_recursive_absolute(_path("a_folder"))
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var result: SaveResult = _store().load_into(_path("a_folder"), _model, _history)
 	assert_int(result.kind).is_equal(SaveResult.Kind.NOT_FOUND)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 
 
 func test_empty_and_odd_paths_are_not_found() -> void:
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var failures: PackedStringArray = PackedStringArray()
 	for path: String in ["", "user://", "res://tests/fixtures/saves/does_not_exist.json"]:
 		var result: SaveResult = _store().load_into(path, _model, _history)
 		if result.kind != SaveResult.Kind.NOT_FOUND:
 			failures.append("'%s' gave kind %d" % [path, result.kind])
 	assert_array(failures).is_empty()
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 
 
 func test_oversized_file_is_damaged_through_the_store() -> void:
 	var path: String = _path("huge.json")
 	SaveFixtures.write_bytes(path, SaveFixtures.padded_bytes(SaveFixtures.MAX_FILE_BYTES + 1))
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	var result: SaveResult = _store().load_into(path, _model, _history)
 	assert_int(result.kind).is_equal(SaveResult.Kind.DAMAGED)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 
 
 # --- saving ----------------------------------------------------------------------------------
@@ -412,12 +414,12 @@ func test_save_refuses_an_oversized_model_and_keeps_the_good_save() -> void:
 	var path: String = _path()
 	var store: SaveStore = _store()
 	assert_int(store.save(_model, path).kind).is_equal(SaveResult.Kind.OK)
-	var before: PackedByteArray = SaveFixtures.read_bytes(path)
+	var value_before: PackedByteArray = SaveFixtures.read_bytes(path)
 	var modified: String = _model.get_modified()
 	_model.apply_set_name("a".repeat(SaveFixtures.MAX_FILE_BYTES))
 	var result: SaveResult = store.save(_model, path)
 	assert_int(result.kind).is_equal(SaveResult.Kind.INTERNAL)
-	assert_bool(SaveFixtures.read_bytes(path) == before).is_true()
+	assert_bool(SaveFixtures.read_bytes(path) == value_before).is_true()
 	assert_str(_model.get_modified()).is_equal(modified)
 
 

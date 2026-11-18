@@ -413,7 +413,11 @@ func _water_grid(image: Image, mask: Dictionary, stride: int, subtract: Image = 
 	var data: PackedByteArray = image.get_data()
 	var other_data: PackedByteArray = PackedByteArray() if subtract == null else subtract.get_data()
 	var half: bool = _is_half(image)
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	var grid_w: int = (WIDTH + stride - 1) / stride
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	var grid_h: int = (HEIGHT + stride - 1) / stride
 	var grid: PackedFloat32Array = PackedFloat32Array()
 	grid.resize(grid_w * grid_h)
@@ -434,10 +438,14 @@ func _water_grid(image: Image, mask: Dictionary, stride: int, subtract: Image = 
 			var value: float = _lum_at(data, half, x, y)
 			if subtract != null:
 				value = maxf(value - _lum_at(other_data, half, x, y), 0.0)
+			# Intended integer division.
+			@warning_ignore("integer_division")
 			grid[(y / stride) * grid_w + x / stride] = value
 			cells += 1
 			if value > peak:
 				peak = value
+				# Intended integer division.
+				@warning_ignore("integer_division")
 				peak_cell = Vector2i(x / stride, y / stride)
 	return {
 		"grid": grid, "w": grid_w, "h": grid_h, "cells": cells, "peak": peak, "peak_cell": peak_cell
@@ -467,6 +475,8 @@ func _components(info: Dictionary, level: float) -> Array[Dictionary]:
 			var cell: int = stack[stack.size() - 1]
 			stack.resize(stack.size() - 1)
 			var cx: int = cell % grid_w
+			# Intended integer division.
+			@warning_ignore("integer_division")
 			var cy: int = cell / grid_w
 			area += 1
 			low = Vector2i(mini(low.x, cx), mini(low.y, cy))
@@ -576,6 +586,8 @@ func _ring(info: Dictionary, peak_cell: Vector2i, radius: float, stride: int) ->
 	if values.is_empty():
 		return {"median": 0.0, "count": 0}
 	values.sort()
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	return {"median": values[values.size() / 2], "count": values.size()}
 
 
@@ -588,6 +600,8 @@ func _median_of_grid(info: Dictionary) -> float:
 	if values.is_empty():
 		return 0.0
 	values.sort()
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	return values[values.size() / 2]
 
 

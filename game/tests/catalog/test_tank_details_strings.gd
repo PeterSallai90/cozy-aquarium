@@ -42,8 +42,8 @@ func _text(key: String, locale: String) -> String:
 	return tr(key)
 
 
-func _file(name: String) -> String:
-	return FileAccess.get_file_as_string(LOCALIZATION_DIR + name)
+func _file(file_name: String) -> String:
+	return FileAccess.get_file_as_string(LOCALIZATION_DIR + file_name)
 
 
 func test_the_eleven_new_keys_have_the_issue_texts_in_english_and_hungarian() -> void:
@@ -62,24 +62,28 @@ func test_the_reused_keys_keep_their_texts() -> void:
 
 
 func test_every_new_key_is_in_the_pot_and_both_po_files_with_non_empty_text() -> void:
-	for name: String in ["messages.pot", "en.po", "hu.po"]:
-		var text: String = _file(name)
-		assert_str(text).override_failure_message("%s is empty or missing" % name).is_not_empty()
+	for file_name: String in ["messages.pot", "en.po", "hu.po"]:
+		var text: String = _file(file_name)
+		(
+			assert_str(text)
+			. override_failure_message("%s is empty or missing" % file_name)
+			. is_not_empty()
+		)
 		for key: String in NEW_KEYS:
 			(
 				assert_bool(text.contains('msgid "%s"' % key))
-				. override_failure_message("%s missing in %s" % [key, name])
+				. override_failure_message("%s missing in %s" % [key, file_name])
 				. is_true()
 			)
 
 
 func test_the_reused_keys_are_defined_once_in_each_file() -> void:
-	for name: String in ["messages.pot", "en.po", "hu.po"]:
-		var text: String = _file(name)
+	for file_name: String in ["messages.pot", "en.po", "hu.po"]:
+		var text: String = _file(file_name)
 		for key: String in REUSED_KEYS:
 			(
 				assert_int(text.count('msgid "%s"' % key))
-				. override_failure_message("%s is defined more than once in %s" % [key, name])
+				. override_failure_message("%s is defined more than once in %s" % [key, file_name])
 				. is_less_equal(1)
 			)
 

@@ -504,7 +504,11 @@ func _corner_metrics(px: PackedFloat32Array, sgn: float, fraction: float) -> Dic
 	)
 	result["left_crossing_px"] = snappedf(left, 0.01)
 	result["left_resolved"] = distinct
+	# Branch types differ on purpose.
+	@warning_ignore("incompatible_ternary")
 	result["right_crossing_px"] = snappedf(right, 0.01) if not is_nan(right) else null
+	# Branch types differ on purpose.
+	@warning_ignore("incompatible_ternary")
 	result["width_px"] = snappedf(right - left, 0.01) if not is_nan(right) else null
 	## Core: strongest 2 px running mean inside the band, 1 px in from each crossing.
 	var first: int = ceili(left + 1.0 - 0.5)
@@ -1007,6 +1011,8 @@ func _strip_check(result: Dictionary, before_json: Dictionary) -> void:
 	var px: PackedFloat32Array = _rgba(image)
 	var low: Vector2 = _proj(centre + Vector3(-0.0175, 0.0025, 0.0))
 	var high: Vector2 = _proj(centre + Vector3(0.0175, -0.0025, 0.0))
+	# Float to int truncation is intended.
+	@warning_ignore("narrowing_conversion")
 	var inner: Rect2i = Rect2i(
 		Vector2i(low.x + 1, low.y + 1), Vector2i(high.x - low.x - 2, high.y - low.y - 2)
 	)

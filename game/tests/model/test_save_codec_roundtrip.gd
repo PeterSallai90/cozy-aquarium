@@ -214,9 +214,13 @@ func test_random_doubles_round_trip_exactly() -> void:
 	var loaded: AquariumModel = _round_trip(model)
 	var wrong: int = 0
 	for index: int in 300:
-		var before: PlacedItem = model.get_item_at(index)
-		var after: PlacedItem = loaded.get_item_at(index)
-		if after == null or after.rotation_y != before.rotation_y or after.scale != before.scale:
+		var value_before: PlacedItem = model.get_item_at(index)
+		var value_after: PlacedItem = loaded.get_item_at(index)
+		if (
+			value_after == null
+			or value_after.rotation_y != value_before.rotation_y
+			or value_after.scale != value_before.scale
+		):
 			wrong += 1
 	assert_int(wrong).is_equal(0)
 
@@ -234,14 +238,17 @@ func test_fish_identity_round_trips() -> void:
 	var loaded: AquariumModel = _round_trip(model)
 	var failures: PackedStringArray = PackedStringArray()
 	for index: int in model.get_fish_count():
-		var before: FishInstance = model.get_fish_at(index)
-		var after: FishInstance = loaded.get_fish_at(index)
-		if after == null:
+		var value_before: FishInstance = model.get_fish_at(index)
+		var value_after: FishInstance = loaded.get_fish_at(index)
+		if value_after == null:
 			failures.append("fish %d missing" % index)
 			continue
-		if after.uid != before.uid or after.species_id != before.species_id:
+		if value_after.uid != value_before.uid or value_after.species_id != value_before.species_id:
 			failures.append("identity of fish %d" % index)
-		if after.variant != before.variant or after.nickname != before.nickname:
+		if (
+			value_after.variant != value_before.variant
+			or value_after.nickname != value_before.nickname
+		):
 			failures.append("variant or nickname of fish %d" % index)
 	assert_array(failures).is_empty()
 	assert_int(loaded.get_fish_count()).is_equal(3)

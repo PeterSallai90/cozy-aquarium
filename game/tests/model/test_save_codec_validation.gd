@@ -51,6 +51,8 @@ func _bytes_kind(bytes: PackedByteArray) -> int:
 
 func test_unparseable_bytes_are_damaged() -> void:
 	var golden: String = SaveFixtures.read_text(SaveFixtures.GOLDEN_PATH)
+	# Intended integer division.
+	@warning_ignore("integer_division")
 	var cases: Array = [
 		["empty", PackedByteArray()],
 		["whitespace only", " \n\t ".to_utf8_buffer()],

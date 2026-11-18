@@ -160,11 +160,11 @@ func test_ac02_the_build_does_not_mutate_the_preview_material_resource() -> void
 	settings.set("density", 0.05)
 	var preview: FogMaterial = _preview()
 	assert_object(preview).is_not_null()
-	var before: float = preview.density if preview != null else -1.0
+	var value_before: float = preview.density if preview != null else -1.0
 	var instance: Node3D = Water.built_tank(Table.MEDIUM, settings)
 	auto_free(instance)
 	if preview != null:
-		assert_float(preview.density).is_equal(before)
+		assert_float(preview.density).is_equal(value_before)
 
 
 # --- AC 7: the single fog place ---

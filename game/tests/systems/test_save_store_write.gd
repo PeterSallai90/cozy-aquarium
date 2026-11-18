@@ -113,7 +113,7 @@ func test_refused_paths() -> void:
 		"user://",
 		"",
 	]
-	var before: Array = [_model.get_modified(), SaveFixtures.listing(_dir)]
+	var value_before: Array = [_model.get_modified(), SaveFixtures.listing(_dir)]
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(_model)
 	var failures: PackedStringArray = PackedStringArray()
@@ -124,8 +124,8 @@ func test_refused_paths() -> void:
 		if not path.is_empty() and not path.ends_with("/") and FileAccess.file_exists(path):
 			failures.append("'%s' was written" % path)
 	assert_array(failures).is_empty()
-	assert_str(_model.get_modified()).is_equal(before[0])
-	assert_array(SaveFixtures.listing(_dir)).is_equal(before[1])
+	assert_str(_model.get_modified()).is_equal(value_before[0])
+	assert_array(SaveFixtures.listing(_dir)).is_equal(value_before[1])
 	assert_array(recorder.events).is_empty()
 	for stray: String in refused:
 		if stray.begins_with("C:/") or stray.begins_with("/tmp/"):
@@ -138,7 +138,7 @@ func test_refused_paths() -> void:
 func test_internal_writes_nothing_and_keeps_previous_file() -> void:
 	var path: String = _path()
 	assert_int(_store().save(_model, path).kind).is_equal(SaveResult.Kind.OK)
-	var before: PackedByteArray = SaveFixtures.read_bytes(path)
+	var value_before: PackedByteArray = SaveFixtures.read_bytes(path)
 	var names: PackedStringArray = SaveFixtures.listing(_dir)
 	_model.apply_set_name("changed after the first save")
 	var broken: Array = [
@@ -158,7 +158,7 @@ func test_internal_writes_nothing_and_keeps_previous_file() -> void:
 		var result: SaveResult = _store(LATER).save(model, path)
 		if result.kind != SaveResult.Kind.INTERNAL:
 			failures.append("case %d: kind %d" % [index, result.kind])
-		if SaveFixtures.read_bytes(path) != before:
+		if SaveFixtures.read_bytes(path) != value_before:
 			failures.append("case %d: previous file changed" % index)
 		if SaveFixtures.listing(_dir) != names:
 			failures.append("case %d: files in the folder changed" % index)
@@ -200,13 +200,13 @@ func _block_tmp(path: String) -> void:
 func test_write_failure_keeps_previous_save() -> void:
 	var path: String = _path()
 	assert_int(_store().save(_model, path).kind).is_equal(SaveResult.Kind.OK)
-	var before: PackedByteArray = SaveFixtures.read_bytes(path)
+	var value_before: PackedByteArray = SaveFixtures.read_bytes(path)
 	_block_tmp(path)
 	var names: PackedStringArray = SaveFixtures.listing(_dir)
 	_model.apply_set_name("A newer name that never reached the disk")
 	var result: SaveResult = _store(LATER).save(_model, path)
 	assert_int(result.kind).is_equal(SaveResult.Kind.WRITE_FAILED)
-	assert_bool(SaveFixtures.read_bytes(path) == before).is_true()
+	assert_bool(SaveFixtures.read_bytes(path) == value_before).is_true()
 	assert_array(SaveFixtures.listing(_dir)).is_equal(names)
 	assert_array(SaveFixtures.listing(path + ".tmp")).is_equal(["keep.txt"])
 	assert_str(_load_name(path)).is_equal("Reef Árvíztűrő")

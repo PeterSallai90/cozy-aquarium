@@ -90,6 +90,8 @@ func test_a_missing_key_in_an_existing_file_reads_null_without_an_engine_error()
 	var read: Callable = func() -> void:
 		results.append(store.read_value("general", "language"))
 		results.append(store.read_value("audio", "missing"))
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await assert_error(read).is_success()
 	assert_array(results).is_equal([null, null])
 
@@ -98,6 +100,8 @@ func test_a_missing_key_with_a_default_reads_it_without_an_engine_error() -> voi
 	SaveFixtures.write_text(_path(), "[audio]\nvolume=0.5\n")
 	var store: SettingsStore = SettingsStore.new(_path())
 	var read: Callable = func() -> void: store.read_value("general", "language", "en")
+	# GdUnit4 needs this await on the error check.
+	@warning_ignore("redundant_await")
 	await assert_error(read).is_success()
 	assert_str(store.read_value("general", "language", "en")).is_equal("en")
 
@@ -182,16 +186,21 @@ func test_other_sections_and_keys_survive_a_write() -> void:
 
 func test_exactly_one_key_changes_per_write() -> void:
 	SaveFixtures.write_text(_path(), '[general]\nlanguage="en"\nother=7\n\n[audio]\nvolume=0.5\n')
-	var before: ConfigFile = _config(_path())
+	var value_before: ConfigFile = _config(_path())
 	var store: SettingsStore = SettingsStore.new(_path())
 	assert_int(store.write_value("general", "language", "hu")).is_equal(OK)
-	var after: ConfigFile = _config(_path())
-	for section: String in before.get_sections():
-		for key: String in before.get_section_keys(section):
+	var value_after: ConfigFile = _config(_path())
+	for section: String in value_before.get_sections():
+		for key: String in value_before.get_section_keys(section):
 			if section == "general" and key == "language":
 				continue
-			assert_bool(after.get_value(section, key) == before.get_value(section, key)).is_true()
-	assert_str(after.get_value("general", "language")).is_equal("hu")
+			(
+				assert_bool(
+					value_after.get_value(section, key) == value_before.get_value(section, key)
+				)
+				. is_true()
+			)
+	assert_str(value_after.get_value("general", "language")).is_equal("hu")
 
 
 func test_a_key_added_to_the_file_between_two_writes_survives() -> void:

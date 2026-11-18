@@ -14,9 +14,15 @@ signal command_executed(command: Command)
 signal command_undone(command: Command)
 signal command_redone(command: Command)
 signal history_changed(can_undo: bool, can_redo: bool)
+# Public bus signal: emitted and connected from other scripts, not here.
+@warning_ignore("unused_signal")
 signal language_changed(language: String)
+# Public bus signal: emitted and connected from other scripts, not here.
+@warning_ignore("unused_signal")
 signal setting_changed(section: String, key: String, value: Variant)
+# Public bus signal: emitted and connected from other scripts, not here.
 ## Emitted by the room after it has swapped the tank; an empty id means no tank is shown.
+@warning_ignore("unused_signal")
 signal tank_displayed(tank_id: StringName)
 
 var _history: CommandHistory = null

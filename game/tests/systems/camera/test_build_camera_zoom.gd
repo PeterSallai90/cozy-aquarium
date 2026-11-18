@@ -252,12 +252,12 @@ func test_ac03_zooming_out_raises_the_target_elevation_to_the_new_lowest_elevati
 		if not await _open(id):
 			return
 		Cam.set_orbit(_camera, 0.0, -90.0, true)
-		var before: float = Cam.t_el(_camera)
-		assert_float(before).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
+		var value_before: float = Cam.t_el(_camera)
+		assert_float(value_before).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
 		Cz.wheel(_viewport, false, Cz.HUGE)
-		var after: float = Cam.t_el(_camera)
-		assert_float(after).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
-		assert_float(after).is_greater(before + 0.01)
+		var value_after: float = Cam.t_el(_camera)
+		assert_float(value_after).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
+		assert_float(value_after).is_greater(value_before + 0.01)
 
 
 func test_ac03_zooming_back_in_does_not_lower_the_elevation_by_itself() -> void:

@@ -196,7 +196,7 @@ func test_ac22_the_room_shows_the_medium_fallback_and_the_marker_is_on_medium() 
 func test_ac22_undo_restores_the_previous_tank_normally() -> void:
 	_catalog = _broken_catalog()
 	_model = Ui.furnished_model(Table.MEDIUM)
-	var before: Dictionary = ModelState.snapshot(_model)
+	var value_before: Dictionary = ModelState.snapshot(_model)
 	if not await _build_open():
 		return
 	# The furnished tank asks first; the dialog is answered through the Command directly here, as
@@ -213,7 +213,7 @@ func test_ac22_undo_restores_the_previous_tank_normally() -> void:
 			await _wait()
 	)
 	assert_dict(seen["errors"]).is_empty()
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(value_before)
 	assert_that(Rig.displayed_id(_room)).is_equal(Table.MEDIUM)
 	assert_array(Ui.marked_ids(_controls)).is_equal([Table.MEDIUM])
 

@@ -61,11 +61,13 @@ func test_ac04_the_first_pan_in_the_default_view_matches_the_formula() -> void:
 	for id: StringName in Table.IDS:
 		if not await _open(id):
 			return
-		var before: Vector3 = Cam.t_pivot(_camera)
+		var value_before: Vector3 = Cam.t_pivot(_camera)
 		var relative: Vector2 = Vector2(36.0, -18.0)
 		var expected: Vector3 = Cz.expected_pan(_camera, relative, Cam.t_dist(_camera))
 		Cz.pan(_viewport, relative)
-		assert_vector(Cam.t_pivot(_camera) - before).is_equal_approx(expected, Vector3.ONE * 0.0002)
+		assert_vector(Cam.t_pivot(_camera) - value_before).is_equal_approx(
+			expected, Vector3.ONE * 0.0002
+		)
 
 
 func test_ac04_the_scale_is_the_vertical_field_of_view_of_the_real_camera() -> void:
@@ -73,9 +75,9 @@ func test_ac04_the_scale_is_the_vertical_field_of_view_of_the_real_camera() -> v
 		return
 	# 16:9 with the horizontal 50 degrees: tan(25 degrees) x 9/16, about 0.2623.
 	assert_float(Cz.real_tan_half_vfov(_camera)).is_equal_approx(0.2623, 0.0001)
-	var before: Vector3 = Cam.t_pivot(_camera)
+	var value_before: Vector3 = Cam.t_pivot(_camera)
 	Cz.pan(_viewport, Vector2(72.0, 0.0))
-	var moved: float = (Cam.t_pivot(_camera) - before).length()
+	var moved: float = (Cam.t_pivot(_camera) - value_before).length()
 	# 72 px of 720 px is one tenth of the height: 0.1 x 2 x distance x 0.2623.
 	assert_float(moved).is_equal_approx(0.1 * 2.0 * _default * 0.2623, 0.0003)
 
@@ -85,9 +87,9 @@ func test_ac04_a_drag_to_the_right_moves_the_pivot_along_minus_camera_right() ->
 		if not await _open(id):
 			return
 		var basis: Basis = _camera.global_transform.basis
-		var before: Vector3 = Cam.t_pivot(_camera)
+		var value_before: Vector3 = Cam.t_pivot(_camera)
 		Cz.pan(_viewport, Vector2(30.0, 0.0))
-		var moved: Vector3 = Cam.t_pivot(_camera) - before
+		var moved: Vector3 = Cam.t_pivot(_camera) - value_before
 		assert_float(moved.dot(basis.x)).is_less(-0.001)
 		assert_float(moved.dot(basis.y)).is_equal_approx(0.0, 0.0002)
 
@@ -97,9 +99,9 @@ func test_ac04_a_drag_down_moves_the_pivot_along_plus_camera_up() -> void:
 		if not await _open(id):
 			return
 		var basis: Basis = _camera.global_transform.basis
-		var before: Vector3 = Cam.t_pivot(_camera)
+		var value_before: Vector3 = Cam.t_pivot(_camera)
 		Cz.pan(_viewport, Vector2(0.0, 30.0))
-		var moved: Vector3 = Cam.t_pivot(_camera) - before
+		var moved: Vector3 = Cam.t_pivot(_camera) - value_before
 		assert_float(moved.dot(basis.y)).is_greater(0.001)
 		assert_float(moved.dot(basis.x)).is_equal_approx(0.0, 0.0002)
 
@@ -112,9 +114,9 @@ func test_ac04_the_formula_holds_at_other_azimuths_and_elevations() -> void:
 			Cz.pose(_camera, azimuth, elevation, _default, _rig["home_pivot"])
 			var relative: Vector2 = Vector2(24.0, 16.0)
 			var expected: Vector3 = Cz.expected_pan(_camera, relative, Cam.t_dist(_camera))
-			var before: Vector3 = Cam.t_pivot(_camera)
+			var value_before: Vector3 = Cam.t_pivot(_camera)
 			Cz.pan(_viewport, relative)
-			assert_vector(Cam.t_pivot(_camera) - before).is_equal_approx(
+			assert_vector(Cam.t_pivot(_camera) - value_before).is_equal_approx(
 				expected, Vector3.ONE * 0.0003
 			)
 
@@ -148,9 +150,9 @@ func test_ac04_at_the_zoom_limits_the_same_drag_moves_the_pivot_in_the_ratio_of_
 		var moves: Array[float] = []
 		for distance: float in [Cz.zoom_in_distance(_default), Cz.zoom_out_distance(_default)]:
 			Cz.pose(_camera, 0.0, 5.0, distance, _rig["home_pivot"])
-			var before: Vector3 = Cam.t_pivot(_camera)
+			var value_before: Vector3 = Cam.t_pivot(_camera)
 			Cz.pan(_viewport, relative)
-			moves.append((Cam.t_pivot(_camera) - before).length())
+			moves.append((Cam.t_pivot(_camera) - value_before).length())
 		assert_float(moves[0] / moves[1]).is_equal_approx(
 			Cz.setting("zoom_min_factor") / Cz.setting("zoom_max_factor"), 0.002
 		)
@@ -161,27 +163,29 @@ func test_ac04_the_pan_follows_the_viewport_height_and_not_the_width() -> void:
 		return
 	var relative: Vector2 = Vector2(30.0, 0.0)
 	var expected: Vector3 = Cz.expected_pan(_camera, relative, Cam.t_dist(_camera))
-	var before: Vector3 = Cam.t_pivot(_camera)
+	var value_before: Vector3 = Cam.t_pivot(_camera)
 	Cz.pan(_viewport, relative)
-	assert_vector(Cam.t_pivot(_camera) - before).is_equal_approx(expected, Vector3.ONE * 0.0003)
+	assert_vector(Cam.t_pivot(_camera) - value_before).is_equal_approx(
+		expected, Vector3.ONE * 0.0003
+	)
 
 
 func test_ac04_a_long_frame_gives_the_same_pan_result() -> void:
 	if not await _open(Table.MEDIUM):
 		return
-	var before: Vector3 = Cam.t_pivot(_camera)
+	var value_before: Vector3 = Cam.t_pivot(_camera)
 	Cz.pan(_viewport, Vector2(40.0, -22.0))
-	var short_pan: Vector3 = Cam.t_pivot(_camera) - before
+	var short_pan: Vector3 = Cam.t_pivot(_camera) - value_before
 	if not await _open(Table.MEDIUM):
 		return
-	before = Cam.t_pivot(_camera)
+	value_before = Cam.t_pivot(_camera)
 	Cam.step(_camera, 0.5, 0.5)
 	Cz.middle_press(_viewport)
 	Cam.step(_camera, 0.1, 0.1)
 	Cz.middle_motion(_viewport, Vector2(40.0, -22.0), Vector2(140.0, 78.0))
 	Cam.step(_camera, 0.1, 0.1)
 	Cz.middle_release(_viewport, Vector2(140.0, 78.0))
-	var long_pan: Vector3 = Cam.t_pivot(_camera) - before
+	var long_pan: Vector3 = Cam.t_pivot(_camera) - value_before
 	assert_vector(long_pan).is_equal_approx(short_pan, Vector3.ONE * 0.00001)
 
 
@@ -193,9 +197,9 @@ func test_ac04_the_pan_ends_on_the_release_and_later_motion_does_not_pan() -> vo
 	Cz.middle_motion(_viewport, Vector2(20.0, 0.0), Vector2(120.0, 100.0))
 	Cz.middle_release(_viewport, Vector2(120.0, 100.0))
 	assert_bool(Cz.panning(_camera)).is_false()
-	var after: Vector3 = Cam.t_pivot(_camera)
+	var value_after: Vector3 = Cam.t_pivot(_camera)
 	Cz.middle_motion(_viewport, Vector2(60.0, 40.0), Vector2(180.0, 140.0))
-	assert_vector(Cam.t_pivot(_camera)).is_equal_approx(after, Vector3.ONE * 0.000001)
+	assert_vector(Cam.t_pivot(_camera)).is_equal_approx(value_after, Vector3.ONE * 0.000001)
 
 
 func test_ac04_the_left_and_right_buttons_do_not_pan() -> void:
@@ -332,10 +336,10 @@ func test_ac05_a_drag_into_an_edge_slides_along_it_on_the_free_axis() -> void:
 		var relative: Vector2 = Vector2(-200.0, 20.0)
 		var expected: Vector3 = Cz.expected_pan(_camera, relative, Cam.t_dist(_camera))
 		Cz.pan(_viewport, relative)
-		var after: Vector3 = Cam.t_pivot(_camera)
-		assert_float(after.x).is_equal_approx(_box.end.x, BOX_TOLERANCE)
-		assert_float(after.y - at_edge.y).is_equal_approx(expected.y, 0.0002)
-		assert_float(after.y).is_greater(at_edge.y)
+		var value_after: Vector3 = Cam.t_pivot(_camera)
+		assert_float(value_after.x).is_equal_approx(_box.end.x, BOX_TOLERANCE)
+		assert_float(value_after.y - at_edge.y).is_equal_approx(expected.y, 0.0002)
+		assert_float(value_after.y).is_greater(at_edge.y)
 
 
 func test_ac05_the_pivot_is_inside_the_box_at_every_frame_of_the_ease() -> void:
@@ -376,13 +380,13 @@ func test_ac06_panning_down_raises_the_target_elevation_with_the_new_limit() -> 
 		if not await _open(id):
 			return
 		Cam.set_orbit(_camera, 0.0, -90.0, true)
-		var before: float = Cam.t_el(_camera)
-		assert_float(before).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
+		var value_before: float = Cam.t_el(_camera)
+		assert_float(value_before).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
 		Cz.pan(_viewport, Vector2(0.0, -Cz.HUGE))
 		assert_float(Cam.t_pivot(_camera).y).is_equal_approx(_box.position.y, BOX_TOLERANCE)
-		var after: float = Cam.t_el(_camera)
-		assert_float(after).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
-		assert_float(after).is_greater(before + 0.01)
+		var value_after: float = Cam.t_el(_camera)
+		assert_float(value_after).is_equal_approx(_lowest(), Cz.ANGLE_DEG)
+		assert_float(value_after).is_greater(value_before + 0.01)
 
 
 func test_ac06_the_camera_height_stays_at_or_above_the_cabinet_top_while_panning_down() -> void:
@@ -417,9 +421,9 @@ func test_ac06_it_holds_when_the_camera_is_held_by_collision_at_a_low_corner() -
 			return
 		var corner: Vector3 = Cz.box_corner(_box, true, false, false)
 		Cz.pose(_camera, 270.0, -90.0, Cz.zoom_in_distance(_default), corner)
-		var before: float = Cam.t_el(_camera)
+		var value_before: float = Cam.t_el(_camera)
 		Cz.pan(_viewport, Vector2(0.0, -30.0))
-		assert_float(Cam.t_el(_camera)).is_greater_equal(before - Cz.ANGLE_DEG)
+		assert_float(Cam.t_el(_camera)).is_greater_equal(value_before - Cz.ANGLE_DEG)
 		var raised: float = Cam.t_el(_camera)
 		var lowest: float = INF
 		for frame: int in 120:

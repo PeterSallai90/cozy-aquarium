@@ -287,11 +287,11 @@ func test_ac09_home_in_the_default_view_changes_nothing() -> void:
 	for id: StringName in Table.IDS:
 		if not await _open(id):
 			return
-		var before: Array[float] = _target_values()
+		var value_before: Array[float] = _target_values()
 		Cz.home_key(_viewport)
-		assert_array(_target_values()).is_equal(before)
+		assert_array(_target_values()).is_equal(value_before)
 		Cam.step(_camera, 0.5)
-		assert_array(_eased_values()).is_equal(before)
+		assert_array(_eased_values()).is_equal(value_before)
 		assert_vector(_camera.global_position).is_equal_approx(
 			_start_position, Vector3.ONE * 0.000001
 		)
