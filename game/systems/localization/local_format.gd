@@ -72,14 +72,16 @@ func _format(timestamp: Variant, with_date: bool, with_time: bool) -> String:
 		return tr("datetime.unknown")
 	var local: int = unix + offset_at(unix, offset, now) * 60
 	var sec: int = posmod(local, 86400)
-	# Intended integer division: whole days of the local time.
+	# (local - sec) / 86400: local - sec is a whole multiple of 86400 (sec is posmod),
+	# so the division is exact and also right for negative times.
 	@warning_ignore("integer_division")
 	var civil: Vector3i = civil_from_days((local - sec) / 86400)
 	var parts: PackedStringArray = PackedStringArray()
 	if with_date:
 		parts.append(date_text(civil.x, civil.y, civil.z, language))
 	if with_time:
-		# Intended integer division: hours and minutes of the day.
+		# sec / 3600 and (sec % 3600) / 60: sec is 0..86399 (posmod), truncation gives
+		# whole hours and whole minutes; a clock shows no seconds here.
 		@warning_ignore("integer_division")
 		parts.append(time_text(sec / 3600, (sec % 3600) / 60))
 	return " ".join(parts)
@@ -172,14 +174,18 @@ static func _days_in_month(y: int, m: int) -> int:
 
 static func days_from_civil(year: int, month: int, day: int) -> int:
 	var y: int = year - (1 if month <= 2 else 0)
-	# Intended integer division: era of the civil date algorithm.
+	# y / 400: Hinnant civil-date algorithm; y is shifted so March starts the year,
+	# and for years from 0 up (the only dates the game handles) y is non-negative, so
+	# truncation equals the published floor.
 	@warning_ignore("integer_division")
 	var era: int = y / 400
 	var yoe: int = y - era * 400
-	# Intended integer division: civil date algorithm, expression unchanged.
+	# (153 * m' + 2) / 5: Hinnant civil-date day-of-year formula, non-negative
+	# operands, truncation is part of the algorithm.
 	@warning_ignore("integer_division")
 	var doy: int = (153 * (month - 3 if month > 2 else month + 9) + 2) / 5 + day - 1
-	# Intended integer division: civil date algorithm, expression unchanged.
+	# yoe / 4 - yoe / 100: Hinnant leap-day counts for year-of-era 0..399, non-
+	# negative operands, truncation is part of the algorithm.
 	@warning_ignore("integer_division")
 	var doe: int = yoe * 365 + yoe / 4 - yoe / 100 + doy
 	return era * 146097 + doe - 719468
@@ -187,20 +193,25 @@ static func days_from_civil(year: int, month: int, day: int) -> int:
 
 static func civil_from_days(days: int) -> Vector3i:
 	var z: int = days + 719468
-	# Intended integer division: era of the civil date algorithm.
+	# z / 146097: Hinnant era (400 years) for z = days + 719468, non-negative for
+	# dates from year 0, truncation is part of the algorithm.
 	@warning_ignore("integer_division")
 	var era: int = z / 146097
 	var doe: int = z - era * 146097
-	# Intended integer division: civil date algorithm, expression unchanged.
+	# doe / 1460, / 36524, / 146096, then / 365: Hinnant year-of-era formula, non-
+	# negative operands, truncation is part of the algorithm.
 	@warning_ignore("integer_division")
 	var yoe: int = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
-	# Intended integer division: civil date algorithm, expression unchanged.
+	# yoe / 4 - yoe / 100: Hinnant leap-day counts for year-of-era, non-negative
+	# operands, truncation is part of the algorithm.
 	@warning_ignore("integer_division")
 	var doy: int = doe - (365 * yoe + yoe / 4 - yoe / 100)
-	# Intended integer division: civil date algorithm, expression unchanged.
+	# (5 * doy + 2) / 153: Hinnant month-from-day-of-year step, non-negative operands,
+	# truncation is part of the algorithm.
 	@warning_ignore("integer_division")
 	var mp: int = (5 * doy + 2) / 153
-	# Intended integer division: civil date algorithm, expression unchanged.
+	# (153 * mp + 2) / 5: Hinnant day-of-month step, non-negative operands, truncation
+	# is part of the algorithm.
 	@warning_ignore("integer_division")
 	var d: int = doy - (153 * mp + 2) / 5 + 1
 	var m: int = mp + 3 if mp < 10 else mp - 9
@@ -212,7 +223,8 @@ static func last_sunday(year: int, month: int) -> int:
 
 
 static func is_eu_dst(unix: int) -> bool:
-	# Intended integer division: whole days of the unix time.
+	# (unix - posmod(unix, 86400)) / 86400: unix minus its seconds of day is a whole
+	# multiple of 86400, so the division is exact.
 	@warning_ignore("integer_division")
 	var y: int = civil_from_days((unix - posmod(unix, 86400)) / 86400).x
 	var start: int = days_from_civil(y, 3, last_sunday(y, 3)) * 86400 + 3600

@@ -23,7 +23,8 @@ var tone_dark_share: float = 0.0
 var junction_factor: float = 0.3
 var junction_overlap_m: float = 0.0
 var packing_version: int = 0
-# Public bake input name; it shadows the built-in seed() on purpose.
+# The bake input is named seed to match the stored bake data and the #141 hashes; renaming
+# it would change the public input and the bake call sites, so the global seed() is shadowed.
 @warning_ignore("shadowed_global_identifier") var seed: int = 0
 
 

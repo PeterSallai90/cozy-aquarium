@@ -130,7 +130,8 @@ static func base64_byte_length(text: String) -> int:
 		padding = 1
 	if text.count("=") != padding:
 		return -1
-	# Intended integer division: base64 length is a multiple of 4 here.
+	# length / 4 * 3 - padding: length is a non-zero multiple of 4 (checked above), so
+	# length / 4 is exact; * 3 gives the decoded byte count.
 	@warning_ignore("integer_division")
 	return length / 4 * 3 - padding
 

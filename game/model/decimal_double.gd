@@ -150,7 +150,8 @@ static func _search(
 	var low: int = mini(inner, outer)
 	var high: int = maxi(inner, outer)
 	while low <= high:
-		# Intended integer division: binary search midpoint rounds down.
+		# Binary search midpoint of two non-negative limb indices: rounding down is
+		# what the search needs, and the sum stays below 2^63.
 		@warning_ignore("integer_division")
 		var mid: int = low + (high - low) / 2
 		var side: int = _side(mid, left, exp10, right_pow)
@@ -282,7 +283,8 @@ static func _big_mul(a: PackedInt64Array, b: PackedInt64Array) -> PackedInt64Arr
 
 
 static func _big_shl(a: PackedInt64Array, shift: int) -> PackedInt64Array:
-	# Intended integer division: whole limbs of the shift.
+	# Shift in bits / 24 bits per limb: the non-negative shift is deliberately cut to
+	# whole limbs, the remainder is handled as shift % _LIMB_BITS.
 	@warning_ignore("integer_division")
 	var whole_limbs: int = shift / _LIMB_BITS
 	var bits: int = shift % _LIMB_BITS

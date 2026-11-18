@@ -511,7 +511,8 @@ static func _build_sand_tiles(
 			for order: int in 9:
 				var part: int = (order + 5) % 9
 				var px: int = part % 3
-				# Intended integer division: row of the 3x3 part grid.
+				# part / 3: part is 0..8 of the 3x3 part grid, truncation gives the
+				# row 0..2 (part % 3 is the column).
 				@warning_ignore("integer_division")
 				var pz: int = part / 3
 				if (px == PART_LOW and a == 0) or (px == PART_HIGH and a == lattice.x - 1):
@@ -649,7 +650,8 @@ static func _build_chunks(
 	var cx: float = lx / nx
 	var cz: float = lz / nz
 	var slots: int = nx * nz * variants
-	# Intended integer division: float count to record count.
+	# world.size() / RECORD: float count to record count; the buffer is filled in
+	# whole records, so there is no remainder.
 	@warning_ignore("integer_division")
 	var count: int = world.size() / RECORD
 	var reach_of: PackedFloat32Array = PackedFloat32Array()
@@ -737,7 +739,8 @@ static func _build_chunks(
 			(packed >> SubstrateBakeData.EXPOSURE_SHIFT) & SubstrateBakeData.EXPOSURE_MASK
 		)
 		_store_tint(buffer, w + 12, input, r_light, r_hue, r_kind, r_seed, exposure)
-		# Intended integer division: slot to column index.
+		# slot / variants: slot = column * variants + variant, so truncation recovers
+		# the column index.
 		@warning_ignore("integer_division")
 		var column: int = slot / variants
 		var reach: Vector3 = Vector3.ONE * (reach_of[v] * size)
@@ -748,7 +751,8 @@ static func _build_chunks(
 			var column: int = iz * nx + ix
 			var total: int = 0
 			for v: int in variants:
-				# Intended integer division: float count to record count.
+				# buffer size / FLOATS: float count to record count; every buffer
+				# holds whole records, so there is no remainder.
 				@warning_ignore("integer_division")
 				total += buffers[column * variants + v].size() / FLOATS
 			if total == 0:
@@ -762,7 +766,8 @@ static func _build_chunks(
 			for v: int in variants:
 				var s: int = column * variants + v
 				entry.buffers.append(buffers[s])
-				# Intended integer division: float count to record count.
+				# buffer size / FLOATS: float count to record count; every buffer
+				# holds whole records, so there is no remainder.
 				@warning_ignore("integer_division")
 				entry.counts.append(buffers[s].size() / FLOATS)
 				var end: int = 0
