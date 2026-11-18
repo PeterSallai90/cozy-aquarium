@@ -34,7 +34,8 @@ Owner decisions of 2026-11-04 (quoted in #91):
 
    | Step | Owner | Issue |
    | --- | --- | --- |
-   | GDScript analyzer warnings in game code and tests | Analyzer settings in `game/project.godot` | #92 |
+   | GDScript analyzer warnings at Error (four codes) | Analyzer settings in `game/project.godot` | #92 |
+   | Every other default-level GDScript analyzer warning in game code and tests | Analyser guard `tools/scripts/check_analyser_warnings.py` | #148 |
    | Test run, inside a test case | GdUnit4 (`gdunit4/report/godot/push_error=true`, `script_error` at its default `true`) | #91 |
    | Test run, everything GdUnit4 cannot see (leaks, script and parse errors, output outside a test case, the handover list below) | Test-step log gate | #93 |
    | Import | Log gate (`--import` twice; first run `--step import-first` with the pinned set of 10 known font/theme lines excused, second run `--step import`; [owner decision](https://github.com/PeterSallai90/cozy-aquarium/issues/93#issuecomment-6637569076)) | #93 |
@@ -96,7 +97,26 @@ develop 0a81a4b every one of the 113 lines was printed inside a test body.
 
 ### Analyzer settings (#92)
 
-`game/project.godot` `[debug]` sets `gdscript/warnings/untyped_declaration`, `unused_variable`, `unused_parameter` and `shadowed_variable` to 2 (Error). The first enforces static typing; the others catch dead code and hidden shadowing bugs. A finding is a parse error, so the script does not load and the test run or import reports it. `unused_signal` stays at its default (Warn) and is not written. The analyzer only checks the declaring class, so EventBus relay signals emitted from other scripts (`event_bus.gd` `language_changed`, `setting_changed`) are false positives. At Error, the EventBus autoload would not compile. These two warnings are editor-only, never reach headless logs and are not allowlist entries; the allowlist target stays an empty list. `directory_rules` is not written: its default `{"res://addons": 0}` keeps addon code out of analysis (`exclude_addons` does not exist in 4.7.2). `tests/test_script_analysis.gd` loads every script outside `res://addons` with `CACHE_MODE_IGNORE`. `@warning_ignore` in non-addon code needs a same-line or previous-line reason: a named analyzer false positive, or a signal or field kept for a named later milestone or Mode 2 field.
+`game/project.godot` `[debug]` sets `gdscript/warnings/untyped_declaration`, `unused_variable`,
+`unused_parameter` and `shadowed_variable` to 2 (Error). The first enforces static typing; the
+others catch dead code and hidden shadowing bugs. A finding is a parse error, so the script does
+not load and the test run or import reports it. `unused_signal` stays at its default level Warn
+and is not written in `project.godot`. The analyzer only checks the declaring class, so the three
+EventBus relay signals emitted from other scripts (`event_bus.gd` `language_changed`,
+`setting_changed`, `tank_displayed`) are false positives; each keeps a line-level
+`@warning_ignore("unused_signal")` with a reason comment in `event_bus.gd`. At Error, the EventBus
+autoload would not compile. The analyser guard `python tools/scripts/check_analyser_warnings.py`
+catches `unused_signal` and every other default-level code: it raises each code at level 1 to
+Error in a throwaway `game/override.cfg`, leaves `game/project.godot` unchanged, loads every
+script outside `res://addons/` and fails on any finding. It also fails when a code is turned off
+(level 0) in `project.godot`. It runs after the import in CI and in the CLAUDE.md pre-PR checks;
+its exit codes are in CLAUDE.md (Commands, Analyser guard), and docs/dev-setup.md says how to run
+it. These warnings are not allowlist entries; the allowlist target stays an empty list.
+`directory_rules` is not written: its default `{"res://addons": 0}` keeps addon code out of
+analysis (`exclude_addons` does not exist in 4.7.2). `tests/test_script_analysis.gd` loads every
+script outside `res://addons` with `CACHE_MODE_IGNORE`. `@warning_ignore` in non-addon code needs
+a same-line or previous-line reason: a named analyzer false positive, or a signal or field kept
+for a named later milestone or Mode 2 field.
 
 ## Alternatives considered
 
