@@ -27,27 +27,27 @@ const DEFAULT_ROLLOVER_SECS: float = 3600.0
 ## Clamps the values (a non-finite value goes to its default, the speed is rounded to a whole
 ## number of cycles per TIME rollover), warns once when anything was out of range, then announces.
 func apply() -> void:
-	var changed: PackedStringArray = PackedStringArray()
+	var clamped: PackedStringArray = PackedStringArray()
 	var new_intensity: float = _fixed(
 		caustic_intensity, CAUSTIC_INTENSITY_MIN, CAUSTIC_INTENSITY_MAX, DEFAULT_INTENSITY
 	)
 	if not is_equal_approx(new_intensity, caustic_intensity):
-		changed.append("caustic_intensity")
+		clamped.append("caustic_intensity")
 	caustic_intensity = new_intensity
 	var new_speed: float = _fixed(
 		caustic_speed, CAUSTIC_SPEED_MIN, CAUSTIC_SPEED_MAX, DEFAULT_SPEED
 	)
 	if not is_equal_approx(new_speed, caustic_speed):
-		changed.append("caustic_speed")
+		clamped.append("caustic_speed")
 	caustic_speed = _round_to_rollover(new_speed)
 	var new_scale: float = _fixed(
 		caustic_scale, CAUSTIC_SCALE_MIN, CAUSTIC_SCALE_MAX, DEFAULT_SCALE
 	)
 	if not is_equal_approx(new_scale, caustic_scale):
-		changed.append("caustic_scale")
+		clamped.append("caustic_scale")
 	caustic_scale = new_scale
-	if not changed.is_empty():
-		push_warning("WaterCausticSettings: clamped out-of-range values: %s" % ", ".join(changed))
+	if not clamped.is_empty():
+		push_warning("WaterCausticSettings: clamped out-of-range values: %s" % ", ".join(clamped))
 	applied.emit()
 
 

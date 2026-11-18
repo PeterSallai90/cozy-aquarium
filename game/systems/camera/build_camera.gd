@@ -335,11 +335,11 @@ func _zoom(event: InputEventMouseButton, step_factor: float) -> void:
 
 
 func _pan_by(relative: Vector2) -> void:
-	var size: Vector2 = get_viewport().get_visible_rect().size
-	var aspect: float = size.x / size.y if size.y > 0.0 else 1.0
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var aspect: float = viewport_size.x / viewport_size.y if viewport_size.y > 0.0 else 1.0
 	var offset: Vector3 = CameraMoves.pan_offset(
 		relative,
-		size.y,
+		viewport_size.y,
 		_target_distance,
 		CameraMoves.tan_half_vertical_fov(fov, keep_aspect, aspect),
 		settings.pan_speed,

@@ -110,6 +110,8 @@ func variant_count() -> int:
 
 
 func record_count() -> int:
+	# Intended integer division: float count to record count.
+	@warning_ignore("integer_division")
 	return stones.size() / FLOATS
 
 

@@ -35,8 +35,12 @@ func unique_stone_count() -> int:
 	var total: int = 0
 	for chunk: SubstrateChunkData in chunks:
 		for buffer: PackedFloat32Array in chunk.buffers:
+			# Intended integer division: float count to record count.
+			@warning_ignore("integer_division")
 			total += buffer.size() / FLOATS
 	for tile: PackedFloat32Array in top_tiles:
+		# Intended integer division: float count to record count.
+		@warning_ignore("integer_division")
 		total += tile.size() / FLOATS
 	return total
 
@@ -56,4 +60,6 @@ func byte_size() -> int:
 func tile_instance_count(index: int) -> int:
 	if index < 0 or index >= top_tiles.size():
 		return 0
+	# Intended integer division: float count to record count.
+	@warning_ignore("integer_division")
 	return top_tiles[index].size() / FLOATS

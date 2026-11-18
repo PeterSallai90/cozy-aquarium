@@ -247,7 +247,7 @@ func get_unique_stone_count() -> int:
 func get_drawn_triangle_estimate(camera: Camera3D) -> int:
 	if _data == null or camera == null:
 		return 0
-	var to_local: Transform3D = global_transform.affine_inverse() * camera.global_transform
+	var cam_in_bed: Transform3D = global_transform.affine_inverse() * camera.global_transform
 	var half: float = tan(deg_to_rad(camera.fov) / 2.0)
 	var tan_h: float = half
 	var tan_v: float = half
@@ -266,8 +266,8 @@ func get_drawn_triangle_estimate(camera: Camera3D) -> int:
 	]
 	var frustum: Array[Plane] = []
 	for plane: Plane in planes:
-		frustum.append(to_local * plane)
-	return SubstrateLod.estimate_triangles(_data, _look, _triangles, frustum, to_local.origin)
+		frustum.append(cam_in_bed * plane)
+	return SubstrateLod.estimate_triangles(_data, _look, _triangles, frustum, cam_in_bed.origin)
 
 
 ## Bytes of the instance data the view was built from.
@@ -342,6 +342,8 @@ func _begin_sand(interior: Vector3) -> void:
 func _placement_count() -> int:
 	if not _is_sand or _data.top_tiles.is_empty():
 		return 0
+	# Intended integer division: float count to placement count.
+	@warning_ignore("integer_division")
 	return _data.top_placements.size() / SubstrateBedData.PLACEMENT_FLOATS
 
 
@@ -366,10 +368,10 @@ func _build_placement(index: int) -> void:
 	node.material_override = _top_grain_material
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-	var basis: Basis = Basis(Vector3.UP, _data.top_placements[at + 2] * PI / 2.0)
+	var orientation: Basis = Basis(Vector3.UP, _data.top_placements[at + 2] * PI / 2.0)
 	if _data.top_placements[at + 3] != 0.0:
-		basis = basis * Basis.from_scale(Vector3(-1.0, 1.0, 1.0))
-	node.transform = Transform3D(basis, Vector3(centre.x, 0.0, centre.y))
+		orientation = orientation * Basis.from_scale(Vector3(-1.0, 1.0, 1.0))
+	node.transform = Transform3D(orientation, Vector3(centre.x, 0.0, centre.y))
 	# hidden until the camera finds the cell within the real-grain range
 	node.visible = false
 	add_child(node)
@@ -568,6 +570,8 @@ func _make_multimesh(buffer: PackedFloat32Array, mesh: Mesh, bounds: AABB) -> Mu
 	multimesh.use_custom_data = true
 	multimesh.mesh = mesh
 	multimesh.custom_aabb = bounds
+	# Intended integer division: float count to instance count.
+	@warning_ignore("integer_division")
 	multimesh.instance_count = buffer.size() / SubstrateBedData.FLOATS
 	_upload(multimesh, buffer)
 	return multimesh
@@ -651,8 +655,12 @@ static func _triangle_count(mesh: Mesh) -> int:
 	for surface: int in array_mesh.get_surface_count():
 		var indices: int = array_mesh.surface_get_array_index_len(surface)
 		if indices > 0:
+			# Intended integer division: three indices per triangle.
+			@warning_ignore("integer_division")
 			total += indices / 3
 		else:
+			# Intended integer division: three vertices per triangle.
+			@warning_ignore("integer_division")
 			total += array_mesh.surface_get_array_len(surface) / 3
 	return total
 
