@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://catalog/item_definition.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"wood_root"
+name_key = "item.wood_root.name"
+description_key = "item.wood_root.description"
+category = 2
+sort_order = 9
+material = 2
+weight_kg = 0.8
+footprint_cm = Vector3(30, 15, 12)
+tannin_release = 0.6
