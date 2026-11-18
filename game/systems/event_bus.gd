@@ -20,8 +20,8 @@ signal language_changed(language: String)
 # Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
 @warning_ignore("unused_signal")
 signal setting_changed(section: String, key: String, value: Variant)
-## Emitted by the room after it has swapped the tank; an empty id means no tank is shown.
 # Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted by the room after it has swapped the tank; an empty id means no tank is shown.
 @warning_ignore("unused_signal")
 signal tank_displayed(tank_id: StringName)
 

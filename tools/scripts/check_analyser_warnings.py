@@ -79,7 +79,9 @@ MESSAGES: dict[str, str] = {
         'The parameter "%s" is never used in the function "%s()". If this is intended, prefix'
         ' it with an underscore: "_%s".'
     ),
-    "unused_signal": _template('The signal "%s" is declared but never explicitly used in the class.'),
+    "unused_signal": _template(
+        'The signal "%s" is declared but never explicitly used in the class.'
+    ),
     "shadowed_variable": (
         "(?:"
         + re.escape("The local ")
@@ -131,7 +133,9 @@ MESSAGES: dict[str, str] = {
     "standalone_ternary": _template(
         "Standalone ternary operator (the return value is being discarded)."
     ),
-    "incompatible_ternary": _template("Values of the ternary operator are not mutually compatible."),
+    "incompatible_ternary": _template(
+        "Values of the ternary operator are not mutually compatible."
+    ),
     "untyped_declaration": (
         _template('%s "%s()" has no static return type.')
         + "|"
@@ -307,11 +311,18 @@ def check_imported(game_dir: Path) -> None:
         raise SetupError(NOT_IMPORTED_MESSAGE)
 
 
-def parse_probe(output: str) -> dict[str, tuple[int, int]]:
+def _log_note(log: Path | None) -> str:
+    """The kept log path and its last lines, for a setup error."""
+    if log is None:
+        return ""
+    return f"; log: {log}\n{_tail(log)}"
+
+
+def parse_probe(output: str, log: Path | None = None) -> dict[str, tuple[int, int]]:
     """Map each code to (project level, engine default)."""
     text = strip_ansi(output)
     if not re.search(r"^PROBE_DONE\s*$", text, re.MULTILINE):
-        raise SetupError("Probe run did not finish: no PROBE_DONE line")
+        raise SetupError("Probe run did not finish: no PROBE_DONE line" + _log_note(log))
     levels: dict[str, tuple[int, int]] = {}
     for match in re.finditer(r"^CODE (\w+) (\d+) (\d+)\s*$", text, re.MULTILINE):
         levels[match.group(1)] = (int(match.group(2)), int(match.group(3)))
@@ -327,7 +338,9 @@ def check_drift(
 ) -> list[str]:
     """Findings for codes the engine knows and the guard does not, or the reverse (B9)."""
     lines: list[str] = []
-    required = sorted(code for code, (project, default) in levels.items() if max(project, default) > 0)
+    required = sorted(
+        code for code, (project, default) in levels.items() if max(project, default) > 0
+    )
     for code in required:
         if code not in messages and code not in excluded:
             lines.append(f"analyser code not covered by the guard: {code}")
@@ -357,6 +370,7 @@ def parse_census(
     output: str,
     messages: Mapping[str, str] | None = None,
     keep_prefix: str = "",
+    log: Path | None = None,
 ) -> CensusResult:
     """Parse the census output. `keep_prefix` is the self-test folder, which is not dropped."""
     table = MESSAGES if messages is None else messages
@@ -367,7 +381,7 @@ def parse_census(
         if found:
             done = found
     if done is None:
-        raise SetupError("Census did not finish: no CENSUS_DONE result line")
+        raise SetupError("Census did not finish: no CENSUS_DONE result line" + _log_note(log))
     scripts = int(done.group(1))
     if scripts == 0:
         raise SetupError("Census loaded no scripts (scripts=0)")
@@ -488,9 +502,12 @@ def _tail(path: Path, count: int = 20) -> str:
     return "\n".join(lines[-count:])
 
 
-def run_godot(godot: str, game_dir: Path, scene: str, extra: list[str], tag: str) -> tuple[str, Path]:
+def run_godot(
+    godot: str, game_dir: Path, scene: str, extra: list[str], tag: str
+) -> tuple[str, Path]:
     """Run a scene headless. Returns (output, log path). Raises SetupError on crash or timeout."""
-    log = Path(tempfile.gettempdir()) / f"analyser_guard_{tag}_{os.getpid()}_{secrets.token_hex(4)}.log"
+    log_name = f"analyser_guard_{tag}_{os.getpid()}_{secrets.token_hex(4)}.log"
+    log = Path(tempfile.gettempdir()) / log_name
     command = [godot, "--headless", "--path", str(game_dir), scene, *extra]
     try:
         with log.open("wb") as handle:
@@ -502,7 +519,9 @@ def run_godot(godot: str, game_dir: Path, scene: str, extra: list[str], tag: str
                 check=False,
             )
     except subprocess.TimeoutExpired as error:
-        raise SetupError(f"Godot timed out after {GODOT_TIMEOUT_SECONDS} s ({tag}); log: {log}") from error
+        raise SetupError(
+            f"Godot timed out after {GODOT_TIMEOUT_SECONDS} s ({tag}); log: {log}"
+        ) from error
     except OSError as error:
         raise SetupError(f"Godot could not be started: {error}") from error
     output = log.read_text(encoding="utf-8", errors="replace")
@@ -561,14 +580,20 @@ def _child(
     env = dict(os.environ)
     env.update({"GODOT": godot, CHILD_VARIABLE: "1"})
     env.update(env_extra)
-    done = subprocess.run(
-        [sys.executable, str(SELF_PATH), "--project", str(game_dir), *extra],
-        capture_output=True,
-        env=env,
-        timeout=GODOT_TIMEOUT_SECONDS * 2,
-        check=False,
-    )
-    text = done.stdout.decode("utf-8", errors="replace") + done.stderr.decode("utf-8", errors="replace")
+    try:
+        done = subprocess.run(
+            [sys.executable, str(SELF_PATH), "--project", str(game_dir), *extra],
+            capture_output=True,
+            env=env,
+            timeout=GODOT_TIMEOUT_SECONDS * 2,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise SetupError(
+            f"analyser guard self-test timed out after {GODOT_TIMEOUT_SECONDS * 2} s"
+        ) from error
+    stdout = done.stdout.decode("utf-8", errors="replace")
+    text = stdout + done.stderr.decode("utf-8", errors="replace")
     return done.returncode, text
 
 
@@ -602,7 +627,8 @@ def self_test(godot: str, game_dir: Path) -> None:
         code, text = _child(
             godot, game_dir, ["--only", only, "--drop-code", "integer_division"], {}
         )
-        if code != EXIT_FINDINGS or "analyser code not covered by the guard: integer_division" not in text:
+        covered = "analyser code not covered by the guard: integer_division"
+        if code != EXIT_FINDINGS or covered not in text:
             cases.append(("S4 dropped code is a drift finding", code, [text]))
 
         if cases:
@@ -644,7 +670,7 @@ def _run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         write_scene(run_dir, "probe", PROBE_GD)
         output, log = run_godot(godot, game_dir, f"res://{run_name}/probe.tscn", [], "probe")
         logs.append(log)
-        levels = parse_probe(output)
+        levels = parse_probe(output, log)
 
         messages = {code: p for code, p in MESSAGES.items() if code != args.drop_code}
         drift = check_drift(levels, messages, EXCLUDED)
@@ -653,12 +679,13 @@ def _run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         )
 
         write_scene(run_dir, "census", CENSUS_GD)
-        (game_dir / "override.cfg").write_text(override_text(raised), encoding="utf-8", newline="\n")
+        override = game_dir / "override.cfg"
+        override.write_text(override_text(raised), encoding="utf-8", newline="\n")
         extra = ["--", args.only] if args.only else []
         output, log = run_godot(godot, game_dir, f"res://{run_name}/census.tscn", extra, "census")
         logs.append(log)
         remove_override(game_dir)
-        result = parse_census(output, messages, args.only)
+        result = parse_census(output, messages, args.only, log)
         version = godot_version(godot)
     finally:
         remove_tree(run_dir)
@@ -695,6 +722,9 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
         return _run(args, environment)
     except SetupError as error:
         print(str(error))
+        return EXIT_SETUP
+    except OSError as error:
+        print(f"Guard setup failed: {error}")
         return EXIT_SETUP
 
 
