@@ -150,8 +150,9 @@ static func _search(
 	var low: int = mini(inner, outer)
 	var high: int = maxi(inner, outer)
 	while low <= high:
-		# Binary search midpoint of two non-negative limb indices: rounding down is
-		# what the search needs, and the sum stays below 2^63.
+		# Binary search midpoint of two double bit patterns (0.._INF_BITS, both
+		# non-negative): low + (high - low) / 2 cannot overflow (low + high could),
+		# and rounding down is what the search needs.
 		@warning_ignore("integer_division")
 		var mid: int = low + (high - low) / 2
 		var side: int = _side(mid, left, exp10, right_pow)
