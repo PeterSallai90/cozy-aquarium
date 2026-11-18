@@ -157,7 +157,7 @@ static func atlas_collapse_failures(root: Node3D) -> PackedStringArray:
 				continue
 			var indices: PackedInt32Array = Checks.surface_triangles(arrays)
 			var bad: int = 0
-			# Intended integer division.
+			# indices.size() / 3: three indices per triangle, so the count is a whole number of triangles.
 			@warning_ignore("integer_division")
 			for t: int in indices.size() / 3:
 				var a: Vector2 = uv2[indices[t * 3]]

@@ -413,10 +413,12 @@ func _water_grid(image: Image, mask: Dictionary, stride: int, subtract: Image = 
 	var data: PackedByteArray = image.get_data()
 	var other_data: PackedByteArray = PackedByteArray() if subtract == null else subtract.get_data()
 	var half: bool = _is_half(image)
-	# Intended integer division.
+	# (WIDTH + stride - 1) / stride: ceiling division, the number of grid columns that cover
+	# WIDTH pixels.
 	@warning_ignore("integer_division")
 	var grid_w: int = (WIDTH + stride - 1) / stride
-	# Intended integer division.
+	# (HEIGHT + stride - 1) / stride: ceiling division, the number of grid rows that cover
+	# HEIGHT pixels.
 	@warning_ignore("integer_division")
 	var grid_h: int = (HEIGHT + stride - 1) / stride
 	var grid: PackedFloat32Array = PackedFloat32Array()
@@ -438,13 +440,15 @@ func _water_grid(image: Image, mask: Dictionary, stride: int, subtract: Image = 
 			var value: float = _lum_at(data, half, x, y)
 			if subtract != null:
 				value = maxf(value - _lum_at(other_data, half, x, y), 0.0)
-			# Intended integer division.
+			# y / stride and x / stride: only multiples of stride get here (skipped above),
+			# so the division is exact and gives the grid index.
 			@warning_ignore("integer_division")
 			grid[(y / stride) * grid_w + x / stride] = value
 			cells += 1
 			if value > peak:
 				peak = value
-				# Intended integer division.
+				# x / stride and y / stride: only multiples of stride get here, so the
+				# division is exact and gives the grid cell.
 				@warning_ignore("integer_division")
 				peak_cell = Vector2i(x / stride, y / stride)
 	return {
@@ -475,7 +479,7 @@ func _components(info: Dictionary, level: float) -> Array[Dictionary]:
 			var cell: int = stack[stack.size() - 1]
 			stack.resize(stack.size() - 1)
 			var cx: int = cell % grid_w
-			# Intended integer division.
+			# cell / grid_w: the row of a flat grid index, the column is cell % grid_w above.
 			@warning_ignore("integer_division")
 			var cy: int = cell / grid_w
 			area += 1
@@ -586,7 +590,7 @@ func _ring(info: Dictionary, peak_cell: Vector2i, radius: float, stride: int) ->
 	if values.is_empty():
 		return {"median": 0.0, "count": 0}
 	values.sort()
-	# Intended integer division.
+	# values.size() / 2: index of the upper middle sample; the odd half is dropped on purpose.
 	@warning_ignore("integer_division")
 	return {"median": values[values.size() / 2], "count": values.size()}
 
@@ -600,7 +604,7 @@ func _median_of_grid(info: Dictionary) -> float:
 	if values.is_empty():
 		return 0.0
 	values.sort()
-	# Intended integer division.
+	# values.size() / 2: index of the upper middle sample; the odd half is dropped on purpose.
 	@warning_ignore("integer_division")
 	return values[values.size() / 2]
 

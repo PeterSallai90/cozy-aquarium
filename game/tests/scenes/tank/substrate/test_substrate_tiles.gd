@@ -135,7 +135,7 @@ func _grid_of(tank_id: StringName, id: StringName) -> Dictionary:
 		columns = maxi(columns, key.x + 1)
 		rows = maxi(rows, key.y + 1)
 	var origin: Vector2 = Vector2(INF, INF)
-	# Intended integer division.
+	# placements.size() / 5: five floats per tile placement, so a whole placement count.
 	@warning_ignore("integer_division")
 	for cell: int in placements.size() / 5:
 		origin = origin.min(Vector2(placements[cell * 5], placements[cell * 5 + 1]))

@@ -447,9 +447,7 @@ func test_reset_from_null_errors() -> void:
 	var value_before: Dictionary = ModelState.snapshot(model)
 	var recorder: SignalRecorder = _watched(model)
 	# The message is fixed text at aquarium_model.gd:253.
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: model.reset_from(null))
 		. is_push_error("AquariumModel: reset_from() called with a null source")
 	)

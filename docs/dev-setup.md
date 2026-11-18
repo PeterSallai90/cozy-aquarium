@@ -36,6 +36,7 @@ both lines are present, and prints one line per problem otherwise.
   the export, and boots the exported Windows build on a Windows runner (the `smoke-windows` job)
   and gates its output. Locally, run the commands in "Engine output gate (test runs and leaks)"
   and "Run the smoke check locally".
+- CI runs `tools/scripts/check_analyser_warnings.py` in the `test` job after the import. It raises every default-level GDScript analyser code to error in a generated `game/override.cfg`, loads every script outside `res://addons/` and fails on any analyser warning. Run it locally with the command in CLAUDE.md (Commands, Analyser guard); do not run it in parallel with the test suite in the same checkout.
 
 ## Engine output gate (test runs and leaks)
 

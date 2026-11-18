@@ -173,7 +173,8 @@ static func estimate_triangles(
 			total += chunk.drawn_count(v, near, outside) * per_lod[mini(lod, per_lod.size() - 1)]
 	if not is_sand or data.top_tiles.is_empty():
 		return total
-	# Intended integer division: float count to placement count.
+	# top_placements.size() / PLACEMENT_FLOATS: float count to placement count; the
+	# array holds whole placements, so there is no remainder.
 	@warning_ignore("integer_division")
 	for index: int in data.top_placements.size() / SubstrateBedData.PLACEMENT_FLOATS:
 		var box: AABB = cell_bounds(data, index)

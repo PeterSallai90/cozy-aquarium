@@ -306,7 +306,7 @@ static func chunk_instance_count(bed: RefCounted) -> int:
 	for chunk: RefCounted in chunks:
 		var buffers: Array = chunk.get("buffers")
 		for buffer: PackedFloat32Array in buffers:
-			# Intended integer division.
+			# buffer.size() / 16: 16 floats per instance in a multimesh buffer, so a whole instance count.
 			@warning_ignore("integer_division")
 			total += buffer.size() / 16
 	return total

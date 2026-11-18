@@ -76,16 +76,14 @@ func _open_details(parent: Node = null) -> bool:
 
 func _same_focus(expected: Control) -> void:
 	var focus_holder: Control = Ui.focus_owner(_controls)
-	# Branch types differ on purpose.
-	@warning_ignore("incompatible_ternary")
 	(
 		assert_bool(focus_holder == expected)
 		. override_failure_message(
 			(
 				"the focus is on %s, expected %s"
 				% [
-					focus_holder.name if focus_holder != null else "nothing",
-					expected.name if expected != null else "nothing"
+					String(focus_holder.name) if focus_holder != null else "nothing",
+					String(expected.name) if expected != null else "nothing"
 				]
 			)
 		)

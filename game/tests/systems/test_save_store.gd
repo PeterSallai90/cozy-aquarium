@@ -165,7 +165,8 @@ func test_load_accepts_a_file_with_a_bom() -> void:
 	assert_str(_model.get_aquarium_name()).is_equal("Base")
 
 
-# --- busy history and bad arguments ------------------------------------------------------------
+# --- busy history and bad arguments
+# ------------------------------------------------------------
 
 
 func test_load_from_model_signal_handler_is_internal() -> void:
@@ -239,7 +240,8 @@ func _damaged_files() -> Array:
 	var partly: Dictionary = SaveFixtures.base_dict()
 	partly["items"] = items
 	var golden: String = SaveFixtures.read_text(SaveFixtures.GOLDEN_PATH)
-	# Intended integer division.
+	# golden.length() / 2: cut the golden text in the middle; which side the odd character
+	# falls on does not matter.
 	@warning_ignore("integer_division")
 	return [
 		["empty", PackedByteArray()],

@@ -90,9 +90,7 @@ func test_a_missing_key_in_an_existing_file_reads_null_without_an_engine_error()
 	var read: Callable = func() -> void:
 		results.append(store.read_value("general", "language"))
 		results.append(store.read_value("audio", "missing"))
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await assert_error(read).is_success()
+	assert_error(read).is_success()
 	assert_array(results).is_equal([null, null])
 
 
@@ -100,9 +98,7 @@ func test_a_missing_key_with_a_default_reads_it_without_an_engine_error() -> voi
 	SaveFixtures.write_text(_path(), "[audio]\nvolume=0.5\n")
 	var store: SettingsStore = SettingsStore.new(_path())
 	var read: Callable = func() -> void: store.read_value("general", "language", "en")
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await assert_error(read).is_success()
+	assert_error(read).is_success()
 	assert_str(store.read_value("general", "language", "en")).is_equal("en")
 
 

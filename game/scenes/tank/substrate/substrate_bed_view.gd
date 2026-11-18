@@ -342,7 +342,8 @@ func _begin_sand(interior: Vector3) -> void:
 func _placement_count() -> int:
 	if not _is_sand or _data.top_tiles.is_empty():
 		return 0
-	# Intended integer division: float count to placement count.
+	# top_placements.size() / PLACEMENT_FLOATS: float count to placement count; the
+	# array holds whole placements, so there is no remainder.
 	@warning_ignore("integer_division")
 	return _data.top_placements.size() / SubstrateBedData.PLACEMENT_FLOATS
 
@@ -570,7 +571,8 @@ func _make_multimesh(buffer: PackedFloat32Array, mesh: Mesh, bounds: AABB) -> Mu
 	multimesh.use_custom_data = true
 	multimesh.mesh = mesh
 	multimesh.custom_aabb = bounds
-	# Intended integer division: float count to instance count.
+	# buffer.size() / FLOATS: float count to instance count; the buffer holds whole
+	# records, so there is no remainder.
 	@warning_ignore("integer_division")
 	multimesh.instance_count = buffer.size() / SubstrateBedData.FLOATS
 	_upload(multimesh, buffer)
@@ -655,11 +657,13 @@ static func _triangle_count(mesh: Mesh) -> int:
 	for surface: int in array_mesh.get_surface_count():
 		var indices: int = array_mesh.surface_get_array_index_len(surface)
 		if indices > 0:
-			# Intended integer division: three indices per triangle.
+			# indices / 3: three indices per triangle, and an index list is always a
+			# multiple of 3, so this is exact.
 			@warning_ignore("integer_division")
 			total += indices / 3
 		else:
-			# Intended integer division: three vertices per triangle.
+			# vertex count / 3: a non-indexed triangle list has three vertices per
+			# triangle, so this is exact.
 			@warning_ignore("integer_division")
 			total += array_mesh.surface_get_array_len(surface) / 3
 	return total
