@@ -1,6 +1,6 @@
 # ADR 0003: Settings plumbing, change signal and settings screen sections
 
-- Status: Proposed (accepted when the #20 pull request merges)
+- Status: Accepted (pull request for #20)
 - Date: 2026-11-02
 - Decision log reference: none (no row in the decisions table changes); refines the "Settings"
   row of Core systems in docs/architecture.md

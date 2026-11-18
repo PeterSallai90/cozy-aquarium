@@ -1,6 +1,6 @@
 # ADR 0011: Substrate bed: surface height (H1), settled baked stones and grain instancing
 
-- Status: Proposed (accepted when the #28 pull request merges; gated by `needs:owner`)
+- Status: Accepted (pull request for #28; gated by `needs:owner`)
 - Date: 2026-11-17 (first draft 2026-11-14, rewritten for the look spike v2 approach on
   2026-11-15, updated to the built implementation and its measurement on 2026-11-17)
 - Decision log reference: none (no row D1 to D21 changes; D18 is the guard). Changes the meaning
