@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://catalog/item_definition.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"plant_minimal"
+name_key = "item.plant_minimal.name"
+description_key = "item.plant_minimal.description"
+category = 4
+sort_order = 2
+material = 6
+footprint_cm = Vector3(10, 20, 10)
+growth_form = 1
+anchoring = 1
+light_need = 2
+growth_cm_per_week = 3.0
+max_height_cm = 40.0
+temp_min_c = 20.0
+temp_max_c = 28.0
+ph_min = 6.0
+ph_max = 7.5
+nutrient_uptake = 0.5
+oxygen_output = 0.5
+co2_need = 0.4
+substrate_rooting_need = 0.6
+nibble_vulnerability = 0.2
+provides_cover = true

@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://catalog/item_definition.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"round_item"
+name_key = "item.round_item.name"
+description_key = "item.round_item.description"
+category = 4
+sort_order = 7
+colourable = true
+material = 6
+weight_kg = 0.37
+volume_displacement_l = 0.13
+footprint_cm = Vector3(12.37, 21.13, 9.07)
+ph_effect = 4
+hardness_effect = 5
+tannin_release = 0.37
+hiding_places = 3
+hiding_quality = 0.61
+shade_cover = 0.23
+edge_smoothness = 0.77
+flow_obstruction = 0.41
+waste_trapping = 0.29
+cleaning_difficulty = 0.53
+algae_surface = 0.17
+breaks_down = true
+growth_form = 7
+anchoring = 4
+light_need = 3
+growth_cm_per_week = 2.37
+max_height_cm = 33.3
+temp_min_c = 21.7
+temp_max_c = 27.3
+ph_min = 6.1
+ph_max = 7.3
+nutrient_uptake = 0.37
+oxygen_output = 0.43
+co2_need = 0.19
+substrate_rooting_need = 0.11
+nibble_vulnerability = 0.59
+provides_cover = true

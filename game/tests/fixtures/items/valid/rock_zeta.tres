@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://catalog/item_definition.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"rock_zeta"
+name_key = "item.rock_zeta.name"
+description_key = "item.rock_zeta.description"
+category = 1
+sort_order = 1
+material = 1
+weight_kg = 2.5
+footprint_cm = Vector3(20, 10, 15)

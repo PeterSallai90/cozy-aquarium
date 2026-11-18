@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://catalog/item_definition.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"good_rock"
+name_key = "item.good_rock.name"
+description_key = "item.good_rock.description"
+category = 1
+sort_order = 1
+material = 1
