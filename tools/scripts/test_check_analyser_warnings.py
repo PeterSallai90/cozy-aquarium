@@ -303,6 +303,34 @@ class AnalyserGuardTest(unittest.TestCase):
                 matched = re.fullmatch(pattern, sample) is not None
                 self.assertEqual(matched, other == code, f"{other} against the {code} sample")
 
+    def test_census_root_drops_findings_and_failures_outside_the_folder(self) -> None:
+        guard = load_guard()
+        root = "res://scratch_case/"
+        output = census_output(
+            warning_block(DIVISION_TEXT, "res://model/command.gd", 16),
+            warning_block(DIVISION_TEXT, root + "case.gd", 4),
+            "CENSUS_FAIL res://model/command.gd\n",
+            "CENSUS_FAIL " + root + "case.gd\n",
+            failing=2,
+        )
+        result = guard.parse_census(output, keep_prefix=root)
+        self.assertEqual([(f.path, f.line) for f in result.findings], [(root + "case.gd", 4)])
+        self.assertEqual(result.failing_paths, [root + "case.gd"])
+
+    def test_census_without_root_keeps_tree_findings_and_excludes_addons(self) -> None:
+        guard = load_guard()
+        output = census_output(
+            warning_block(DIVISION_TEXT, "res://model/command.gd", 16),
+            warning_block(DIVISION_TEXT, "res://addons/x/y.gd", 2),
+            "CENSUS_FAIL res://model/command.gd\n",
+            failing=1,
+        )
+        result = guard.parse_census(output)
+        self.assertEqual(
+            [(f.path, f.line) for f in result.findings], [("res://model/command.gd", 16)],
+        )
+        self.assertEqual(result.failing_paths, ["res://model/command.gd"])
+
 
 if __name__ == "__main__":
     unittest.main()
