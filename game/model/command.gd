@@ -13,6 +13,8 @@ extends RefCounted
 ## 6. Never touch created or modified.
 ## 7. Redo calls do() again, so do() must be repeatable after undo().
 
+var _proof_planted: int = 3 / 2
+
 
 ## Applies the change. Returns false if it could not be applied.
 func do() -> bool:
