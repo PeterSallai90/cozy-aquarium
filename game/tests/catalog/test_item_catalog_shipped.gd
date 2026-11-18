@@ -66,8 +66,7 @@ func _e(enum_name: String, member: String) -> int:
 	return Items.enum_value(enum_name, member)
 
 
-## msgid -> msgstr of the .po files, merged (a key found in either file; an empty text counts as
-## missing), as {path: {key: text}}.
+## msgid -> msgstr of one .po file, as {key: text}; an empty text is kept as an empty string.
 func _po(path: String) -> Dictionary:
 	var entries: Dictionary = {}
 	var key: String = ""

@@ -72,10 +72,15 @@ func test_ac09_every_enum_field_of_the_fixture_is_not_unset() -> void:
 func test_ac09_every_value_survives_save_and_load() -> void:
 	if not _have_class():
 		return
-	var original: Resource = load(ROUND_ITEM) as Resource
-	assert_object(original).is_not_null()
-	if original == null:
+	var fixture: Resource = load(ROUND_ITEM) as Resource
+	assert_object(fixture).is_not_null()
+	if fixture == null:
 		return
+	# The fixture keeps aquarium_safe at its default (the catalog skips unsafe items), so the
+	# non-default value is set on a copy that never goes through the catalog.
+	var original: Resource = fixture.duplicate() as Resource
+	original.set("aquarium_safe", false)
+	assert_bool(original.get("aquarium_safe")).is_false()
 	assert_int(ResourceSaver.save(original, SAVED)).is_equal(OK)
 	var loaded: Resource = ResourceLoader.load(SAVED, "", ResourceLoader.CACHE_MODE_IGNORE)
 	assert_object(loaded).is_not_null()
