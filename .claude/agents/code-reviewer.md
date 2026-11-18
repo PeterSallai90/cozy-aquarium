@@ -31,6 +31,14 @@ Check at least:
   in .tres, tr() keys in the dotted convention, messages.pot regenerated (never hand-edited),
   non-empty text in en.po and hu.po, `generate_pot.py --check` and `check_translations.py` pass,
   static typing, UTF-8 and LF, asset budgets and licence log, no Mode 2 implementation;
+- ADR status lines: reject when line 3 of an ADR file in docs/adr that the diff adds or modifies
+  contains "Proposed" and either contains "accepted when" or the pull request closes an
+  implementing issue ("Closes #N" for an implementation issue); a shipped ADR reads
+  `- Status: Accepted (pull request for #N[; gated by `needs:owner`])`. Exception: a
+  proposal-only ADR (line 3 `- Status: Proposed (awaiting owner decision on #N)`, no implementing
+  issue closed, no implementation files outside docs and .claude) may stay Proposed. ADR files the
+  diff does not touch (for example 0007, 0008, 0009, whose line 3 says "Accepted (accepted
+  when ...)") are never a rejection reason;
 - any change to the gate itself (.github/workflows/owner-gate.yml, labeler.yml,
   notify-owner.yml, .github/labeler.yml, .claude/settings.json, .claude/hooks/) gets extra
   scrutiny: a pull request is checked by its own version of these files, so a weakened gate

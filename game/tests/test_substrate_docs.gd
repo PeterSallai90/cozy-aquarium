@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## row 32 is kept and marked "Superseded by 17:" with milestone "M1 (in 17)", the M2 exit criterion
 ## no longer names substrates, the M1 exit criterion is unchanged, and the glossary has the two
 ## entries Substrate and Swatch. ADR 0010 is part of the diff. Pattern: test_camera_limits_docs.gd.
-## Real 3D substrate (technical plan v3, section 6, AC 19, 26): ADR 0011 is new with status Proposed
+## Real 3D substrate (technical plan v3, section 6, AC 19, 26): ADR 0011 is new with status Accepted
 ## and records H1, the shell and core, the bake format, the budget and the mid-range factor F = 3
 ## (added GPU time on the RX 6800 XT at most 0.5 ms); architecture.md states H1 in the model
 ## conventions and the save-format Units line and names the bed in the Substrate and Placement rows
@@ -104,11 +104,11 @@ func test_ac19_adr_0010_is_in_the_diff() -> void:
 # --- the real 3D substrate (ADR 0011, AC 19 and 26) ---
 
 
-func test_ac19_adr_0011_is_new_proposed_and_records_the_decisions() -> void:
+func test_ac19_adr_0011_is_new_accepted_and_records_the_decisions() -> void:
 	var text: String = _text(ADR_11)
 	assert_str(text).override_failure_message("%s is missing" % ADR_11).is_not_empty()
 	assert_str(text).contains("# ADR 0011")
-	assert_str(text).contains("Status: Proposed")
+	assert_str(text).contains("Status: Accepted")
 	for needle: String in [
 		"H1",
 		"SubstrateSurface",
@@ -143,6 +143,34 @@ func test_ac19_adr_0011_has_the_budget_and_the_mid_range_factor_of_3() -> void:
 	assert_str(text).override_failure_message("F = 4.0 is the retired proposal").not_contains(
 		"**F = 4.0**"
 	)
+
+
+func test_ac1_ac4_shipped_adr_status_lines_are_accepted_and_none_says_accepted_when() -> void:
+	var expected: Dictionary = {
+		"docs/adr/0003-settings-plumbing-and-sections.md":
+		"- Status: Accepted (pull request for #20)",
+		"docs/adr/0010-substrate-catalog-defaults-and-load-normalisation.md":
+		"- Status: Accepted (pull request for #28; gated by `needs:owner`)",
+		ADR_11: "- Status: Accepted (pull request for #28; gated by `needs:owner`)",
+	}
+	for path: String in expected:
+		var lines: PackedStringArray = _text(path).split("\n")
+		var line3: String = lines[2] if lines.size() > 2 else ""
+		assert_str(line3).override_failure_message("line 3 of %s" % path).is_equal(expected[path])
+	var dir_path: String = _repo_root().path_join("docs/adr")
+	var files: PackedStringArray = DirAccess.get_files_at(dir_path)
+	assert_int(files.size()).override_failure_message("no ADR files found").is_greater(0)
+	for file_name: String in files:
+		if not file_name.ends_with(".md"):
+			continue
+		var adr_lines: PackedStringArray = _text("docs/adr/" + file_name).split("\n")
+		var status: String = adr_lines[2] if adr_lines.size() > 2 else ""
+		var stale: bool = status.contains("Proposed") and status.contains("accepted when")
+		(
+			assert_bool(stale)
+			. override_failure_message("%s line 3 is Proposed with 'accepted when'" % file_name)
+			. is_false()
+		)
 
 
 func test_ac19_the_research_report_is_in_the_diff() -> void:

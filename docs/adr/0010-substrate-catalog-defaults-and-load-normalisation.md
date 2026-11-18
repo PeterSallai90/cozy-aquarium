@@ -1,6 +1,6 @@
 # ADR 0010: Substrate catalog, session default and post-load normalisation
 
-- Status: Proposed (accepted when the #28 pull request merges; gated by `needs:owner`)
+- Status: Accepted (pull request for #28; gated by `needs:owner`)
 - Date: 2026-11-14
 - Decision log reference: none (no row in the decisions table changes); refines the "Substrate"
   and "Save/load" rows of Core systems and the "Catalog schema" section in docs/architecture.md

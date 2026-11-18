@@ -39,6 +39,11 @@ Post the plan as one issue comment that starts with "Technical plan:" using
 
 - Write an ADR in docs/adr (`NNNN-short-title.md`, next free number) when a decision is hard to
   reverse or changes a decided row; link it from the plan. ADR changes are gated (`needs:owner`).
+- Status line (line 3): an ADR that ships with its implementing pull request is written as
+  Accepted in that pull request, in the form
+  `- Status: Accepted (pull request for #N[; gated by `needs:owner`])`, N being the implementing
+  issue. An ADR that is only a proposal waiting for an owner decision is written
+  `- Status: Proposed (awaiting owner decision on #N)`. Never write "accepted when ... merges".
 - A decision that changes a decided row also needs the owner: add `needs:decision` to the issue
   and stop.
 
