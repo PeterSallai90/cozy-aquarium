@@ -30,7 +30,10 @@ Post the plan as one issue comment that starts with "Technical plan:" using
   when the groups can ship on their own;
 - risks, performance concerns (target: 60 fish and 100 decor items at 60 FPS) and anything
   that must not change;
-- whether an ADR is needed.
+- whether an ADR is needed;
+- when the plan gives technical-artist work, a line `Staging: yes` if you judge that art work long
+  (even when technical-artist.md's own triggers do not hold), otherwise `Staging: no`; the
+  orchestrator reads it as trigger (c) of technical-artist's Handoff note.
 
 ## ADRs
 
