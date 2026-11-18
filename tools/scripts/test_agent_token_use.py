@@ -239,6 +239,7 @@ class AgentTokenUseTest(unittest.TestCase):
             "stops the next run",
         ]:
             self.assertIn(phrase, step, f"CLAUDE.md step 4 lacks {phrase!r}")
+
     # AC 8, trigger (c) of technical-artist Handoff note: says "Staging: yes"
     def test_ac8_architect_writes_staging_line(self) -> None:
         ta = agent_text("technical-artist")
