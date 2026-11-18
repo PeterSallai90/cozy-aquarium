@@ -17,9 +17,6 @@ const Sub := preload("res://tests/helpers/substrate_api.gd")
 
 const STAMP := "2026-11-01T12:00:00Z"
 
-# Member is assigned but not read.
-@warning_ignore("unused_private_class_variable")
-var _model: AquariumModel = null
 var _history: CommandHistory = null
 var _catalog: RefCounted = null
 var _substrates: RefCounted = null

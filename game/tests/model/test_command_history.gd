@@ -243,9 +243,7 @@ func test_undo_on_empty_returns_false_silently() -> void:
 	recorder.watch(_model)
 	recorder.watch(_history)
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await assert_error(func() -> void: result.append(_history.undo())).is_success()
+	assert_error(func() -> void: result.append(_history.undo())).is_success()
 	assert_array(result).is_equal([false])
 	assert_dict(_snap()).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
@@ -257,9 +255,7 @@ func test_redo_on_empty_returns_false_silently() -> void:
 	recorder.watch(_model)
 	recorder.watch(_history)
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await assert_error(func() -> void: result.append(_history.redo())).is_success()
+	assert_error(func() -> void: result.append(_history.redo())).is_success()
 	assert_array(result).is_equal([false])
 	assert_dict(_snap()).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
@@ -292,9 +288,7 @@ func test_failing_do_changes_nothing() -> void:
 	recorder.watch(bus)
 	var command: FailingCommand = FailingCommand.new(_model)
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await assert_error(func() -> void: result.append(_history.execute(command))).is_success()
+	assert_error(func() -> void: result.append(_history.execute(command))).is_success()
 	assert_array(result).is_equal([false])
 	assert_int(command.do_count).is_equal(1)
 	assert_dict(_snap()).is_equal(value_before)
@@ -339,9 +333,7 @@ func test_failing_undo_clears_history() -> void:
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(_history)
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(_history.undo()))
 		. is_push_error(ErrorContains.new("failed; history cleared"))
 	)
@@ -364,9 +356,7 @@ func test_failing_redo_clears_history() -> void:
 	var recorder: SignalRecorder = SignalRecorder.new()
 	recorder.watch(_history)
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(_history.redo()))
 		. is_push_error(ErrorContains.new("failed; history cleared"))
 	)

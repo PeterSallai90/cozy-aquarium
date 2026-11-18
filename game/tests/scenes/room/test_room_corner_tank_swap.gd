@@ -18,9 +18,6 @@ const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 var _model: AquariumModel = null
 var _catalog: RefCounted = null
 var _history: CommandHistory = null
-# Member is assigned but not read.
-@warning_ignore("unused_private_class_variable")
-var _room: Node3D = null
 
 
 func before_test() -> void:

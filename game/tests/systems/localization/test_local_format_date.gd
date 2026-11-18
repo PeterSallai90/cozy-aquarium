@@ -147,9 +147,7 @@ func test_display_never_changes_the_stored_value() -> void:
 
 func test_a_valid_call_logs_nothing() -> void:
 	var rig: Rig = Rig.new("hu", 60, NOVEMBER)
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (assert_error(func() -> void: _format_all(rig, "2026-11-01T16:37:00Z")).is_success())
+	assert_error(func() -> void: _format_all(rig, "2026-11-01T16:37:00Z")).is_success()
 
 
 # --- the DST rule through the entry points -----------------------------------------------
@@ -331,9 +329,7 @@ func test_the_range_limits_are_used_as_they_are() -> void:
 func test_an_offset_below_the_range_is_clamped_with_a_warning() -> void:
 	var rig: Rig = Rig.new("en", -1000, NOVEMBER)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(
 			func() -> void: result.append(rig.format.format_datetime("2026-01-15T12:00:00Z"))
 		)
@@ -345,9 +341,7 @@ func test_an_offset_below_the_range_is_clamped_with_a_warning() -> void:
 func test_an_offset_above_the_range_is_clamped_with_a_warning() -> void:
 	var rig: Rig = Rig.new("en", 2000, NOVEMBER)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(
 			func() -> void: result.append(rig.format.format_datetime("2026-01-15T12:00:00Z"))
 		)
@@ -361,9 +355,7 @@ func test_a_non_int_offset_becomes_zero_with_a_warning() -> void:
 	for bad: Variant in [90.0, "x", null, [], 60.5]:
 		var rig: Rig = Rig.new("en", bad, JANUARY)
 		var result: Array[String] = []
-		# GdUnit4 needs this await on the error check.
-		@warning_ignore("redundant_await")
-		await (
+		(
 			assert_error(
 				func() -> void: result.append(rig.format.format_time("2026-01-15T12:00:00Z"))
 			)
@@ -377,9 +369,7 @@ func test_an_invalid_offset_callable_becomes_zero_with_a_warning() -> void:
 		func() -> Variant: return "en", Callable(), func() -> Variant: return JANUARY
 	)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(format.format_time("2026-01-15T12:00:00Z")))
 		. is_push_warning(ErrorContains.new("LocalFormat: offset"))
 	)
@@ -390,9 +380,7 @@ func test_the_clamped_offset_goes_through_the_rule() -> void:
 	# -1000 clamps to -720, which is never corrected, in summer and in winter.
 	var rig: Rig = Rig.new("en", -1000, JULY)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(rig.format.format_time("2026-07-01T12:00:00Z")))
 		. is_push_warning(ErrorContains.new("LocalFormat: offset"))
 	)
@@ -401,9 +389,7 @@ func test_the_clamped_offset_goes_through_the_rule() -> void:
 
 func test_an_offset_inside_the_range_logs_no_warning() -> void:
 	var rig: Rig = Rig.new("en", 840, NOVEMBER)
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (assert_error(func() -> void: _format_all(rig, "2026-01-15T12:00:00Z")).is_success())
+	assert_error(func() -> void: _format_all(rig, "2026-01-15T12:00:00Z")).is_success()
 
 
 # --- unsupported language: English, no warning -------------------------------------------
@@ -414,9 +400,7 @@ func test_an_unsupported_language_gives_the_english_format_without_a_warning() -
 	for bad: Variant in bad_values:
 		var rig: Rig = Rig.new(bad, 60, NOVEMBER)
 		var result: Array[String] = []
-		# GdUnit4 needs this await on the error check.
-		@warning_ignore("redundant_await")
-		await (
+		(
 			assert_error(
 				func() -> void: result.append_array(_format_all(rig, "2026-11-01T15:37:00Z"))
 			)
@@ -432,9 +416,7 @@ func test_an_invalid_language_callable_gives_english_without_a_warning() -> void
 		Callable(), func() -> Variant: return 60, func() -> Variant: return NOVEMBER
 	)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(format.format_datetime("2026-11-01T15:37:00Z")))
 		. is_success()
 	)
@@ -449,9 +431,7 @@ func test_a_rejected_timestamp_gives_unknown_in_english_and_a_warning() -> void:
 	var rig: Rig = Rig.new("en", 60, NOVEMBER)
 	for bad: Variant in ["", "2026-13-40T99:00:00Z", -1, 1e20, NAN, INF, null, true, "garbage"]:
 		var result: Array[String] = []
-		# GdUnit4 needs this await on the error check.
-		@warning_ignore("redundant_await")
-		await (
+		(
 			assert_error(func() -> void: result.append(rig.format.format_datetime(bad)))
 			. is_push_warning(ErrorContains.new("timestamp rejected"))
 		)
@@ -463,9 +443,7 @@ func test_a_rejected_timestamp_gives_ismeretlen_in_hungarian_and_a_warning() -> 
 	var rig: Rig = Rig.new("hu", 60, NOVEMBER)
 	for bad: Variant in ["", "2026-13-40T99:00:00Z", -1]:
 		var result: Array[String] = []
-		# GdUnit4 needs this await on the error check.
-		@warning_ignore("redundant_await")
-		await (
+		(
 			assert_error(func() -> void: result.append(rig.format.format_datetime(bad)))
 			. is_push_warning(ErrorContains.new("timestamp rejected"))
 		)
@@ -476,21 +454,15 @@ func test_every_entry_point_gives_the_placeholder_and_a_warning() -> void:
 	TranslationServer.set_locale("en")
 	var rig: Rig = Rig.new("en", 60, NOVEMBER)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(rig.format.format_date("")))
 		. is_push_warning(ErrorContains.new("timestamp rejected"))
 	)
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(rig.format.format_time("")))
 		. is_push_warning(ErrorContains.new("timestamp rejected"))
 	)
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(rig.format.format_datetime("")))
 		. is_push_warning(ErrorContains.new("timestamp rejected"))
 	)
@@ -502,9 +474,7 @@ func test_the_placeholder_follows_the_locale_while_the_format_follows_the_langua
 	TranslationServer.set_locale("hu")
 	var rig: Rig = Rig.new("en", 60, NOVEMBER)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(rig.format.format_date("")))
 		. is_push_warning(ErrorContains.new("timestamp rejected"))
 	)
@@ -516,9 +486,7 @@ func test_the_placeholder_is_not_empty_and_not_the_key() -> void:
 	TranslationServer.set_locale("en")
 	var rig: Rig = Rig.new("en", 60, NOVEMBER)
 	var result: Array[String] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(rig.format.format_time("x")))
 		. is_push_warning(ErrorContains.new("timestamp rejected"))
 	)

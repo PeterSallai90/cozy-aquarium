@@ -70,7 +70,7 @@ static func entries_of(data: RefCounted) -> Array[Dictionary]:
 	var placements: PackedFloat32Array = data.get("top_placements")
 	if tiles.is_empty():
 		return result
-	# Intended integer division.
+	# placements.size() / 5: five floats per tile placement, so a whole placement count.
 	@warning_ignore("integer_division")
 	for cell: int in placements.size() / 5:
 		var at: int = cell * 5
@@ -96,7 +96,7 @@ static func entries_of(data: RefCounted) -> Array[Dictionary]:
 static func instance_count(entries: Array[Dictionary]) -> int:
 	var total: int = 0
 	for entry: Dictionary in entries:
-		# Intended integer division.
+		# buffer.size() / FLOATS: 16 floats per instance, so a whole instance count.
 		@warning_ignore("integer_division")
 		total += (entry["buffer"] as PackedFloat32Array).size() / FLOATS
 	return total
@@ -157,7 +157,7 @@ static func analyse(
 		var buffer: PackedFloat32Array = entry["buffer"]
 		var offset: Transform3D = entry["offset"]
 		var variant: int = entry["variant"]
-		# Intended integer division.
+		# buffer.size() / FLOATS: 16 floats per instance, so a whole instance count.
 		@warning_ignore("integer_division")
 		for index: int in buffer.size() / FLOATS:
 			var t: Transform3D = offset * instance_transform(buffer, index)
@@ -631,7 +631,7 @@ static func drawn_sizes(
 		var buffer: PackedFloat32Array = entry["buffer"]
 		var variant: int = entry["variant"]
 		var unit: float = 2.0 if is_sand else extents[maxi(variant, 0)]
-		# Intended integer division.
+		# buffer.size() / FLOATS: 16 floats per instance, so a whole instance count.
 		@warning_ignore("integer_division")
 		for index: int in buffer.size() / FLOATS:
 			var basis: Basis = instance_transform(buffer, index).basis
@@ -645,7 +645,7 @@ static func custom_data(buffers: Array[Dictionary]) -> PackedFloat32Array:
 	var result: PackedFloat32Array = PackedFloat32Array()
 	for entry: Dictionary in buffers:
 		var buffer: PackedFloat32Array = entry["buffer"]
-		# Intended integer division.
+		# buffer.size() / FLOATS: 16 floats per instance, so a whole instance count.
 		@warning_ignore("integer_division")
 		for index: int in buffer.size() / FLOATS:
 			var at: int = index * FLOATS + CUSTOM_AT
@@ -677,7 +677,7 @@ static func percentile(values: PackedFloat32Array, share: float) -> float:
 static func tile_pitch(placements: PackedFloat32Array) -> Vector2:
 	var xs: Array[float] = []
 	var zs: Array[float] = []
-	# Intended integer division.
+	# placements.size() / 5: five floats per tile placement, so a whole placement count.
 	@warning_ignore("integer_division")
 	for cell: int in placements.size() / 5:
 		_add_distinct(xs, placements[cell * 5])
@@ -708,12 +708,12 @@ static func lattice(placements: PackedFloat32Array, pitch: Vector2) -> Dictionar
 		return result
 	var min_x: float = INF
 	var min_z: float = INF
-	# Intended integer division.
+	# placements.size() / 5: five floats per tile placement, so a whole placement count.
 	@warning_ignore("integer_division")
 	for cell: int in placements.size() / 5:
 		min_x = minf(min_x, placements[cell * 5])
 		min_z = minf(min_z, placements[cell * 5 + 1])
-	# Intended integer division.
+	# placements.size() / 5: five floats per tile placement, so a whole placement count.
 	@warning_ignore("integer_division")
 	for cell: int in placements.size() / 5:
 		var at: int = cell * 5
@@ -755,7 +755,7 @@ static func top_layer_points(
 		var buffer: PackedFloat32Array = entry["buffer"]
 		var offset: Transform3D = entry["offset"]
 		var variant: int = entry["variant"]
-		# Intended integer division.
+		# buffer.size() / FLOATS: 16 floats per instance, so a whole instance count.
 		@warning_ignore("integer_division")
 		for index: int in buffer.size() / FLOATS:
 			var t: Transform3D = offset * instance_transform(buffer, index)
@@ -794,7 +794,7 @@ static func seam_density_ratio(
 	var in_band: int = 0
 	var elsewhere: int = 0
 	var half_band: float = 0.0015
-	# Intended integer division.
+	# points.size() / 3: three floats per point, so a whole point count.
 	@warning_ignore("integer_division")
 	for i: int in points.size() / 3:
 		var local: Vector2 = Vector2(points[i * 3], points[i * 3 + 1]) - lattice_origin
@@ -831,7 +831,7 @@ static func orientation_histograms(
 	minimum: int
 ) -> Dictionary:
 	var counts: Dictionary = {}
-	# Intended integer division.
+	# points.size() / 3: three floats per point, so a whole point count.
 	@warning_ignore("integer_division")
 	for i: int in points.size() / 3:
 		var local: Vector2 = Vector2(points[i * 3], points[i * 3 + 1]) - lattice_origin

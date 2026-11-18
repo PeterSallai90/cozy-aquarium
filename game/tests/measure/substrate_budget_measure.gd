@@ -370,7 +370,7 @@ func _median(values: PackedFloat32Array) -> float:
 		return 0.0
 	var sorted: PackedFloat32Array = values.duplicate()
 	sorted.sort()
-	# Intended integer division.
+	# sorted.size() / 2: index of the upper middle sample; the odd half is dropped on purpose.
 	@warning_ignore("integer_division")
 	return sorted[sorted.size() / 2]
 

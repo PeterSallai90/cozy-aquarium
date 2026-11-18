@@ -43,7 +43,7 @@ func _ready_for(tank_id: StringName, id: StringName) -> bool:
 func _unique_stones(data: RefCounted) -> int:
 	var total: int = 0
 	for entry: Dictionary in Geo.unique_buffers(data):
-		# Intended integer division.
+		# buffer.size() / Geo.FLOATS: 16 floats per instance, so a whole instance count.
 		@warning_ignore("integer_division")
 		total += (entry["buffer"] as PackedFloat32Array).size() / Geo.FLOATS
 	return total
@@ -104,7 +104,7 @@ func test_ac33_sand_has_at_most_90000_unique_ring_grains_and_shares_its_top_tile
 				. is_greater(0)
 			)
 			var placements: PackedFloat32Array = data.get("top_placements")
-			# Intended integer division.
+			# placements.size() / 5: five floats per tile placement, so a whole placement count.
 			@warning_ignore("integer_division")
 			(
 				assert_int(tiles.size())
@@ -219,7 +219,7 @@ func test_ac33_every_baked_record_has_a_visibility_flag_through_the_reader() -> 
 				return
 			var stones: PackedFloat32Array = Fixture.bake_of(tank_id, id).get("stones")
 			var unflagged: int = 0
-			# Intended integer division.
+			# stones.size() / RECORD_FLOATS: nine floats per stone record, so a whole record count.
 			@warning_ignore("integer_division")
 			for record: int in stones.size() / RECORD_FLOATS:
 				if (int(stones[record * RECORD_FLOATS + 8]) & FLAG_BITS) == 0:
@@ -237,7 +237,7 @@ func test_ac33_a_pebble_bed_is_exactly_its_baked_records_nothing_more() -> void:
 	for tank_id: StringName in Table.IDS:
 		if not _ready_for(tank_id, Api.PEBBLES):
 			return
-		# Intended integer division.
+		# stone floats / RECORD_FLOATS: nine floats per stone record, so a whole record count.
 		@warning_ignore("integer_division")
 		var records: int = (
 			(Fixture.bake_of(tank_id, Api.PEBBLES).get("stones") as PackedFloat32Array).size()

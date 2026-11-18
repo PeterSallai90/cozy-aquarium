@@ -113,7 +113,8 @@ func _parse(path: String) -> Dictionary:
 		return result
 	result["header"] = parsed
 	var record_bytes: int = bytes.size() - PREAMBLE_BYTES - header_length
-	# Intended integer division.
+	# record_bytes / RECORD_BYTES: whole 36-byte records; the leftover bytes are reported as
+	# record_remainder on the next line.
 	@warning_ignore("integer_division")
 	result["records"] = record_bytes / RECORD_BYTES
 	result["record_remainder"] = record_bytes % RECORD_BYTES

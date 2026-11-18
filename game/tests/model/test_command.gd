@@ -7,9 +7,7 @@ const UnimplementedCommand := preload("res://tests/helpers/commands/unimplemente
 func test_unimplemented_do_reports_error_and_returns_false() -> void:
 	var command: Command = UnimplementedCommand.new()
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(command.do()))
 		. is_push_error(ErrorContains.new("not implemented"))
 	)
@@ -19,9 +17,7 @@ func test_unimplemented_do_reports_error_and_returns_false() -> void:
 func test_unimplemented_undo_reports_error_and_returns_false() -> void:
 	var command: Command = UnimplementedCommand.new()
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(command.undo()))
 		. is_push_error(ErrorContains.new("not implemented"))
 	)
@@ -31,9 +27,7 @@ func test_unimplemented_undo_reports_error_and_returns_false() -> void:
 func test_base_class_do_names_the_method_in_the_error() -> void:
 	var command: Command = Command.new()
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(command.do()))
 		. is_push_error(ErrorContains.new("do() not implemented"))
 	)
@@ -42,9 +36,7 @@ func test_base_class_do_names_the_method_in_the_error() -> void:
 func test_base_class_undo_names_the_method_in_the_error() -> void:
 	var command: Command = Command.new()
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(command.undo()))
 		. is_push_error(ErrorContains.new("undo() not implemented"))
 	)
@@ -60,9 +52,7 @@ func test_execute_unimplemented_command_pushes_nothing() -> void:
 	var history: CommandHistory = CommandHistory.new()
 	var command: Command = UnimplementedCommand.new()
 	var result: Array[bool] = []
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (
+	(
 		assert_error(func() -> void: result.append(history.execute(command)))
 		. is_push_error(ErrorContains.new("not implemented"))
 	)

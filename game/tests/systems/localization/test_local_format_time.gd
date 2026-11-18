@@ -147,9 +147,7 @@ func test_any_other_type_is_rejected() -> void:
 
 
 func test_the_parser_logs_nothing() -> void:
-	# GdUnit4 needs this await on the error check.
-	@warning_ignore("redundant_await")
-	await (assert_error(func() -> void: _parse_bad()).is_success())
+	assert_error(func() -> void: _parse_bad()).is_success()
 
 
 # --- date math ---------------------------------------------------------------------------
@@ -160,7 +158,8 @@ func test_days_from_civil_known_days() -> void:
 	assert_int(LocalFormat.days_from_civil(1970, 1, 2)).is_equal(1)
 	assert_int(LocalFormat.days_from_civil(1969, 12, 31)).is_equal(-1)
 	assert_int(LocalFormat.days_from_civil(2000, 3, 1)).is_equal(11017)
-	# Intended integer division.
+	# JULY / 86400: JULY is midnight UTC on 1 July 2026, so the division is exact: whole
+	# days since the epoch.
 	@warning_ignore("integer_division")
 	assert_int(LocalFormat.days_from_civil(2026, 7, 1)).is_equal(JULY / 86400)
 	assert_int(LocalFormat.days_from_civil(9999, 12, 31)).is_equal(2932896)
@@ -171,7 +170,8 @@ func test_civil_from_days_known_days() -> void:
 	assert_vector(LocalFormat.civil_from_days(0)).is_equal(Vector3i(1970, 1, 1))
 	assert_vector(LocalFormat.civil_from_days(-1)).is_equal(Vector3i(1969, 12, 31))
 	assert_vector(LocalFormat.civil_from_days(11017)).is_equal(Vector3i(2000, 3, 1))
-	# Intended integer division.
+	# JULY / 86400: JULY is midnight UTC on 1 July 2026, so the division is exact: whole
+	# days since the epoch.
 	@warning_ignore("integer_division")
 	assert_vector(LocalFormat.civil_from_days(JULY / 86400)).is_equal(Vector3i(2026, 7, 1))
 	assert_vector(LocalFormat.civil_from_days(2932896)).is_equal(Vector3i(9999, 12, 31))

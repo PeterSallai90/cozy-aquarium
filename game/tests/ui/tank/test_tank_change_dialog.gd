@@ -429,12 +429,10 @@ func test_ac25_arrow_keys_and_tab_stay_inside_the_change_dialog() -> void:
 			var focused: Control = Ui.focus_owner(_controls)
 			var inside: bool = focused == starts[0] or focused == starts[1]
 			if not inside:
-				# Branch types differ on purpose.
-				@warning_ignore("incompatible_ternary")
 				escaped.append(
 					(
 						"%s from %s -> %s"
-						% [label, start.name, focused.get_path() if focused else "none"]
+						% [label, start.name, str(focused.get_path()) if focused else "none"]
 					)
 				)
 	(

@@ -181,15 +181,13 @@ static func default_start_elevation() -> float:
 
 
 ## True when the camera has every method of the #26 plan; asserts it.
-static func require_api(suite: GdUnitTestSuite, camera: Node) -> bool:
+static func require_api(_suite: GdUnitTestSuite, camera: Node) -> bool:
 	var missing: PackedStringArray = PackedStringArray()
 	for method: String in NEW_METHODS:
 		if camera == null or not camera.has_method(method):
 			missing.append(method)
-	# Called on the suite instance on purpose.
-	@warning_ignore("static_called_on_instance")
 	(
-		suite
+		GdUnitTestSuite
 		. assert_bool(missing.is_empty())
 		. override_failure_message("BuildCamera is missing: %s" % ", ".join(missing))
 		. is_true()
@@ -207,10 +205,8 @@ static func open(
 ) -> Dictionary:
 	var rig: Dictionary = await Cam.open(suite, model, size)
 	var camera: Camera3D = Cam.camera_of(rig["room"])
-	# Called on the suite instance on purpose.
-	@warning_ignore("static_called_on_instance")
 	(
-		suite
+		GdUnitTestSuite
 		. assert_bool(camera != null)
 		. override_failure_message("the room has no BuildCamera child (Camera3D)")
 		. is_true()
