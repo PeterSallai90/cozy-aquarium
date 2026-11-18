@@ -354,8 +354,10 @@ def check_drift(
 
 
 def _ignored_path(path: str, keep_prefix: str) -> bool:
-    if keep_prefix and path.startswith(keep_prefix):
-        return False
+    """With a census root (self-test) only that folder counts: the analyser also reports
+    warnings of tree scripts it loads as dependencies, which are not the case's findings."""
+    if keep_prefix:
+        return not path.startswith(keep_prefix)
     return path.startswith(EXCLUDED_PREFIXES)
 
 
@@ -372,7 +374,7 @@ def parse_census(
     keep_prefix: str = "",
     log: Path | None = None,
 ) -> CensusResult:
-    """Parse the census output. `keep_prefix` is the self-test folder, which is not dropped."""
+    """Parse the census output. `keep_prefix` is the self-test folder; findings elsewhere are dropped."""
     table = MESSAGES if messages is None else messages
     lines = strip_ansi(output).splitlines()
     done: re.Match[str] | None = None
@@ -390,7 +392,8 @@ def parse_census(
     for index, line in enumerate(lines):
         fail = re.fullmatch(r"\s*CENSUS_FAIL (res://\S+)\s*", line)
         if fail:
-            result.failing_paths.append(fail.group(1))
+            if not keep_prefix or fail.group(1).startswith(keep_prefix):
+                result.failing_paths.append(fail.group(1))
             continue
         warned = re.search(r"Parse Error: (.+) \(Warning treated as error\.\)\s*$", line)
         if not warned:
