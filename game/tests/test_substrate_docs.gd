@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends GdUnitTestSuite
 ## #28 criterion 19 (owner: developer; the reviewer checks the PR body): the documentation edits of
 ## BA decision Q7 are in the diff. Backlog row 17 names the five types and stays M1 and size M,
@@ -17,6 +18,7 @@ const ADR_11 := "docs/adr/0011-substrate-bed-surface-height-and-grain-instancing
 const RESEARCH := "docs/research/substrate-rendering.md"
 const ART_STYLE := "docs/art-style.md"
 const ENTRY_STARTS: Array[String] = ["#", "**", "|", "- "]
+const EXTRA_ROW_START := "| Added GPU, extra cases of other tanks |"
 
 
 func _repo_root() -> String:
@@ -215,3 +217,107 @@ func test_ac19_the_triangle_budget_section_names_the_substrate_bed_budget() -> v
 
 func test_ac19_art_style_says_sand_grains_may_be_drawn_larger_than_real() -> void:
 	assert_str(_art_style_flat()).contains("sand grains may be drawn larger than real")
+
+
+# --- ADR 0011 line wrap and extra-case row (issue #140) ---
+
+
+## The ADR 0011 lines that start with the extra-cases row prefix.
+func _extra_rows() -> Array[String]:
+	var rows: Array[String] = []
+	var lines: PackedStringArray = _text(ADR_11).split("\n")
+	for line: String in lines:
+		if line.begins_with(EXTRA_ROW_START):
+			rows.append(line)
+	return rows
+
+
+func _extra_row() -> String:
+	var rows: Array[String] = _extra_rows()
+	(
+		assert_int(rows.size())
+		. override_failure_message("expected exactly one extra-cases row")
+		. is_equal(1)
+	)
+	return "" if rows.is_empty() else rows[0]
+
+
+func test_ac1_adr_0011_prose_lines_are_at_most_100_characters() -> void:
+	var lines: PackedStringArray = _text(ADR_11).split("\n")
+	var too_long: Array[String] = []
+	for i: int in lines.size():
+		var line: String = lines[i]
+		if not line.begins_with("|") and line.length() > 100:
+			too_long.append("line %d has %d characters" % [i + 1, line.length()])
+	(
+		assert_array(too_long)
+		. override_failure_message("prose lines over 100 characters: %s" % ", ".join(too_long))
+		. is_empty()
+	)
+
+
+func test_ac1_the_extra_cases_sentence_is_only_wrapped() -> void:
+	var flat: String = RegEx.create_from_string("\\s+").sub(_text(ADR_11), " ", true)
+	assert_str(flat).contains(
+		(
+			"The extra cases of the small and medium tanks (rule 15: the heaviest default-camera"
+			+ " estimate and each other-tank view above the large tank's estimate) used the"
+			+ " stand-in load scaled to the floor area (small 15 fish and 25 decor, medium 27 fish"
+			+ " and 45 decor). Every check passed."
+		)
+	)
+
+
+func test_ac2_the_extra_cases_row_lists_the_13_cases() -> void:
+	var row: String = _extra_row()
+	for needle: String in [
+		"13 cases measured",
+		"12 of them above the large tank's estimate",
+		"medium gravel_coloured top_35 (256,104 triangles",
+		"303,768",
+		"measured anyway",
+		(
+			"Medium: sand_fine default, sand_fine top_35, sand_black default, sand_black top_35,"
+			+ " gravel_natural top_35, gravel_coloured top_35, gravel_coloured top_12."
+		),
+		(
+			"Small: sand_fine default, sand_fine top_12, sand_black default, sand_black top_12,"
+			+ " gravel_natural top_12, gravel_coloured top_12."
+		),
+	]:
+		assert_str(row).override_failure_message("the row lacks: %s" % needle).contains(needle)
+
+
+func test_ac3_the_extra_cases_row_separates_heaviest_estimate_and_highest_measured() -> void:
+	var row: String = _extra_row()
+	for needle: String in [
+		(
+			"medium sand_fine default, 298,206 triangles, 0.218 ms (technical-artist run;"
+			+ " tester run 0.224 ms)"
+		),
+		"0.266 ms, small sand_fine default (technical-artist run)",
+		"tester run maximum 0.262 ms, small sand_black default",
+		"different cases",
+	]:
+		assert_str(row).override_failure_message("the row lacks: %s" % needle).contains(needle)
+
+
+func test_ac4_the_extra_cases_row_is_one_table_line() -> void:
+	var lines: PackedStringArray = _text(ADR_11).split("\n")
+	var at: int = -1
+	for i: int in lines.size():
+		if lines[i].begins_with(EXTRA_ROW_START):
+			at = i
+	assert_int(at).override_failure_message("extra-cases row not found").is_greater_equal(0)
+	if at < 0:
+		return
+	var row: String = lines[at].strip_edges()
+	assert_bool(row.begins_with("|") and row.ends_with("|")).is_true()
+	assert_int(row.count("|")).override_failure_message("row must have 3 cells").is_equal(4)
+	assert_bool(at + 1 < lines.size() and lines[at + 1].begins_with("| MultiMesh nodes")).is_true()
+
+
+func test_ac5_the_old_extra_case_numbers_are_gone() -> void:
+	var row: String = _extra_row()
+	assert_str(row).not_contains("0.27 ms")
+	assert_str(row).not_contains("0.263")

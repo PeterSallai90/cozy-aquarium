@@ -355,8 +355,9 @@ camera and the eight close-up views of rule 17, large tank, TAA, stand-in load o
 frame was drawn at exactly **1920 x 1080** in a borderless window (`--borderless`); a normal
 window on a 1080-line screen only reaches 1920 x 1061, and the earlier implementation numbers
 were taken at that size. The extra cases of the small and medium tanks (rule 15: the heaviest
-default-camera estimate and each other-tank view above the large tank's estimate) used the stand-in load scaled to the floor area
-(small 15 fish and 25 decor, medium 27 fish and 45 decor). Every check passed.
+default-camera estimate and each other-tank view above the large tank's estimate) used the stand-in
+load scaled to the floor area (small 15 fish and 25 decor, medium 27 fish and 45 decor). Every
+check passed.
 
 | Item | Spike v2 (provisional) | Implementation |
 | --- | --- | --- |
@@ -369,7 +370,7 @@ default-camera estimate and each other-tank view above the large tank's estimate
 | Added GPU, default camera, worst type | 0.22 ms (gravel_natural) | 0.196 ms (gravel_natural) |
 | Added GPU, worst view | 0.37 ms (sand_fine, glass 35 cm) | 0.488 ms (sand_fine, corner) |
 | Mid-range estimate (x F = 3) | 1.11 ms | 1.46 ms |
-| Added GPU, extra cases of other tanks | not measured | at most 0.27 ms (small sand_fine default; 0.263 ms in the tester's run) |
+| Added GPU, extra cases of other tanks | not measured | 13 cases measured, 12 of them above the large tank's estimate; medium gravel_coloured top_35 (256,104 triangles, below the large tank's 303,768) was measured anyway. Medium: sand_fine default, sand_fine top_35, sand_black default, sand_black top_35, gravel_natural top_35, gravel_coloured top_35, gravel_coloured top_12. Small: sand_fine default, sand_fine top_12, sand_black default, sand_black top_12, gravel_natural top_12, gravel_coloured top_12. Heaviest default-camera estimate: medium sand_fine default, 298,206 triangles, 0.218 ms (technical-artist run; tester run 0.224 ms). Highest measured GPU time: 0.266 ms, small sand_fine default (technical-artist run); tester run maximum 0.262 ms, small sand_black default. Both are different cases from the heaviest-estimate case. |
 | MultiMesh nodes, worst type | 640 (gravel_natural) | 640 (gravel_natural), up to 642 draw calls |
 | Render-server CPU, worst type | 0.31 ms (gravel_natural) | 0.33 ms (gravel_natural) |
 | Main-thread work per frame (poll, instancing, swap) | one blocking step | at most 3.2 ms |
