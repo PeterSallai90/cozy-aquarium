@@ -106,7 +106,7 @@ Also escalate after three rejected code review rounds on one issue.
    file group it exercises, a test spanning both by whoever runs second. Edge case: when an art
    change breaks a developer test (or the reverse), the finder reports the test and the file group
    at fault to the orchestrator and does not edit the other group's files. The architect proposes
-   a split when the groups can ship independently.
+   a split when the groups can ship independently. Long technical-artist work runs in stages, each a fresh technical-artist run on the same branch that reads and writes a handoff note in .claude/state/handoff/<issue>/ (trigger, stage order and format in .claude/agents/technical-artist.md, "Handoff note"); the orchestrator writes the first note, and a missing note or a failed stage stops the next run.
 5. code-reviewer reviews. A rejection goes back to the implementer (developer or technical-artist;
    on a mixed issue, the owner of the file group at fault); a disputed test goes to code-reviewer
    to decide.
