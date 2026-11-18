@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://ui/tank/tank_chooser.tscn" id="2_chooser"]
 [ext_resource type="PackedScene" path="res://ui/tank/tank_change_dialog.tscn" id="3_dialog"]
 [ext_resource type="PackedScene" path="res://ui/tank/tank_details.tscn" id="4_details"]
+[ext_resource type="PackedScene" path="res://ui/tank/substrate_chooser.tscn" id="5_substrate"]
 
 [node name="TankControls" type="Control"]
 layout_mode = 3
@@ -37,11 +38,20 @@ layout_mode = 2
 size_flags_horizontal = 0
 text = "tank.details.open"
 
+[node name="SubstrateButton" type="Button" parent="Group/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "substrate.chooser.open"
+
 [node name="TankChooser" parent="Group" instance=ExtResource("2_chooser")]
 layout_mode = 2
 size_flags_horizontal = 0
 
 [node name="TankDetails" parent="Group" instance=ExtResource("4_details")]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="SubstrateChooser" parent="Group" instance=ExtResource("5_substrate")]
 layout_mode = 2
 size_flags_horizontal = 0
 

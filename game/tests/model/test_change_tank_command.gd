@@ -13,17 +13,19 @@ const ModelState := preload("res://tests/helpers/model_state.gd")
 const Recorder := preload("res://tests/helpers/signal_recorder.gd")
 const EngineOutput := preload("res://tests/helpers/engine_output.gd")
 const Table := preload("res://tests/helpers/tank_table.gd")
+const Sub := preload("res://tests/helpers/substrate_api.gd")
 
 const STAMP := "2026-11-01T12:00:00Z"
-const SAND := Color(0.8, 0.7, 0.5)
 
 var _model: AquariumModel = null
 var _history: CommandHistory = null
 var _catalog: RefCounted = null
+var _substrates: RefCounted = null
 
 
 func before_test() -> void:
 	_catalog = Rig.default_catalog()
+	_substrates = Sub.catalog()
 	_history = CommandHistory.new()
 
 
@@ -32,7 +34,7 @@ func _furnished(tank_id: StringName = Table.MEDIUM) -> AquariumModel:
 	var model: AquariumModel = AquariumModel.new(STAMP)
 	model.apply_set_name("Reef")
 	model.apply_set_tank_id(tank_id)
-	model.apply_set_substrate(&"fine_sand", SAND)
+	model.apply_set_substrate(Sub.PEBBLES, Sub.swatch(_substrates, Sub.PEBBLES, 2))
 	model.apply_set_heightmap(PackedFloat32Array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5]), Vector2i(3, 2))
 	model.apply_insert_item(Factory.item("a0000001", &"rock_a", Vector3(0.1, 0.0, 0.0)), 0)
 	model.apply_insert_item(Factory.coloured_item("a0000002", Color(0.2, 0.4, 0.6)), 1)
@@ -136,8 +138,10 @@ func test_ac04_tank_items_fish_and_heightmap_change_in_one_step() -> void:
 func test_ac04_substrate_id_and_colour_stay() -> void:
 	var model: AquariumModel = _furnished()
 	_change(model, Table.SMALL)
-	assert_that(model.get_substrate_id()).is_equal(&"fine_sand")
-	assert_that(model.get_substrate_colour()).is_equal(SAND)
+	# #28 AC 13: a catalog substrate (Pebbles, a non-default swatch) stays through a tank change.
+	assert_object(Sub.definition(_substrates, Sub.PEBBLES)).is_not_null()
+	assert_that(model.get_substrate_id()).is_equal(Sub.PEBBLES)
+	assert_that(model.get_substrate_colour()).is_equal(Sub.swatch(_substrates, Sub.PEBBLES, 2))
 
 
 func test_ac04_tank_changed_is_emitted_once_with_the_new_id() -> void:

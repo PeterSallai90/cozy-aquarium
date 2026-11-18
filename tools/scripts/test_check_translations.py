@@ -167,6 +167,7 @@ class ConstantsAndKeyRuleTest(unittest.TestCase):
                 "settings",
                 "language",
                 "tank",
+                "substrate",
                 "fish",
                 "item",
                 "ui",

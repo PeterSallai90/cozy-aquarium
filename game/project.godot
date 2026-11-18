@@ -38,6 +38,7 @@ theme/custom="res://ui/theme/cozy_theme.tres"
 [rendering]
 
 renderer/rendering_method="forward_plus"
+anti_aliasing/quality/use_taa=true
 
 [input]
 

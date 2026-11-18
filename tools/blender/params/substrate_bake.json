@@ -1,0 +1,272 @@
+{
+  "_comment": "Bake parameters of the substrate bed (#28, ADR 0011). Sizes are the DRAWN sizes (longest extent, metres) of the decided size classes [low, high, share]; fill_depth_m is the fixed depth of the type. overfill_m is added to the pour target: negative, because the pour stops when the lowest spots reach the target, so the natural, uncropped top averages about the fill depth. keep: stones whose top would end above fill depth + crop_above_m are dropped; top_keep_m and glass_keep_m mark the row behind the visible stones (flag 'kept behind', 0 = none). Blender 5.2.3 LTS, bake seed 28.",
+  "pebbles_river": {
+    "class": "pebble",
+    "mode": "tank",
+    "data_set": "pebbles_river",
+    "fill_depth_m": 0.06,
+    "overfill_m": 0.0,
+    "size_classes": [
+      [
+        0.012,
+        0.016,
+        0.3
+      ],
+      [
+        0.016,
+        0.024,
+        0.45
+      ],
+      [
+        0.024,
+        0.032,
+        0.25
+      ]
+    ],
+    "sim_scale": 50.0,
+    "height_cell_m": 0.012,
+    "keep": {
+      "top_keep_m": 0.03,
+      "glass_keep_m": 0.03,
+      "crop_above_m": 0.0155
+    },
+    "pour": {
+      "max_active": 1400,
+      "max_layers": 4,
+      "packing": 0.56,
+      "settle_frames": 110,
+      "pit_depth": 0.02
+    },
+    "physics": {
+      "friction": 0.65,
+      "glass_friction": 0.3,
+      "linear_damping": 0.3,
+      "angular_damping": 0.4
+    },
+    "lean": {
+      "strength": 0.2,
+      "width_m": 0.045
+    },
+    "glass_fill": {
+      "cell_m": 0.005,
+      "strip_m": 0.005,
+      "low_m": 0.013,
+      "lean": 0.4,
+      "rounds": 12,
+      "small_after": 2,
+      "deep_after": 4,
+      "frames": 240
+    }
+  },
+  "gravel_natural": {
+    "class": "angular",
+    "mode": "tiles",
+    "data_set": "gravel_natural",
+    "fill_depth_m": 0.04,
+    "overfill_m": -0.001,
+    "size_classes": [
+      [
+        0.002,
+        0.003,
+        0.25
+      ],
+      [
+        0.003,
+        0.0045,
+        0.5
+      ],
+      [
+        0.0045,
+        0.006,
+        0.25
+      ]
+    ],
+    "sim_scale": 250.0,
+    "height_cell_m": 0.003,
+    "keep": {
+      "top_keep_m": 0.0055,
+      "glass_keep_m": 0.0055,
+      "crop_above_m": 0.0028
+    },
+    "ring": {
+      "period_m": 0.05,
+      "depth_m": 0.025,
+      "corner_m": 0.025,
+      "sim_extra_m": 0.008,
+      "seam_half_m": 0.0045,
+      "fills": 3
+    },
+    "top": {
+      "period_m": 0.05,
+      "thickness_m": 0.016,
+      "seam_half_m": 0.0045,
+      "seam_extra_m": 0.012,
+      "fills": 4,
+      "surface_bias_m": 0.0011,
+      "seam_balance": 1.05,
+      "hole_fill": {
+        "cell_m": 0.0005,
+        "low_m": 0.0035,
+        "min_cells": 6,
+        "band_m": 0.003,
+        "samples": 400,
+        "rounds": 4,
+        "frames": 200
+      },
+      "context_passes": 3,
+      "fill_overfill_m": 0.0009
+    },
+    "pour": {
+      "max_active": 900,
+      "max_layers": 6,
+      "packing": 0.58,
+      "settle_frames": 90,
+      "max_batches": 200,
+      "pit_depth": 0.004
+    },
+    "physics": {
+      "friction": 0.75,
+      "glass_friction": 0.3,
+      "linear_damping": 0.3,
+      "angular_damping": 0.4
+    },
+    "seam_trim_share": 0.6
+  },
+  "gravel_coloured": {
+    "class": "round",
+    "mode": "tiles",
+    "data_set": "gravel_coloured",
+    "fill_depth_m": 0.04,
+    "overfill_m": -0.0012,
+    "size_classes": [
+      [
+        0.003,
+        0.0045,
+        0.3
+      ],
+      [
+        0.0045,
+        0.0055,
+        0.5
+      ],
+      [
+        0.0055,
+        0.0065,
+        0.2
+      ]
+    ],
+    "sim_scale": 200.0,
+    "height_cell_m": 0.0035,
+    "keep": {
+      "top_keep_m": 0.0065,
+      "glass_keep_m": 0.0065,
+      "crop_above_m": 0.00305
+    },
+    "ring": {
+      "period_m": 0.05,
+      "depth_m": 0.025,
+      "corner_m": 0.025,
+      "sim_extra_m": 0.009,
+      "seam_half_m": 0.0055,
+      "fills": 3
+    },
+    "top": {
+      "period_m": 0.05,
+      "thickness_m": 0.018,
+      "seam_half_m": 0.0055,
+      "seam_extra_m": 0.013,
+      "fills": 4,
+      "surface_bias_m": 0.001,
+      "seam_balance": 1.05,
+      "hole_fill": {
+        "cell_m": 0.0005,
+        "low_m": 0.0045,
+        "min_cells": 8,
+        "band_m": 0.0035,
+        "samples": 400,
+        "rounds": 4,
+        "frames": 200
+      },
+      "context_passes": 3,
+      "fill_overfill_m": 0.0009
+    },
+    "pour": {
+      "max_active": 900,
+      "max_layers": 6,
+      "packing": 0.6,
+      "settle_frames": 90,
+      "max_batches": 200,
+      "pit_depth": 0.005
+    },
+    "physics": {
+      "friction": 0.55,
+      "glass_friction": 0.3,
+      "linear_damping": 0.3,
+      "angular_damping": 0.4
+    },
+    "ring_pit_depth_m": 0.003,
+    "seam_trim_share": 0.6
+  },
+  "sand_fine": {
+    "class": "sand",
+    "mode": "tiles",
+    "data_set": "sand",
+    "fill_depth_m": 0.03,
+    "overfill_m": -0.0004,
+    "size_classes": [
+      [
+        0.001,
+        0.0013,
+        0.5
+      ],
+      [
+        0.0013,
+        0.0018,
+        0.35
+      ],
+      [
+        0.0018,
+        0.0025,
+        0.15
+      ]
+    ],
+    "sim_scale": 700.0,
+    "height_cell_m": 0.0011,
+    "keep": {
+      "top_keep_m": 0.0,
+      "glass_keep_m": 0.0,
+      "crop_above_m": 0.0014
+    },
+    "ring": {
+      "period_m": 0.025,
+      "depth_m": 0.005,
+      "corner_m": 0.0125,
+      "sim_extra_m": 0.007,
+      "seam_half_m": 0.0016,
+      "seam_extra_m": 0.004,
+      "fills": 3
+    },
+    "top": {
+      "period_m": 0.05,
+      "thickness_m": 0.0055,
+      "seam_half_m": 0.0016,
+      "seam_extra_m": 0.008,
+      "fills": 3,
+      "surface_bias_m": 0.0008
+    },
+    "pour": {
+      "max_active": 1000,
+      "max_layers": 4,
+      "packing": 0.6,
+      "settle_frames": 90,
+      "max_batches": 300,
+      "pit_depth": 0.0016
+    },
+    "physics": {
+      "friction": 0.4,
+      "glass_friction": 0.3,
+      "linear_damping": 0.3,
+      "angular_damping": 0.4
+    }
+  }
+}

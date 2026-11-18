@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/tank/substrate_chooser.gd" id="1_script"]
+
+[node name="SubstrateChooser" type="PanelContainer"]
+visible = false
+script = ExtResource("1_script")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Layout"]
+layout_mode = 2
+text = "substrate.chooser.title"
+
+[node name="Scroll" type="ScrollContainer" parent="Layout"]
+layout_mode = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="Cards" type="VBoxContainer" parent="Layout/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ColourLabel" type="Label" parent="Layout"]
+layout_mode = 2
+text = "substrate.chooser.colour"
+
+[node name="Swatches" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="Layout"]
+layout_mode = 2
+text = "settings.close"

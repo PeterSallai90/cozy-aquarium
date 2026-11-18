@@ -28,6 +28,48 @@ msgstr "Nyelv"
 msgid "settings.title"
 msgstr "Beállítások"
 
+msgid "substrate.chooser.colour"
+msgstr "Szín"
+
+msgid "substrate.chooser.current"
+msgstr "Használatban"
+
+msgid "substrate.chooser.open"
+msgstr "Aljzat"
+
+msgid "substrate.chooser.title"
+msgstr "Válaszd ki az aljzatot"
+
+msgid "substrate.gravel_coloured.description"
+msgstr "Élénk, játékos kavics vidám színekben."
+
+msgid "substrate.gravel_coloured.name"
+msgstr "Színes kavics"
+
+msgid "substrate.gravel_natural.description"
+msgstr "Apró természetes kövek élénk, földszínű megjelenéssel."
+
+msgid "substrate.gravel_natural.name"
+msgstr "Kavics"
+
+msgid "substrate.pebbles_river.description"
+msgstr "Sima, lekerekített folyami kövek, mint egy csendes patak medre."
+
+msgid "substrate.pebbles_river.name"
+msgstr "Folyami kavics"
+
+msgid "substrate.sand_black.description"
+msgstr "Sötét, finom homok, amitől a színek ragyognak."
+
+msgid "substrate.sand_black.name"
+msgstr "Fekete homok"
+
+msgid "substrate.sand_fine.description"
+msgstr "Finom, puha homok egy nyugodt, napsütötte aljzathoz."
+
+msgid "substrate.sand_fine.name"
+msgstr "Homok"
+
 msgid "tank.change.body"
 msgstr "A(z) %s akváriumra váltás mindent kiüríti ebből az akváriumból: dekorációt, növényeket, halakat és a homok formáját."
 

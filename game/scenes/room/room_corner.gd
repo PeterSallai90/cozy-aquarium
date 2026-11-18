@@ -24,9 +24,13 @@ const NO_TANK_EXTERIOR_M: Vector3 = Vector3(0.66, 0.36, 0.36)
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
+var _substrates: SubstrateCatalog = null
 var _fog_settings: WaterFogSettings = null
 var _caustic_settings: WaterCausticSettings = null
 var _displayed_tank_id: StringName = &""
+var _displayed_tank: TankDefinition = null
+## Assembled substrate beds and baked data for the session, shared by the bed of every tank shown.
+var _substrate_cache: SubstrateBedCache = SubstrateBedCache.new()
 var _camera_distance: float = 0.0
 ## The tank instance made while resolving the definition; _show_tank adds it to the room.
 var _resolved_tank: Node3D = null
@@ -37,16 +41,18 @@ var _resolved_tank: Node3D = null
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
 ## directory, the shared default fog settings and the shared default caustic settings
-## (CAUSTIC_SETTINGS_PATH). fog_settings and caustic_settings are both optional; null selects
-## the default.
+## (CAUSTIC_SETTINGS_PATH). fog_settings, caustic_settings and substrates are all optional; null
+## selects the default.
 func setup(
 	model: AquariumModel,
 	catalog: TankCatalog,
 	fog_settings: WaterFogSettings = null,
-	caustic_settings: WaterCausticSettings = null
+	caustic_settings: WaterCausticSettings = null,
+	substrates: SubstrateCatalog = null
 ) -> void:
 	_model = model
 	_catalog = catalog
+	_substrates = substrates
 	_fog_settings = fog_settings
 	_caustic_settings = caustic_settings
 
@@ -56,6 +62,8 @@ func _ready() -> void:
 		_model = AquariumModel.new()
 	if _catalog == null:
 		_catalog = TankCatalog.load_dir()
+	if _substrates == null:
+		_substrates = SubstrateCatalog.load_dir()
 	if _fog_settings == null:
 		_fog_settings = load(FOG_SETTINGS_PATH) as WaterFogSettings
 	if _caustic_settings == null:
@@ -63,6 +71,7 @@ func _ready() -> void:
 	_setup_fog()
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
+	_model.substrate_changed.connect(_on_substrate_changed)
 	_show_tank()
 	_register_walls()
 	get_viewport().size_changed.connect(_apply_projection)
@@ -112,6 +121,7 @@ func _show_tank() -> void:
 		stand_z = _stand_z(definition)
 	_add_furniture(&"Cabinet", definition, stand_z)
 	_displayed_tank_id = &""
+	_displayed_tank = null
 	var tank: Node3D = _resolved_tank
 	var water: TankWater = null
 	_resolved_tank = null
@@ -123,6 +133,8 @@ func _show_tank() -> void:
 			water.build(definition, _fog_settings, _caustic_settings)
 		add_child(tank)
 		_displayed_tank_id = definition.id
+		_displayed_tank = definition
+		_apply_substrate()
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)
 	var mount: Node3D = null
 	if tank != null:
@@ -143,6 +155,38 @@ func _show_tank() -> void:
 		)
 	_frame_camera(definition, stand_z, solids)
 	EventBus.tank_displayed.emit(_displayed_tank_id)
+
+
+func _on_substrate_changed(_substrate_id: StringName, _colour: Color) -> void:
+	_apply_substrate()
+
+
+## Shows the model's substrate on the bed of the shown tank (Tank/SubstrateAnchor/Substrate, made
+## here when the tank has none). The bed decides between a tint change, a swap of a type it has
+## built and a new build. An empty or unknown id shows the default type with its default colour,
+## silently (ADR 0010). Reads the model only.
+func _apply_substrate() -> void:
+	var tank: Node = get_node_or_null("Tank")
+	if tank == null or _displayed_tank == null:
+		return
+	var anchor: Node3D = tank.get_node_or_null("SubstrateAnchor") as Node3D
+	if anchor == null:
+		return
+	var bed: SubstrateBed = anchor.get_node_or_null("Substrate") as SubstrateBed
+	if bed == null:
+		bed = SubstrateBed.new()
+		bed.name = &"Substrate"
+		bed.setup(_substrate_cache)
+		anchor.add_child(bed)
+	var id: StringName = _model.get_substrate_id()
+	var colour: Color = _model.get_substrate_colour()
+	var definition: SubstrateDefinition = _substrates.get_definition(id)
+	if definition == null:
+		definition = _substrates.get_default()
+		if definition == null:
+			return
+		colour = definition.default_colour
+	bed.show_type(_displayed_tank, definition, colour)
 
 
 ## The definition to show: the model's tank, else the default tank (one warning for an unknown id,

@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="SubstrateBedLook" format=3]
+
+[ext_resource type="Script" path="res://scenes/tank/substrate/substrate_bed_look.gd" id="1_look"]
+[ext_resource type="Shader" path="res://shaders/substrate_stone.gdshader" id="2_stone"]
+[ext_resource type="Shader" path="res://shaders/substrate_core.gdshader" id="3_core"]
+[ext_resource type="PackedScene" path="res://assets/substrate/grains_round.glb" id="4_grains"]
+
+[sub_resource type="ShaderMaterial" id="gravel_coloured_stone"]
+resource_name = "gravel_coloured_stone"
+shader = ExtResource("2_stone")
+shader_parameter/substrate_tint = Color(0.30196078, 0.71372549, 0.94901961, 1)
+shader_parameter/speckle_strength = 0.05
+shader_parameter/speckle_frequency = 4.0
+shader_parameter/occlusion_top_depth = 2.0
+shader_parameter/occlusion_glass_depth = 1.9
+shader_parameter/occlusion_floor = 0.16
+shader_parameter/wet_gain = 0.75
+shader_parameter/fill_light = 0.3
+shader_parameter/stone_roughness = 0.42
+shader_parameter/stone_specular = 0.5
+
+[sub_resource type="ShaderMaterial" id="gravel_coloured_core"]
+resource_name = "gravel_coloured_core"
+shader = ExtResource("3_core")
+shader_parameter/substrate_tint = Color(0.30196078, 0.71372549, 0.94901961, 1)
+shader_parameter/core_darkness = 0.16
+shader_parameter/core_light = 0.2
+
+[resource]
+script = ExtResource("1_look")
+grain_class = 2
+bake_file = "gravel_coloured.bin"
+grain_glb = ExtResource("4_grains")
+lod_distances_m = PackedFloat32Array(0.25, 0.6, 1)
+behind_range_m = 0.55
+chunk_size_m = 0.05
+core_inset_m = 0.01
+core_drop_m = 0.007
+tone_lightness = 0.08
+tone_hue_deg = 3.0
+tone_saturation = 0.06
+tone_outlier_share = 0.0
+junction_overlap_m = 0.0015
+stone_material = SubResource("gravel_coloured_stone")
+core_material = SubResource("gravel_coloured_core")

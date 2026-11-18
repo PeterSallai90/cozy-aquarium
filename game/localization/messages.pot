@@ -27,6 +27,48 @@ msgstr ""
 msgid "settings.title"
 msgstr ""
 
+msgid "substrate.chooser.colour"
+msgstr ""
+
+msgid "substrate.chooser.current"
+msgstr ""
+
+msgid "substrate.chooser.open"
+msgstr ""
+
+msgid "substrate.chooser.title"
+msgstr ""
+
+msgid "substrate.gravel_coloured.description"
+msgstr ""
+
+msgid "substrate.gravel_coloured.name"
+msgstr ""
+
+msgid "substrate.gravel_natural.description"
+msgstr ""
+
+msgid "substrate.gravel_natural.name"
+msgstr ""
+
+msgid "substrate.pebbles_river.description"
+msgstr ""
+
+msgid "substrate.pebbles_river.name"
+msgstr ""
+
+msgid "substrate.sand_black.description"
+msgstr ""
+
+msgid "substrate.sand_black.name"
+msgstr ""
+
+msgid "substrate.sand_fine.description"
+msgstr ""
+
+msgid "substrate.sand_fine.name"
+msgstr ""
+
 msgid "tank.change.body"
 msgstr ""
 
