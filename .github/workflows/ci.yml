@@ -72,6 +72,8 @@ jobs:
       - name: Check import output
         if: always()
         run: python3 tools/scripts/check_godot_log.py --step import "$RUNNER_TEMP/godot-import.log"
+      - name: Check analyser warnings
+        run: python3 tools/scripts/check_analyser_warnings.py
       - name: Run tests
         run: |
           set -o pipefail

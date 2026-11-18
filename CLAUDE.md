@@ -33,7 +33,7 @@ name is decided later. Treat both names as Mode 2.
 - Feature branches start from develop; pull requests target develop.
 - Read the issue's acceptance criteria first; ask in the issue if anything is unclear.
 - Write or update GdUnit4 tests for every acceptance criterion that can be tested automatically.
-- Before opening a PR run: gdformat --check, gdlint, and the full test suite headless.
+- Before opening a PR run: gdformat --check, gdlint, the analyser guard, and the full test suite headless.
 - A PR is opened only after the code-reviewer agent approved the current HEAD commit; a hook blocks
   `gh pr create` otherwise.
 - PR description: link the issue ("Closes #N"), list what changed, how to playtest, known limits.
@@ -134,3 +134,4 @@ Blocked: <none | needs:decision: question>
 - Import:  godot_console --headless --path game --import
 - Translations: python tools/scripts/generate_pot.py (writes game/localization/messages.pot); check: python tools/scripts/generate_pot.py --check, then python tools/scripts/check_translations.py (both exit 0)
 - Licences: python tools/scripts/check_asset_licenses.py (exits 0)
+- Analyser guard: python tools/scripts/check_analyser_warnings.py (after Import; exit 0 clean, 1 findings, 2 setup error)
