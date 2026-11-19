@@ -10,6 +10,45 @@ msgstr ""
 msgid "datetime.unknown"
 msgstr "Ismeretlen"
 
+msgid "item.browser.close"
+msgstr "Bezárás"
+
+msgid "item.browser.empty_catalog"
+msgstr "Még nincsenek elemek."
+
+msgid "item.browser.empty_search"
+msgstr "Nincs a keresésnek megfelelő elem."
+
+msgid "item.browser.open_button"
+msgstr "Elemek"
+
+msgid "item.browser.search_clear"
+msgstr "Keresés törlése"
+
+msgid "item.browser.search_placeholder"
+msgstr "Elemek keresése"
+
+msgid "item.browser.selected"
+msgstr "Kiválasztva"
+
+msgid "item.browser.title"
+msgstr "Elemek"
+
+msgid "item.category.all"
+msgstr "Mind"
+
+msgid "item.category.ornament"
+msgstr "Díszek"
+
+msgid "item.category.plant"
+msgstr "Növények"
+
+msgid "item.category.rock"
+msgstr "Kövek"
+
+msgid "item.category.wood"
+msgstr "Fa"
+
 msgid "number.unknown"
 msgstr "Ismeretlen"
 

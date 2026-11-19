@@ -151,3 +151,67 @@ func test_model_signals_are_not_relayed() -> void:
 
 func _on_executed_record(_command: Command) -> void:
 	_listener_calls.append("%s:%d" % [_model.get_tank_id(), _history.get_undo_count()])
+
+
+# --- #30: the item browser's pick signals ---
+
+
+func _signal_info(signal_name: String) -> Dictionary:
+	for info: Dictionary in _bus.get_signal_list():
+		if info["name"] == signal_name:
+			return info
+	return {}
+
+
+func test_item_picked_signal_carries_catalog_id_as_string_name() -> void:
+	var info: Dictionary = _signal_info("item_picked")
+	(
+		assert_bool(info.is_empty())
+		. override_failure_message("EventBus.item_picked is missing")
+		. is_false()
+	)
+	if info.is_empty():
+		return
+	var args: Array = info["args"]
+	assert_int(args.size()).is_equal(1)
+	assert_str(args[0]["name"]).is_equal("catalog_id")
+	assert_int(args[0]["type"]).is_equal(TYPE_STRING_NAME)
+
+
+func test_item_pick_cleared_signal_has_no_arguments() -> void:
+	var info: Dictionary = _signal_info("item_pick_cleared")
+	(
+		assert_bool(info.is_empty())
+		. override_failure_message("EventBus.item_pick_cleared is missing")
+		. is_false()
+	)
+	if info.is_empty():
+		return
+	assert_array(info["args"]).is_empty()
+
+
+func test_pick_signals_are_plain_relays_the_bus_never_emits_them_itself() -> void:
+	if _signal_info("item_picked").is_empty() or _signal_info("item_pick_cleared").is_empty():
+		assert_bool(false).override_failure_message("a pick signal is missing").is_true()
+		return
+	var picked: Array = []
+	var cleared: Array = []
+	_bus.connect("item_picked", func(id: StringName) -> void: picked.append(id))
+	_bus.connect("item_pick_cleared", func() -> void: cleared.append(true))
+	_bus.bind_history(_history)
+	assert_bool(_history.execute(_tank(&"tank_b"))).is_true()
+	assert_bool(_history.undo()).is_true()
+	assert_array(picked).is_empty()
+	assert_array(cleared).is_empty()
+
+
+func test_pick_signals_reach_a_listener_in_order_with_their_arguments() -> void:
+	if _signal_info("item_picked").is_empty() or _signal_info("item_pick_cleared").is_empty():
+		assert_bool(false).override_failure_message("a pick signal is missing").is_true()
+		return
+	var timeline: Array[String] = []
+	_bus.connect("item_picked", func(id: StringName) -> void: timeline.append("picked:%s" % id))
+	_bus.connect("item_pick_cleared", func() -> void: timeline.append("cleared"))
+	_bus.emit_signal("item_picked", &"rock_a")
+	_bus.emit_signal("item_pick_cleared")
+	assert_array(timeline).is_equal(["picked:rock_a", "cleared"])

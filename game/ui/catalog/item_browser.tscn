@@ -1,0 +1,168 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/catalog/item_browser.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mark"]
+bg_color = Color(0.96, 0.82, 0.55, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="ItemBrowser" type="PanelContainer"]
+visible = false
+mouse_filter = 0
+script = ExtResource("1_script")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Layout"]
+layout_mode = 2
+text = "item.browser.title"
+
+[node name="Categories" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="Category_all" type="Button" parent="Layout/Categories"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "item.category.all"
+
+[node name="SelectedMark" type="Panel" parent="Layout/Categories/Category_all"]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -7.0
+offset_right = -8.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mark")
+
+[node name="Category_rock" type="Button" parent="Layout/Categories"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "item.category.rock"
+
+[node name="SelectedMark" type="Panel" parent="Layout/Categories/Category_rock"]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -7.0
+offset_right = -8.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mark")
+
+[node name="Category_wood" type="Button" parent="Layout/Categories"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "item.category.wood"
+
+[node name="SelectedMark" type="Panel" parent="Layout/Categories/Category_wood"]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -7.0
+offset_right = -8.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mark")
+
+[node name="Category_ornament" type="Button" parent="Layout/Categories"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "item.category.ornament"
+
+[node name="SelectedMark" type="Panel" parent="Layout/Categories/Category_ornament"]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -7.0
+offset_right = -8.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mark")
+
+[node name="Category_plant" type="Button" parent="Layout/Categories"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "item.category.plant"
+
+[node name="SelectedMark" type="Panel" parent="Layout/Categories/Category_plant"]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -7.0
+offset_right = -8.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mark")
+
+[node name="SearchRow" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="SearchField" type="LineEdit" parent="Layout/SearchRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "item.browser.search_placeholder"
+context_menu_enabled = false
+
+[node name="ClearButton" type="Button" parent="Layout/SearchRow"]
+layout_mode = 2
+tooltip_text = "item.browser.search_clear"
+
+[node name="Scroll" type="ScrollContainer" parent="Layout"]
+layout_mode = 2
+mouse_filter = 0
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="Cards" type="GridContainer" parent="Layout/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 4
+
+[node name="EmptyLabel" type="Label" parent="Layout"]
+visible = false
+layout_mode = 2
+auto_translate_mode = 2
+
+[node name="CloseButton" type="Button" parent="Layout"]
+layout_mode = 2
+text = "item.browser.close"

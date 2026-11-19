@@ -24,6 +24,14 @@ signal setting_changed(section: String, key: String, value: Variant)
 ## Emitted by the room after it has swapped the tank; an empty id means no tank is shown.
 @warning_ignore("unused_signal")
 signal tank_displayed(tank_id: StringName)
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted by the item browser when the player picks an item to place (#30); #31 listens.
+@warning_ignore("unused_signal")
+signal item_picked(catalog_id: StringName)
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted once when a pick is cleared: re-pick of the marked card, clear_pick(), model_reset.
+@warning_ignore("unused_signal")
+signal item_pick_cleared
 
 var _history: CommandHistory = null
 

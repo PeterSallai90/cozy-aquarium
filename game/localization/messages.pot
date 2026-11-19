@@ -9,6 +9,45 @@ msgstr ""
 msgid "datetime.unknown"
 msgstr ""
 
+msgid "item.browser.close"
+msgstr ""
+
+msgid "item.browser.empty_catalog"
+msgstr ""
+
+msgid "item.browser.empty_search"
+msgstr ""
+
+msgid "item.browser.open_button"
+msgstr ""
+
+msgid "item.browser.search_clear"
+msgstr ""
+
+msgid "item.browser.search_placeholder"
+msgstr ""
+
+msgid "item.browser.selected"
+msgstr ""
+
+msgid "item.browser.title"
+msgstr ""
+
+msgid "item.category.all"
+msgstr ""
+
+msgid "item.category.ornament"
+msgstr ""
+
+msgid "item.category.plant"
+msgstr ""
+
+msgid "item.category.rock"
+msgstr ""
+
+msgid "item.category.wood"
+msgstr ""
+
 msgid "number.unknown"
 msgstr ""
 
