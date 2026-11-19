@@ -3,7 +3,8 @@
 Usage (the arguments after ``--`` belong to this script):
 
     blender --background --python tools/blender/render_item_thumbnail.py -- \
-        --model <model .glb> --id <item id> [--out game/assets/items/thumbnails]
+        --model <model .glb> --id <item id> [--out game/assets/items/thumbnails] \
+        [--atlas <palette atlas .png>]
 
 Writes exactly one file, ``<out>/<id>.png``: 256 x 256 px, 8 bit RGBA with straight alpha, a
 transparent background. The script reads no ``.tres``; the caller passes the model and the catalog
@@ -48,12 +49,32 @@ version give the same file bytes, AC 2):
   light does not fall off with distance, so a 2 cm and a 45 cm item get the same light. The film is
   transparent, so the world is never seen. No ground, no shadow catcher; the item shades itself.
 
-Materials: the imported glTF materials are kept where their Principled BSDF base colour is fed by
-an image (the palette atlas through the UV set the glb names). Their image nodes sample with
-``Closest`` (exact atlas cell colours), every link into Alpha is removed and Alpha is 1 (opaque),
-backface culling is off (double-sided), and every vertex colour link is replaced by white (the
-vertex colour alpha is the Godot translucency mask, not a Blender input). A slot without a material
-or without a readable image gets one neutral grey material (``GREY``), which is not a failure.
+Materials, in this order for every material slot of a framed mesh (a mesh without slots counts as
+one slot without a material):
+
+a. The glb carries its own image: when an image feeds the Principled BSDF base colour, the imported
+   material is kept. Its image nodes sample with ``Closest`` (exact atlas cell colours), every link
+   into Alpha is removed and Alpha is 1 (opaque), backface culling is off (double-sided), and every
+   vertex colour link is replaced by white (the vertex colour alpha is the Godot translucency mask,
+   not a Blender input).
+b. Else, when ``--atlas`` is given and the mesh has at least two UV sets: a script-made atlas
+   material, one per UV set name. It samples the ``--atlas`` PNG (loaded once, sRGB, ``Closest``,
+   extension EXTEND) through the second UV set (``UV1``, glTF TEXCOORD_1, Godot UV2; the art-style
+   rule, the same lookup as ``game/shaders/palette_atlas.gdshader``) into the base colour, with
+   roughness ``ATLAS_ROUGHNESS`` (as ``room_palette.tres``), Alpha 1 (opaque), double-sided, no
+   vertex colour and no emission (the emissive atlas row is drawn as its base colour only; a
+   thumbnail does not glow).
+c. Else one neutral grey material (``GREY``), which is not a failure: the script prints one line
+   ``render_item_thumbnail: warning: <n> material slot(s) rendered neutral grey (no image in the
+   glb and <no --atlas | fewer than two UV sets>)`` before the success line, and the exit code
+   stays 0.
+
+The repo exporters (``blender_common.export_glb``, ``generate_fish.py``) write every glb without
+images; Godot adds the atlas through the import material mapping. Content callers therefore pass
+``--atlas`` with the palette atlas PNG that the item's material maps to (for example
+``game/assets/room/room_palette_atlas.png``). There is no default atlas. ``--atlas`` is checked
+before Blender starts work (``check_atlas``): a missing, unreadable or non-PNG file is an error
+(exit 1, nothing written).
 
 Cameras, lights and empties in the file are removed (child meshes keep their world transform), and
 the script's own camera, light and world are used. Previews of throwaway models are not committed.
@@ -119,6 +140,7 @@ WORLD_GREY = 0.5
 WORLD_STRENGTH = 0.6
 GREY = (0.5, 0.5, 0.5)  # neutral grey for a slot without a material or a readable image
 GREY_ROUGHNESS = 0.75
+ATLAS_ROUGHNESS = 0.75  # the --atlas material, as game/assets/room/materials/room_palette.tres
 
 Vec = tuple[float, float, float]
 
@@ -143,6 +165,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--model", type=Path, required=True, help="the item model (.glb)")
     parser.add_argument("--id", required=True, help="the catalog id of the item")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="existing output folder")
+    parser.add_argument(
+        "--atlas",
+        type=Path,
+        default=None,
+        help="palette atlas .png applied through UV1 when a material has no image",
+    )
     return parser.parse_args(blender_common.script_args(argv))
 
 
@@ -455,6 +483,20 @@ def _check_model(model: Path) -> None:
         raise GeneratorError(f"not a readable .glb (no glTF binary header): {model}")
 
 
+def check_atlas(path: Path) -> Path:
+    """Returns ``path`` when it is a readable file that starts with the PNG signature."""
+    if not path.is_file():
+        raise GeneratorError(f"palette atlas not found: {path}")
+    try:
+        with path.open("rb") as handle:
+            magic = handle.read(len(PNG_SIGNATURE))
+    except OSError as error:
+        raise GeneratorError(f"could not read the palette atlas {path}: {error}") from error
+    if magic != PNG_SIGNATURE:
+        raise GeneratorError(f"not a PNG palette atlas: {path}")
+    return path
+
+
 # --- Blender part (bpy imported lazily) ---
 
 
@@ -629,24 +671,74 @@ def _grey_material(bpy):  # noqa: ANN001, ANN202
     return material
 
 
-def _assign_materials(bpy, framed: list) -> None:  # noqa: ANN001
+def _load_atlas(bpy, atlas: Path):  # noqa: ANN001, ANN202
+    try:
+        image = bpy.data.images.load(str(atlas), check_existing=True)
+    except RuntimeError as error:
+        raise GeneratorError(f"could not read the palette atlas {atlas}: {error}") from error
+    image.colorspace_settings.name = "sRGB"
+    if not (image.size[0] > 0 and image.size[1] > 0):
+        raise GeneratorError(f"could not read the palette atlas {atlas}: no pixel data")
+    return image
+
+
+def _atlas_material(bpy, image, uv_name: str):  # noqa: ANN001, ANN202
+    """Opaque, double-sided Principled material: atlas colour through ``uv_name``, no emission."""
+    material = bpy.data.materials.new(f"thumbnail_atlas_{uv_name}")
+    material.use_backface_culling = False
+    material.surface_render_method = "DITHERED"
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    shader = nodes.get("Principled BSDF")
+    uv = nodes.new("ShaderNodeUVMap")
+    uv.uv_map = uv_name
+    texture = nodes.new("ShaderNodeTexImage")
+    texture.image = image
+    texture.interpolation = "Closest"
+    texture.extension = "EXTEND"
+    links.new(uv.outputs["UV"], texture.inputs["Vector"])
+    links.new(texture.outputs["Color"], shader.inputs["Base Color"])
+    shader.inputs["Roughness"].default_value = ATLAS_ROUGHNESS
+    shader.inputs["Alpha"].default_value = 1.0
+    shader.inputs["Emission Strength"].default_value = 0.0
+    return material
+
+
+def _assign_materials(bpy, framed: list, atlas: Path | None = None) -> str | None:  # noqa: ANN001
+    """Applies the material order a, b, c of the header; returns the grey warning or None."""
     grey = None
+    image = None
+    by_uv: dict[str, object] = {}
     checked: dict[str, bool] = {}
+    grey_slots = 0
     for obj in framed:
+        uv_layers = obj.data.uv_layers
         if not obj.material_slots:
-            grey = grey or _grey_material(bpy)
-            obj.data.materials.append(grey)
-            continue
+            obj.data.materials.append(None)
         for slot in obj.material_slots:
             material = slot.material
-            usable = False
             if material is not None:
                 if material.name not in checked:
                     checked[material.name] = _prepare_material(material)
-                usable = checked[material.name]
-            if not usable:
-                grey = grey or _grey_material(bpy)
-                slot.material = grey
+                if checked[material.name]:
+                    continue
+            if atlas is not None and len(uv_layers) >= 2:
+                uv_name = uv_layers[1].name
+                if uv_name not in by_uv:
+                    image = image or _load_atlas(bpy, atlas)
+                    by_uv[uv_name] = _atlas_material(bpy, image, uv_name)
+                slot.material = by_uv[uv_name]
+                continue
+            grey = grey or _grey_material(bpy)
+            slot.material = grey
+            grey_slots += 1
+    if not grey_slots:
+        return None
+    reason = "no --atlas" if atlas is None else "fewer than two UV sets"
+    return (
+        f"{PROG}: warning: {grey_slots} material slot(s) rendered neutral grey "
+        f"(no image in the glb and {reason})"
+    )
 
 
 def _add_world(bpy, scene) -> None:  # noqa: ANN001
@@ -717,6 +809,7 @@ def run(argv: list[str]) -> None:
     model = args.model.resolve()
     _check_out_folder(out_dir)
     _check_model(model)
+    atlas = None if args.atlas is None else check_atlas(args.atlas.resolve())
 
     import bpy  # noqa: PLC0415 (only inside Blender)
 
@@ -725,7 +818,7 @@ def run(argv: list[str]) -> None:
     objects = _import_model(bpy, model)
     meshes = _drop_foreign_objects(bpy, objects)
     framed, points = _framed_points(bpy, meshes, model)
-    _assign_materials(bpy, framed)
+    warning = _assign_materials(bpy, framed, atlas)
     framing = fit_frame(points, AZIMUTH_DEG, ELEVATION_DEG, margin_px=MARGIN_PX + FILTER_SPILL_PX)
     _set_render_settings(scene)
     _add_world(bpy, scene)
@@ -737,6 +830,8 @@ def run(argv: list[str]) -> None:
         [(final.name, lambda path: _render_to(bpy, scene, path), blender_common.PNG_MAGIC)],
     )
     written = out_dir / final.name
+    if warning is not None:
+        print(warning, flush=True)
     print(f"{PROG}: wrote {written}: {measure_png(written).summary()}", flush=True)
 
 
