@@ -1,0 +1,37 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Cozy Aquarium test fixture (item browser)\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "item.rock_granite.name"
+msgstr "Granite Boulder"
+
+msgid "item.rock_slate.name"
+msgstr "Slate Rock"
+
+msgid "item.rock_osko.name"
+msgstr "Őskő Rock"
+
+msgid "item.wood_drift.name"
+msgstr "Drift Wood"
+
+msgid "item.wood_root.name"
+msgstr "Árvíz Root"
+
+msgid "item.ornament_vase.name"
+msgstr "Blue Vase"
+
+msgid "item.ornament_vase.description"
+msgstr "A vase for testing."
+
+msgid "item.ornament_bare.name"
+msgstr "Bare Ornament"
+
+msgid "item.plant_fern.name"
+msgstr "Java Fern"
+
+msgid "item.plant_fern.description"
+msgstr "A fern for testing."

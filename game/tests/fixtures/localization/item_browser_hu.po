@@ -1,0 +1,37 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Cozy Aquarium test fixture (item browser)\n"
+"Language: hu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "item.rock_granite.name"
+msgstr "Gránit szikla"
+
+msgid "item.rock_slate.name"
+msgstr "Pala kő"
+
+msgid "item.rock_osko.name"
+msgstr "Őskő"
+
+msgid "item.wood_drift.name"
+msgstr "Uszadékfa"
+
+msgid "item.wood_root.name"
+msgstr "Árvízi gyökér"
+
+msgid "item.ornament_vase.name"
+msgstr "Kék váza"
+
+msgid "item.ornament_vase.description"
+msgstr "Egy váza a teszthez."
+
+msgid "item.ornament_bare.name"
+msgstr "Csupasz dísz"
+
+msgid "item.plant_fern.name"
+msgstr "Jáva páfrány"
+
+msgid "item.plant_fern.description"
+msgstr "Egy páfrány a teszthez."
