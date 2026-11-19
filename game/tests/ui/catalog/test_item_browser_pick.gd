@@ -140,16 +140,16 @@ func test_ac14_every_card_can_be_picked_and_gives_its_own_id() -> void:
 func test_ac14_a_pick_changes_neither_the_model_nor_the_save_nor_the_history() -> void:
 	if not await _open():
 		return
-	var before: Dictionary = ModelState.snapshot(_model)
+	var model_before: Dictionary = ModelState.snapshot(_model)
 	var saved: SaveResult = SaveCodec.new().encode(_model, "2026-11-02T08:00:00Z")
 	Ir.click_card(_controls, &"rock_slate")
 	Ir.click_card(_controls, &"wood_drift")
 	Ir.click_card(_controls, &"wood_drift")
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(model_before)
 	assert_int(_history.get_undo_count()).is_equal(0)
 	assert_bool(_history.can_undo()).is_false()
-	var after: SaveResult = SaveCodec.new().encode(_model, "2026-11-02T08:00:00Z")
-	assert_str(after.text).is_equal(saved.text)
+	var saved_after: SaveResult = SaveCodec.new().encode(_model, "2026-11-02T08:00:00Z")
+	assert_str(saved_after.text).is_equal(saved.text)
 
 
 func test_ac14_the_pick_is_not_stored_in_the_model_json() -> void:

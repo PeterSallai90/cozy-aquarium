@@ -189,10 +189,10 @@ func test_ac02_the_items_button_does_nothing_with_the_panel_open_and_the_dialog_
 func test_ac02_opening_the_panel_changes_neither_the_model_nor_the_history() -> void:
 	if not await _build():
 		return
-	var before: Dictionary = ModelState.snapshot(_model)
+	var model_before: Dictionary = ModelState.snapshot(_model)
 	await Ir.press_open(self, _controls)
 	await Ir.press_open(self, _controls)
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(model_before)
 	assert_int(_history.get_undo_count()).is_equal(0)
 
 
@@ -252,9 +252,9 @@ func test_ac03_escape_with_the_focus_on_the_items_button_closes_the_panel() -> v
 func test_ac03_escape_with_no_focus_closes_the_panel_and_the_focus_returns() -> void:
 	if not await _open_panel():
 		return
-	var owner: Control = Ir.focus_owner(_controls)
-	if owner != null:
-		owner.release_focus()
+	var focused: Control = Ir.focus_owner(_controls)
+	if focused != null:
+		focused.release_focus()
 	assert_object(Ir.focus_owner(_controls)).is_null()
 	Ui.tap(_controls, KEY_ESCAPE)
 	await _wait()
@@ -301,11 +301,11 @@ func test_ac03_a_second_escape_after_the_dialog_closes_the_panel() -> void:
 func test_ac03_closing_never_changes_the_model_or_the_history() -> void:
 	if not await _open_panel(true):
 		return
-	var before: Dictionary = ModelState.snapshot(_model)
+	var model_before: Dictionary = ModelState.snapshot(_model)
 	Ir.click_card(_controls, &"rock_granite")
 	Ui.tap(_controls, KEY_ESCAPE)
 	await _wait()
-	assert_dict(ModelState.snapshot(_model)).is_equal(before)
+	assert_dict(ModelState.snapshot(_model)).is_equal(model_before)
 	assert_int(_history.get_undo_count()).is_equal(0)
 	assert_bool(_history.can_undo()).is_false()
 

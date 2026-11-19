@@ -117,9 +117,11 @@ func test_ac02_a_press_on_the_panel_never_starts_an_orbit_or_pan() -> void:
 func test_ac02_a_world_drag_still_orbits_with_the_panel_open() -> void:
 	if not await _open_main(false):
 		return
-	var before: float = Cam.t_el(_camera)
+	var elevation_before: float = Cam.t_el(_camera)
 	Cam.drag(get_viewport(), Vector2(0.0, -40.0), _world_point())
-	assert_float(Cam.t_el(_camera)).is_equal_approx(before + 10.0, Cam.ANGLE_TOLERANCE_DEG)
+	assert_float(Cam.t_el(_camera)).is_equal_approx(
+		elevation_before + 10.0, Cam.ANGLE_TOLERANCE_DEG
+	)
 
 
 func test_ac11_a_keyboard_open_puts_the_focus_in_the_search_field() -> void:
