@@ -171,7 +171,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 1. **Catalog** – read-only definitions of every species, plant, substrate, decoration and tank. Stored as typed Godot resources (`.tres`, plain text).
 2. **Aquarium model** – the current state: chosen tank, substrate and colour, placed items with transforms, fish instances. Pure data, no nodes, serializable to JSON.
 3. **Commands** – every change to the model (place, move, rotate, recolour, delete, add fish) is a command object with `do()` and `undo()`. This gives unlimited undo/redo and a single place to validate changes.
-4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload, `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003) and `tank_displayed(tank_id)` from the room after it swapped the tank (empty id: no tank shown); they never talk to each other directly. The model never references `EventBus`.
+4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload, `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003) and `tank_displayed(tank_id)` from the room after it swapped the tank (empty id: no tank shown), `item_picked(catalog_id)` and `item_pick_cleared` from the item browser (#30); they never talk to each other directly. The model never references `EventBus`.
 5. **Presentation** – scenes, shaders, UI and audio that render the model.
 6. **Game mode** – `CozyMode` now. `SimulationMode` later adds a fixed-rate simulation tick and rules on top of the same model and catalog.
 
@@ -279,7 +279,7 @@ cozy-aquarium/
 │  ├─ systems/               # EventBus, Localization (localization/) and Settings (settings/) autoloads, save store, settings store, placement, fish, camera, photo
 │  ├─ scenes/                # main menu, build scene, tank, furniture
 │  ├─ shaders/               # water, glass, caustics, swim, sway, substrate
-│  ├─ ui/                    # themes, screens (settings screen in ui/settings/), font layer helper, glyph test scene (ui/dev/)
+│  ├─ ui/                    # themes, screens (settings screen in ui/settings/, item browser in ui/catalog/), font layer helper, glyph test scene (ui/dev/)
 │  ├─ assets/                # models (.glb), textures, audio, fonts — tracked with Git LFS
 │  ├─ localization/          # messages.pot (generated), en.po, hu.po, extra_keys.txt
 │  └─ tests/                 # GdUnit4 tests mirroring the folders above
