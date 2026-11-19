@@ -17,6 +17,8 @@ const COLUMNS: int = 4
 const CARD_MIN_SIZE: Vector2 = Vector2(132.0, 188.0)
 const THUMBNAIL_SIZE: Vector2 = Vector2(96.0, 96.0)
 const CARD_MARGIN: int = 8
+## Fixed panel width (four cards and the scroll bar), so the empty state is as wide as a full list.
+const PANEL_WIDTH: float = 560.0
 ## Space kept free below the panel and the minimum height of the card list in a small window.
 const SCREEN_MARGIN: float = 16.0
 const MIN_SCROLL_HEIGHT: float = 120.0
@@ -49,6 +51,7 @@ var _fit_queued: bool = false
 
 func _ready() -> void:
 	_card_box.columns = COLUMNS
+	custom_minimum_size.x = PANEL_WIDTH
 	var group: ButtonGroup = ButtonGroup.new()
 	for button_name: String in CATEGORY_BUTTONS:
 		var button: Button = $Layout/Categories.get_node(button_name) as Button
