@@ -272,6 +272,15 @@ class ArgsAndPathTest(unittest.TestCase):
                 self._parse("--model", "a.glb", "--id", "rock_1", "--bogus", "1")
         self.assertNotIn(caught.exception.code, (0, None))
 
+    def test_atlas_is_none_without_the_option(self) -> None:
+        args = self._parse("--model", "rock.glb", "--id", "rock_1")
+        self.assertIsNone(args.atlas)
+
+    def test_atlas_is_read_as_a_path(self) -> None:
+        args = self._parse("--model", "rock.glb", "--id", "rock_1", "--atlas", "x.png")
+        self.assertEqual(args.atlas, Path("x.png"))
+        self.assertIsInstance(args.atlas, Path)
+
     def test_output_path_is_folder_slash_id_png(self) -> None:
         out = Path("some") / "folder"
         self.assertEqual(thumb.output_path(out, "rock_1"), out / "rock_1.png")
@@ -533,6 +542,44 @@ class MeasurePngTest(unittest.TestCase):
         path = self._write(b"glTF" + bytes(64))
         with self.assertRaises(blender_common.GeneratorError):
             thumb.measure_png(path)
+
+
+class CheckAtlasTest(unittest.TestCase):
+    """The --atlas input check runs before any bpy call (stdlib only)."""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp.cleanup)
+        self.folder = Path(self._temp.name)
+
+    def test_missing_file_is_an_error_naming_the_path(self) -> None:
+        missing = self.folder / "atlas.png"
+        with self.assertRaises(blender_common.GeneratorError) as caught:
+            thumb.check_atlas(missing)
+        self.assertIn(str(missing), str(caught.exception))
+
+    def test_file_with_wrong_magic_bytes_is_an_error_naming_the_path(self) -> None:
+        path = self.folder / "atlas.png"
+        path.write_bytes(b"glTF" + bytes(64))
+        with self.assertRaises(blender_common.GeneratorError) as caught:
+            thumb.check_atlas(path)
+        self.assertIn(str(path), str(caught.exception))
+
+    def test_empty_file_is_an_error(self) -> None:
+        path = self.folder / "atlas.png"
+        path.write_bytes(b"")
+        with self.assertRaises(blender_common.GeneratorError):
+            thumb.check_atlas(path)
+
+    def test_unreadable_path_is_an_error(self) -> None:
+        # A folder exists but cannot be read as a file, on every platform.
+        with self.assertRaises(blender_common.GeneratorError):
+            thumb.check_atlas(self.folder)
+
+    def test_valid_png_returns_the_path(self) -> None:
+        path = self.folder / "atlas.png"
+        path.write_bytes(encode_png(frame(size=4, block=(1, 1, 2, 2))))
+        self.assertEqual(thumb.check_atlas(path), path)
 
 
 OLD_PNG = encode_png(frame(size=4, block=(1, 1, 2, 2)))
