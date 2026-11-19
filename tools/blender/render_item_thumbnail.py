@@ -110,13 +110,13 @@ SAMPLES = 64
 SEED = 0
 FILTER_WIDTH_PX = 1.5
 PNG_COMPRESSION = 15
-SUN_STRENGTH = 2.2
+SUN_STRENGTH = 2.6
 SUN_ANGLE_DEG = 35.0
 SUN_COLOUR = (1.0, 1.0, 1.0)
-LIGHT_AZIMUTH_DEG = 40.0  # to the left of the view direction
+LIGHT_AZIMUTH_DEG = 60.0  # to the left of the view direction
 LIGHT_ELEVATION_DEG = 35.0  # above the view direction
 WORLD_GREY = 0.5
-WORLD_STRENGTH = 0.9
+WORLD_STRENGTH = 0.6
 GREY = (0.5, 0.5, 0.5)  # neutral grey for a slot without a material or a readable image
 GREY_ROUGHNESS = 0.75
 
