@@ -98,11 +98,13 @@ func test_ac08_uid_catalog_id_position_rotation_and_scale_stay() -> void:
 	if not await _open():
 		return
 	_select(VASE)
+	var position_before: Vector3 = _s.model.get_item(VASE).position
 	await _request(true, TEAL)
 	var item: PlacedItem = _s.model.get_item(VASE)
+	assert_bool(item.has_colour).is_true()
 	assert_str(item.uid).is_equal(VASE)
 	assert_that(item.catalog_id).is_equal(Rig.AMPHORA)
-	assert_float(item.position.x).is_equal(0.15)
+	assert_vector(item.position).is_equal(position_before)
 	assert_float(item.rotation_y).is_equal(37.5)
 	assert_float(item.scale).is_equal(1.0)
 	assert_int(_s.model.get_item_index(VASE)).is_equal(1)

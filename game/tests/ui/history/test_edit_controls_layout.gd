@@ -146,7 +146,11 @@ func _assert_layout(label: String) -> void:
 				. is_false()
 			)
 	var dots: Array[Rect2] = []
-	for child: Node in _named("Swatches").get_children():
+	var swatch_box: Node = _named("ColourRow").find_child("Swatches", true, false)
+	assert_object(swatch_box).override_failure_message("no Swatches row in ColourRow").is_not_null()
+	if swatch_box == null:
+		return
+	for child: Node in swatch_box.get_children():
 		if child is Button:
 			dots.append((child as Button).get_global_rect())
 	assert_int(dots.size()).override_failure_message("8 dots expected").is_equal(8)
