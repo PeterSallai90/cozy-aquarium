@@ -18,6 +18,19 @@ What is here:
 - Hard edges by split normals: every face is smooth and an edge is marked sharp when its two
   faces meet at more than ``SHARP_ANGLE_DEG`` (smooth by angle at 30 degrees, no flat faceting).
 - glTF export settings like #21, and the all-or-nothing output swap (``swap_in_group``).
+
+Options added for the decor generator (#157); every default keeps the output of the room and tank
+generators byte-identical:
+
+- ``build_object(..., cell_uv=..., sharp_angle_deg=...)``: the atlas cell lookup of another palette
+  module (``decor_palette.cell_uv``), and ``sharp_angle_deg=None`` for all-smooth normals (organic
+  shapes: driftwood, the amphora).
+- ``MeshData.colours``: optional per-vertex colours (RGBA, linear). Empty by default; when filled,
+  ``build_object`` writes them as the colour attribute ``COLOUR_ATTRIBUTE`` (point domain, float)
+  and ``export_glb(..., vertex_colours=True)`` exports it as ``COLOR_0``. Convention: RGB is a shade
+  multiplier, alpha is the translucency mask of docs/art-style.md (0 = opaque).
+- ``write_group`` accepts output names with existing sub-folders (``models/a.glb``); the temp file
+  is written next to its final file.
 """
 
 from __future__ import annotations
@@ -34,9 +47,11 @@ import room_palette
 
 SHARP_ANGLE_DEG = 30.0
 UV_LAYERS = ("UV0", "UV1")
+COLOUR_ATTRIBUTE = "Col"
 
 Vec = tuple[float, float, float]
 Cell = tuple[int, int]
+Rgba = tuple[float, float, float, float]
 
 
 class GeneratorError(Exception):
@@ -155,6 +170,8 @@ class MeshData:
         self.faces: list[tuple[int, ...]] = []
         self.cells: list[Cell] = []
         self.uv0: list[tuple[tuple[float, float], ...]] = []
+        # Optional: one RGBA per vertex (empty = no colour attribute is written).
+        self.colours: list[Rgba] = []
 
     def vertex(self, p: Vec) -> int:
         self.vertices.append(p)
@@ -317,33 +334,56 @@ def quad(data: MeshData, corners: tuple[Vec, Vec, Vec, Vec], cell: Cell, outward
 # --- Blender ---
 
 
-def build_object(name: str, data: MeshData, material):  # noqa: ANN001, ANN201 (bpy types)
-    """A Blender object from ``data`` with UV0, UV1 and smooth-by-angle split normals."""
+def build_object(  # noqa: ANN201 (bpy types)
+    name: str,
+    data: MeshData,
+    material,  # noqa: ANN001
+    cell_uv: Callable[[Cell], tuple[float, float]] = room_palette.cell_uv,
+    sharp_angle_deg: float | None = SHARP_ANGLE_DEG,
+):
+    """A Blender object from ``data`` with UV0, UV1 and smooth-by-angle split normals.
+
+    ``cell_uv`` maps an atlas cell to its UV1 point (default: the room palette).
+    ``sharp_angle_deg`` None keeps every edge smooth. ``data.colours``, when filled, becomes the
+    point-domain float colour attribute ``COLOUR_ATTRIBUTE``.
+    """
     import bmesh  # noqa: PLC0415 (only inside Blender)
     import bpy  # noqa: PLC0415
 
+    if data.colours and len(data.colours) != len(data.vertices):
+        raise GeneratorError(
+            f"internal: {name} has {len(data.colours)} colours for {len(data.vertices)} vertices"
+        )
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
     uv0 = bm.loops.layers.uv.new(UV_LAYERS[0])
     uv1 = bm.loops.layers.uv.new(UV_LAYERS[1])
+    colour = bm.verts.layers.float_color.new(COLOUR_ATTRIBUTE) if data.colours else None
     # glTF (x, y, z) -> Blender (x, -z, y): a proper rotation, so the winding stays outward
     verts = [bm.verts.new((p[0], -p[2], p[1])) for p in data.vertices]
     bm.verts.ensure_lookup_table()
+    if colour is not None:
+        for vert, rgba in zip(verts, data.colours, strict=True):
+            vert[colour] = rgba
     for corners, uvs, cell in zip(data.faces, data.uv0, data.cells, strict=True):
         face = bm.faces.new([verts[i] for i in corners])
         face.material_index = 0
         face.smooth = True
-        atlas = room_palette.cell_uv(cell)
+        atlas = cell_uv(cell)
         for loop, uv in zip(face.loops, uvs, strict=True):
             loop[uv0].uv = uv
             loop[uv1].uv = atlas
     bm.normal_update()
-    limit = math.radians(SHARP_ANGLE_DEG)
-    for edge in bm.edges:
-        if len(edge.link_faces) == 2 and edge.calc_face_angle(0.0) > limit:
-            edge.smooth = False
+    if sharp_angle_deg is not None:
+        limit = math.radians(sharp_angle_deg)
+        for edge in bm.edges:
+            if len(edge.link_faces) == 2 and edge.calc_face_angle(0.0) > limit:
+                edge.smooth = False
     bm.to_mesh(mesh)
     bm.free()
+    if colour is not None:
+        mesh.color_attributes.active_color_name = COLOUR_ATTRIBUTE
+        mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
 
     names = [layer.name for layer in mesh.uv_layers]
     if names != list(UV_LAYERS):
@@ -373,8 +413,12 @@ def reset_scene() -> None:
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
-def export_glb(objects: list, path: Path) -> None:  # noqa: ANN001 (bpy types)
-    """Exports exactly ``objects`` (identity transforms, origin at the asset origin)."""
+def export_glb(objects: list, path: Path, vertex_colours: bool = False) -> None:  # noqa: ANN001
+    """Exports exactly ``objects`` (identity transforms, origin at the asset origin).
+
+    ``vertex_colours`` True exports the active colour attribute as ``COLOR_0`` (and no other);
+    the default exports none, as before #157.
+    """
     import bpy  # noqa: PLC0415
 
     for other in bpy.context.scene.objects:
@@ -382,6 +426,13 @@ def export_glb(objects: list, path: Path) -> None:  # noqa: ANN001 (bpy types)
     for obj in objects:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = objects[0]
+    colour_options: dict[str, object] = {"export_vertex_color": "NONE"}
+    if vertex_colours:
+        colour_options = {
+            "export_vertex_color": "ACTIVE",
+            "export_all_vertex_colors": False,
+            "export_active_vertex_color_when_no_material": True,
+        }
     try:
         result = bpy.ops.export_scene.gltf(
             filepath=str(path),
@@ -391,7 +442,6 @@ def export_glb(objects: list, path: Path) -> None:  # noqa: ANN001 (bpy types)
             export_texcoords=True,
             export_normals=True,
             export_tangents=False,
-            export_vertex_color="NONE",
             export_attributes=False,
             export_materials="EXPORT",
             export_image_format="NONE",
@@ -403,6 +453,7 @@ def export_glb(objects: list, path: Path) -> None:  # noqa: ANN001 (bpy types)
             export_cameras=False,
             export_lights=False,
             export_extras=False,
+            **colour_options,
         )
     except RuntimeError as error:
         raise GeneratorError(f"glTF export failed for {path.name}: {error}") from error
@@ -482,12 +533,26 @@ def swap_in_group(
                     backup.unlink()
 
 
+def _final_path(folder: Path, name: str) -> Path:
+    """``folder / name`` for a flat name or a name with existing sub-folders (``models/a.glb``)."""
+    relative = Path(name)
+    if relative.is_absolute() or any(part in ("", ".", "..") for part in relative.parts):
+        raise GeneratorError(f"output name must be relative and inside {folder}: {name}")
+    final = folder / relative
+    if not final.parent.is_dir():
+        raise GeneratorError(f"output folder does not exist: {final.parent}")
+    return final
+
+
 def write_group(folder: Path, outputs: list[tuple[str, Callable[[Path], None], bytes]]) -> None:
-    """Writes each output to a hidden temp file in ``folder``, checks its magic bytes, then swaps
-    the whole group in. ``outputs``: (final file name, writer of a path, expected magic)."""
+    """Writes each output to a hidden temp file next to its final file, checks its magic bytes,
+    then swaps the whole group in. ``outputs``: (final file name, writer of a path, expected
+    magic). A name may hold existing sub-folders of ``folder`` (``models/a.glb``); the swap stays
+    all or nothing across the folders."""
     if not folder.is_dir():
         raise GeneratorError(f"output folder does not exist: {folder}")
-    temps = [folder / f".{name}.tmp{Path(name).suffix}" for name, _, _ in outputs]
+    finals = [_final_path(folder, name) for name, _, _ in outputs]
+    temps = [final.parent / f".{final.name}.tmp{final.suffix}" for final in finals]
     try:
         for temp, (_, writer, magic) in zip(temps, outputs, strict=True):
             try:
@@ -499,7 +564,6 @@ def write_group(folder: Path, outputs: list[tuple[str, Callable[[Path], None], b
             with temp.open("rb") as handle:
                 if handle.read(len(magic)) != magic:
                     raise GeneratorError(f"export wrote a broken file: {temp}")
-        finals = [folder / name for name, _, _ in outputs]
         swap_in_group(list(zip(temps, finals, strict=True)))
     finally:
         for temp in temps:
