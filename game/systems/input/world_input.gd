@@ -4,12 +4,23 @@ extends RefCounted
 ## visible, world systems ignore new presses and end running gestures.
 
 const BLOCKER_GROUP: StringName = &"world_input_blockers"
+## World systems with a gesture that must not be interrupted (a drag, a rotate hold) join this
+## group and answer has_running_gesture() -> bool (ADR 0008 Amendment 2 rule 16).
+const GESTURE_GROUP: StringName = &"world_gesture_sources"
 
 
 static func is_blocked(tree: SceneTree) -> bool:
 	for node: Node in tree.get_nodes_in_group(BLOCKER_GROUP):
 		var item: CanvasItem = node as CanvasItem
 		if item != null and item.is_visible_in_tree():
+			return true
+	return false
+
+
+## True while any member of GESTURE_GROUP reports a running gesture.
+static func is_gesture_running(tree: SceneTree) -> bool:
+	for node: Node in tree.get_nodes_in_group(GESTURE_GROUP):
+		if node.has_method(&"has_running_gesture") and node.call(&"has_running_gesture") == true:
 			return true
 	return false
 
