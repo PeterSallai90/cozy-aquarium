@@ -177,7 +177,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 
 ### Catalog schema (Mode 2 ready)
 
-Every species carries its simulation attributes from day one. Mode 1 ignores them; the AI BA fills them with real data as species are added, so Mode 2 starts with a complete catalog.
+Every species carries its simulation attributes from day one. Mode 1 ignores them, with one exception: placement validity reads the real size `footprint_cm` of an item (width, height, depth; #33, ADR 0012 Amendment 2), which keeps its Mode 2 meaning and is never tuned for placement; the AI BA fills them with real data as species are added, so Mode 2 starts with a complete catalog.
 
 ```gdscript
 class_name FishSpecies
@@ -256,7 +256,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 
 | System | Responsibility | Key technique |
 | --- | --- | --- |
-| Placement | Pick, place, move, rotate, delete items inside the tank | Ghost preview; the pointer ray meets the plane of the nominal substrate surface from `SubstrateSurface`, item y above it (ADR 0011); free position, rotation in 15° steps with a 1° Shift fine step; selection by an analytic hit test of item bounds, no physics; validity through `PlacementRules` (centre inside the interior until the footprint and overlap check of #33); one command per place, drop, rotate hold, delete or recolour; delete and recolour are asked through `EventBus.item_delete_requested` and `item_colour_requested`, and the tint of a colourable item is a per-instance shader parameter on shared meshes and materials ([ADR 0012](adr/0012-placement-system-drawn-items-hit-test-and-validity-seam.md)) |
+| Placement | Pick, place, move, rotate, delete items inside the tank | Ghost preview; the pointer ray meets the plane of the nominal substrate surface from `SubstrateSurface`, item y above it (ADR 0011); free position, rotation in 15° steps with a 1° Shift fine step; selection by an analytic hit test of item bounds, no physics; validity through `PlacementRules`: the oriented footprint rectangle from `footprint_cm` lies inside the interior, overlaps no other item (touching allowed, 0.1 mm tolerance) and stays under the interior height and, for rocks and ornaments, under the water line, measured from the floor with the surface at the item origin; a refused rotation of the selected item returns to its model angle with a short glow cue on the selection mark (ADR 0012 Amendment 2); one command per place, drop, rotate hold, delete or recolour; delete and recolour are asked through `EventBus.item_delete_requested` and `item_colour_requested`, and the tint of a colourable item is a per-instance shader parameter on shared meshes and materials ([ADR 0012](adr/0012-placement-system-drawn-items-hit-test-and-validity-seam.md)) |
 | Substrate | Five substrate types from the catalog, colour from a short swatch list, sculpting slopes (#29) | 3D bed: settled baked stones, dark core, ray-cast sand, assembled on a worker thread, flat at the fill depth of the type until #29 ([ADR 0011](adr/0011-substrate-bed-surface-height-and-grain-instancing.md)); colour as a shader parameter on the bed's material copies; defaults and load fallback: ADR 0010 |
 | Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states; species personality with individual variation per fish (D20) |
 | Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
@@ -1317,7 +1317,7 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 19 | Catalog browser UI (categories, thumbnails, search) | E4 Placement | M1 | feature | M | P0 |
 | 20 | Place, move and rotate items with ghost preview and rotation steps | E4 Placement | M1 | feature | L (owner waiver of the split rule, #31) | P0 |
 | 21 | Delete and recolour items; undo/redo in UI | E4 Placement | M1 | feature | M | P0 |
-| 22 | Placement validity: overlap and tank bounds | E4 Placement | M1 | feature | S | P1 |
+| 22 | Placement validity: overlap and tank bounds | E4 Placement | M1 | feature | M | P1 |
 | 23 | Fish catalog with 3 species and swim shader | E5 Fish | M1 | feature | M | P0 |
 | 24 | Fish behaviour: schooling, depth zones, obstacle avoidance | E5 Fish | M1 | feature | M | P0 |
 | 25 | Add and remove fish UI with species info card | E5 Fish | M1 | feature | S | P0 |
