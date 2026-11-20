@@ -4,6 +4,8 @@ extends Node3D
 
 var history: CommandHistory = null
 
+var _item_source: ItemCatalogSource = null
+
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
 var _substrates: SubstrateCatalog = null
@@ -18,9 +20,19 @@ func _enter_tree() -> void:
 	_substrates = SubstrateCatalog.load_dir()
 	SubstrateSetup.apply_default(_model, _substrates)
 	history = CommandHistory.new()
+	_item_source = ItemCatalogSource.new()
 	EventBus.bind_history(history)
-	(get_node("RoomCorner") as RoomCorner).setup(_model, _catalog, null, null, _substrates)
-	(get_node("Hud/TankControls") as TankControls).setup(_model, _catalog, history, _substrates)
+	(get_node("RoomCorner") as RoomCorner).setup(
+		_model, _catalog, null, null, _substrates, history, _item_source
+	)
+	(get_node("Hud/TankControls") as TankControls).setup(
+		_model, _catalog, history, _substrates, null, _item_source
+	)
+
+
+## The item catalog source shared by the item browser and placement; it loads on first need.
+func get_item_source() -> ItemCatalogSource:
+	return _item_source
 
 
 ## The live model of the session.

@@ -33,6 +33,20 @@ signal item_picked(catalog_id: StringName)
 @warning_ignore("unused_signal")
 signal item_pick_cleared
 
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted by placement when it wants the pick cleared (Esc, #31); the item browser answers by
+## calling clear_pick(), which emits item_pick_cleared once when there was a pick.
+@warning_ignore("unused_signal")
+signal item_pick_clear_requested
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted by placement when the selected placed item changes (also straight from one to another).
+@warning_ignore("unused_signal")
+signal item_selected(uid: String)
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted once when the selection becomes empty (#31).
+@warning_ignore("unused_signal")
+signal item_selection_cleared
+
 var _history: CommandHistory = null
 
 

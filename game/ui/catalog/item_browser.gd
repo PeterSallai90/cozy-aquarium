@@ -9,7 +9,8 @@ extends PanelContainer
 ##
 ## setup() only stores. Everything is built on the first show: the cards, their thumbnails and the
 ## category row. Filtering only shows and hides cards, so nothing is created or freed after that.
-## Without an injected catalog the shipped folders are loaded on the first show.
+## Without an injected catalog the shared ItemCatalogSource (#31) loads the shipped folders on the
+## first show; without a source the browser loads them itself.
 
 signal close_requested
 
@@ -32,6 +33,7 @@ const CATEGORY_BUTTONS: Dictionary[String, ItemDefinition.Category] = {
 
 var _model: AquariumModel = null
 var _catalog: ItemCatalog = null
+var _source: ItemCatalogSource = null
 var _built: bool = false
 var _category: ItemDefinition.Category = ItemBrowserList.ALL
 var _query: String = ""
@@ -64,6 +66,7 @@ func _ready() -> void:
 	_clear.pressed.connect(_on_clear_pressed)
 	_close.pressed.connect(close_requested.emit)
 	EventBus.language_changed.connect(_on_language_changed)
+	EventBus.item_pick_clear_requested.connect(clear_pick)
 	visibility_changed.connect(_on_visibility_changed)
 	visibility_changed.connect(_queue_fit)
 	_card_box.minimum_size_changed.connect(_queue_fit)
@@ -73,9 +76,12 @@ func _ready() -> void:
 
 ## Stores the model and the catalog (null: the shipped folders are loaded on the first show).
 ## Nothing is built here. The model is only listened to, never written.
-func setup(model: AquariumModel, catalog: ItemCatalog = null) -> void:
+func setup(
+	model: AquariumModel, catalog: ItemCatalog = null, source: ItemCatalogSource = null
+) -> void:
 	_model = model
 	_catalog = catalog
+	_source = source
 	_model.model_reset.connect(clear_pick)
 
 
@@ -130,7 +136,7 @@ func _ensure_built() -> void:
 		return
 	_built = true
 	if _catalog == null:
-		_catalog = ItemCatalog.load_dirs()
+		_catalog = _source.get_catalog() if _source != null else ItemCatalog.load_dirs()
 	var shown: Array[ItemDefinition.Category] = ItemBrowserList.visible_categories(_catalog)
 	for button: Button in _category_buttons:
 		button.visible = shown.has(CATEGORY_BUTTONS[String(button.name)])

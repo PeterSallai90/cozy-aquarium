@@ -1,6 +1,8 @@
 class_name RoomCorner
 extends Node3D
-## The cozy room corner: room, cabinet, lamp, the displayed tank and the build camera.
+## The cozy room corner: room, cabinet, lamp, the displayed tank and the build camera. It also
+## hosts the placement system (ADR 0012), which draws and edits the placed items in the tank frame
+## and is told the tank and the substrate shown here.
 ## Reads the model, never writes it. When the model changes the tank (or is reset), the room swaps
 ## tank, cabinet and lamp for the ones of the new tank and frames the default view again.
 
@@ -34,22 +36,30 @@ var _substrate_cache: SubstrateBedCache = SubstrateBedCache.new()
 var _camera_distance: float = 0.0
 ## The tank instance made while resolving the definition; _show_tank adds it to the room.
 var _resolved_tank: Node3D = null
+var _history: CommandHistory = null
+var _item_source: ItemCatalogSource = null
 
 @onready var _camera: BuildCamera = $BuildCamera
 @onready var _walls: WallCutaway = $WallCutaway
+@onready var _placement: PlacementSystem = $Placement
 
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
 ## directory, the shared default fog settings and the shared default caustic settings
 ## (CAUSTIC_SETTINGS_PATH). fog_settings, caustic_settings and substrates are all optional; null
-## selects the default.
+## selects the default. history and items (the shared item catalog source) go to the placement
+## system, which has fallbacks for both.
 func setup(
 	model: AquariumModel,
 	catalog: TankCatalog,
 	fog_settings: WaterFogSettings = null,
 	caustic_settings: WaterCausticSettings = null,
-	substrates: SubstrateCatalog = null
+	substrates: SubstrateCatalog = null,
+	history: CommandHistory = null,
+	items: ItemCatalogSource = null
 ) -> void:
+	_history = history
+	_item_source = items
 	_model = model
 	_catalog = catalog
 	_substrates = substrates
@@ -69,6 +79,7 @@ func _ready() -> void:
 	if _caustic_settings == null:
 		_caustic_settings = load(CAUSTIC_SETTINGS_PATH) as WaterCausticSettings
 	_setup_fog()
+	_placement.setup(_model, _history, _item_source, PlacementRules.new(_catalog))
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
 	_model.substrate_changed.connect(_on_substrate_changed)
@@ -134,7 +145,10 @@ func _show_tank() -> void:
 		add_child(tank)
 		_displayed_tank_id = definition.id
 		_displayed_tank = definition
+		_placement.set_tank(definition, tank.global_transform)
 		_apply_substrate()
+	if tank == null:
+		_placement.set_tank(null, global_transform)
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)
 	var mount: Node3D = null
 	if tank != null:
@@ -186,6 +200,7 @@ func _apply_substrate() -> void:
 		if definition == null:
 			return
 		colour = definition.default_colour
+	_placement.set_substrate(definition)
 	bed.show_type(_displayed_tank, definition, colour)
 
 

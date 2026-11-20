@@ -70,6 +70,12 @@ msgstr "Folyami kő"
 msgid "number.unknown"
 msgstr "Ismeretlen"
 
+msgid "placement.hint.place"
+msgstr "Kattints a lerakáshoz, %s: forgatás (Shift: finom), Esc: vissza."
+
+msgid "placement.hint.selected"
+msgstr "Húzással mozgathatod, %s: forgatás (Shift: finom), Esc: vissza."
+
 msgid "settings.close"
 msgstr "Bezárás"
 
