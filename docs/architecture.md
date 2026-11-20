@@ -171,7 +171,7 @@ The aquarium is data, and the 3D scene is only a view of that data: every system
 1. **Catalog** – read-only definitions of every species, plant, substrate, decoration and tank. Stored as typed Godot resources (`.tres`, plain text).
 2. **Aquarium model** – the current state: chosen tank, substrate and colour, placed items with transforms, fish instances. Pure data, no nodes, serializable to JSON.
 3. **Commands** – every change to the model (place, move, rotate, recolour, delete, add fish) is a command object with `do()` and `undo()`. This gives unlimited undo/redo and a single place to validate changes.
-4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload, `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003) and `tank_displayed(tank_id)` from the room after it swapped the tank (empty id: no tank shown), `item_picked(catalog_id)` and `item_pick_cleared` from the item browser (#30); they never talk to each other directly. The model never references `EventBus`.
+4. **Systems** – placement, fish behaviour, feeding, camera, photo mode, save/load, settings and localization. Systems listen to model change signals, which the model emits itself, and to the `EventBus` autoload (`game/systems/event_bus.gd`, a Node), which re-emits the command history's signals, carries `language_changed(language)` from the `Localization` autoload, `setting_changed(section, key, value)` from the `Settings` autoload (ADR 0003) and `tank_displayed(tank_id)` from the room after it swapped the tank (empty id: no tank shown), `item_picked(catalog_id)` and `item_pick_cleared` from the item browser (#30), `item_pick_clear_requested` from placement (the browser answers with `clear_pick()`), and `item_selected(uid)` and `item_selection_cleared` from the placement system, the only owner of the selection (#31, ADR 0012); they never talk to each other directly. The model never references `EventBus`.
 5. **Presentation** – scenes, shaders, UI and audio that render the model.
 6. **Game mode** – `CozyMode` now. `SimulationMode` later adds a fixed-rate simulation tick and rules on top of the same model and catalog.
 
@@ -256,7 +256,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 
 | System | Responsibility | Key technique |
 | --- | --- | --- |
-| Placement | Pick, place, move, rotate, scale, delete items inside the tank | Raycast onto substrate and items; the substrate surface height from `SubstrateSurface`, item y above it (ADR 0011); snapping; overlap check with collision shapes; ghost preview |
+| Placement | Pick, place, move, rotate, delete items inside the tank | Ghost preview; the pointer ray meets the plane of the nominal substrate surface from `SubstrateSurface`, item y above it (ADR 0011); free position, rotation in 15° steps with a 1° Shift fine step; selection by an analytic hit test of item bounds, no physics; validity through `PlacementRules` (centre inside the interior until the footprint and overlap check of #33); one command per place, drop or rotate hold ([ADR 0012](adr/0012-placement-system-drawn-items-hit-test-and-validity-seam.md)) |
 | Substrate | Five substrate types from the catalog, colour from a short swatch list, sculpting slopes (#29) | 3D bed: settled baked stones, dark core, ray-cast sand, assembled on a worker thread, flat at the fill depth of the type until #29 ([ADR 0011](adr/0011-substrate-bed-surface-height-and-grain-instancing.md)); colour as a shader parameter on the bed's material copies; defaults and load fallback: ADR 0010 |
 | Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states; species personality with individual variation per fish (D20) |
 | Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
@@ -323,7 +323,9 @@ The build camera behaves like a person walking around a real tank on a cabinet: 
 
 **Reserved keys:** a new binding must not collide with these, with or without modifiers unless
 noted. Build camera: right and middle mouse, mouse wheel, `Q`, `E`, `R`, `F`, `Home` (all without
-modifiers; with Ctrl, Alt, Shift or Meta they do nothing). Selection and placement: left mouse.
+modifiers; with Ctrl, Alt, Shift or Meta they do nothing). Selection and placement: left mouse,
+`Comma` and `Period` (rotate; alone for the 15° step or with Shift for the 1° fine step, the one
+modifier exception, ADR 0008 Amendment 1; with Ctrl, Alt or Meta they do nothing).
 Global: `Esc` (`ui_cancel`: closes panels and dialogs, leaves photo mode), `Ctrl+Z` (undo, a later
 issue). Photo mode: `P`, `WASD`, `Space`, `Ctrl`, `Shift`, `Enter`, mouse wheel (field of view;
 the build camera is not driven while photo mode is active). A test checks that no two input map
@@ -1311,7 +1313,7 @@ The AI BA turns each row into a full issue (story, acceptance criteria, out of s
 | 17 | Substrate types with colour selection (sand, gravel, pebbles, black sand, coloured gravel) | E3 Substrate | M1 | feature | M | P0 |
 | 18 | Sculpt substrate slopes | E3 Substrate | M2 | feature | M | P2 |
 | 19 | Catalog browser UI (categories, thumbnails, search) | E4 Placement | M1 | feature | M | P0 |
-| 20 | Place, move and rotate items with ghost preview and snapping | E4 Placement | M1 | feature | M | P0 |
+| 20 | Place, move and rotate items with ghost preview and rotation steps | E4 Placement | M1 | feature | L (owner waiver of the split rule, #31) | P0 |
 | 21 | Delete and recolour items; undo/redo in UI | E4 Placement | M1 | feature | S | P0 |
 | 22 | Placement validity: overlap and tank bounds | E4 Placement | M1 | feature | S | P1 |
 | 23 | Fish catalog with 3 species and swim shader | E5 Fish | M1 | feature | M | P0 |

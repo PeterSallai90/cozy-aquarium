@@ -1,11 +1,11 @@
 # ADR 0008: World input routing and modal blocking
 
-- Status: Accepted (accepted when the #25 pull request merges; gated by `needs:owner`)
-- Date: 2026-11-11
+- Status: Accepted (pull request for #25; gated by `needs:owner`)
+- Date: 2026-11-11; Amendment 1 (#31): 2026-11-20
 - Decision log reference: none (no row in the decisions table changes); refines the "Camera" row
   of Core systems in docs/architecture.md
 - Issue: #25 (B14 orbit camera); used by #26 (zoom, pan, Home), #44/#45 (photo mode), #81
-  (remappable bindings) and the placement system
+  (remappable bindings) and the placement system (#31, Amendment 1)
 
 ## Context
 
@@ -20,7 +20,8 @@ The acceptance criteria of #25 need:
   working when the pointer passes over a panel and ends when the button is released anywhere,
   also outside the window, or when the window loses focus;
 - a focused text field keeps Q/E/R/F; keys with Ctrl, Alt, Shift or Meta never trigger world
-  actions (Ctrl+Z stays free for undo);
+  actions (Ctrl+Z stays free for undo); exception since Amendment 1: Shift with the two placement
+  rotate actions selects the fine step;
 - an open modal dialog blocks all world input. The current dialog stops the mouse with a
   full-screen dimmer, but its focused buttons do not accept letter keys, so a Q press would still
   reach `_unhandled_input`.
@@ -78,3 +79,57 @@ exact_match)` with `exact_match = true` rejects an event whose modifiers differ 
 - The camera (#25), zoom and pan (#26), placement and photo mode (#44) follow rules 1 to 6; #81
   remaps actions by name without touching the systems.
 - Q/E/R/F keep working while a non-modal panel is open; a focused text field keeps its letters.
+
+## Amendment 1 (#31, placement)
+
+- Status: Accepted (pull request for #31; gated by `needs:owner`). No row of the decisions table
+  changes; rules 1 to 6 above stay in force except where this amendment says so.
+- Date: 2026-11-20
+
+### Context
+
+#31 adds the placement system: left mouse places, selects and drags items, Comma and Period
+rotate them. The owner decided that Shift with Comma or Period turns by 1 degree instead of the
+15 degree step (issue comment 7043191623). Rule 1 and the reserved-keys text say that keys with
+Ctrl, Alt, Shift or Meta never trigger world actions, and rule 5 matches key actions exactly. The
+Esc order of #31 is: modal dialog, running drag, running rotate hold, open Items panel, then the
+pick or the selection. Photo mode (#44) must stop placement without losing the pick or the
+selection.
+
+### Decision
+
+7. **Shift is the fine modifier of the two placement rotate actions.** `place_rotate_left`
+   (physical Comma) and `place_rotate_right` (physical Period) have one event each, with no
+   modifier, so #81 remaps one binding per action. They are the only world actions matched with
+   `exact_match = false`; the event is then accepted only when Ctrl, Alt and Meta are all up
+   (`WorldInput.allows_fine_modifier(event)`), and Shift held selects the fine step. Every other
+   world action keeps rules 1 and 5. Shift alone stays reserved for photo mode, where placement is
+   blocked (rule 10), so the two uses never meet. A held rotate key reads Shift again at each
+   repeat from Shift key events seen in `_input` (rule 2), never from the `Input` singleton.
+8. **Esc of a running gesture is read in `_input`.** A running gesture that Esc cancels (a drag, a
+   rotate hold) reads `ui_cancel` in `_input`, cancels itself and marks the event handled, so it
+   wins over open panels and a focused text field. A modal dialog ends every gesture first (rule
+   4), so a dialog and a gesture never meet.
+9. **Idle world Esc steps come after the HUD.** Esc steps of an idle world system (clear the pick,
+   clear the selection) are read in `_unhandled_input`. The HUD (dialogs, panels) handles its Esc
+   in `_unhandled_input` too and marks it handled. Because `SceneTree` calls `_unhandled_input`
+   from the last node in tree order to the first, world systems stay in the 3D part of `main.tscn`
+   (under `RoomCorner`), before the `Hud` CanvasLayer; a main-scene test pins the order.
+10. **Photo mode blocks through the blocker group; feedback hides.** Photo mode puts its visible UI
+    root into `world_input_blockers` (rule 4); no EventBus state signal is added. While the world is
+    blocked (modal dialog or photo mode), placement hides the ghost, the drag preview, the selection
+    mark and the hint line, ignores new presses and ends running gestures with no command; the pick
+    and the selection survive and their feedback returns when the block ends.
+11. **A world press releases text focus.** A left press that reaches `_unhandled_input` while a
+    `LineEdit` or `TextEdit` has the focus releases it (`Viewport.gui_release_focus()`) and is then
+    handled as a normal world press. A focused `Button` blocks nothing (it does not accept Comma or
+    Period), as rule 1 already implies.
+
+### Consequences
+
+- The Reserved keys text of docs/architecture.md lists Comma and Period (placement rotate, alone or
+  with Shift); Shift alone stays a photo mode key.
+- #44 adds its photo-mode root to `world_input_blockers` and its own test; #31 tests rule 10 with
+  a fake blocker.
+- #81 remaps the two rotate actions by name; Shift as the fine modifier is not remappable there
+  unless #81 decides otherwise with a new amendment.
