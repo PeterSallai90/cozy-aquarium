@@ -1,6 +1,7 @@
 extends Node3D
 ## The session: owns the live aquarium model and the undo history, and hands them to the room and
-## the tank controls. No undo shortcut is bound here; that is a later issue.
+## the tank controls, the undo and redo buttons and the item actions. The undo and redo shortcuts
+## are read by HistoryControls, the Delete key by placement (ADR 0008 Amendment 2).
 
 var history: CommandHistory = null
 
@@ -28,6 +29,8 @@ func _enter_tree() -> void:
 	(get_node("Hud/TankControls") as TankControls).setup(
 		_model, _catalog, history, _substrates, null, _item_source
 	)
+	(get_node("Hud/HistoryControls") as HistoryControls).setup(history)
+	(get_node("Hud/ItemActions") as ItemActions).setup(_model, _item_source)
 
 
 ## The item catalog source shared by the item browser and placement; it loads on first need.

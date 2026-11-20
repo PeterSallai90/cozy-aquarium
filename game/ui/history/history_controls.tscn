@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/history/history_controls.gd" id="1_script"]
+
+[node name="HistoryControls" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Buttons" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 16.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="UndoButton" type="Button" parent="Buttons"]
+layout_mode = 2
+mouse_filter = 0
+disabled = true
+text = "ui.history.undo"
+
+[node name="RedoButton" type="Button" parent="Buttons"]
+layout_mode = 2
+mouse_filter = 0
+disabled = true
+text = "ui.history.redo"
