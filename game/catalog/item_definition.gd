@@ -52,6 +52,10 @@ enum Anchoring { UNSET = 0, ROOTED = 1, EPIPHYTE = 2, FLOATING = 3, LOOSE = 4 }
 @export var thumbnail: Texture2D = null
 @export var sort_order: int = 0
 @export var colourable: bool = false
+## The swatches of a colourable item: alternatives to its original colour, which is never
+## listed. Empty when the item is not colourable; otherwise 1 to 8 colours, each an exact 8-bit
+## #RRGGBB colour, no duplicates (checked by the shipped-catalog test, not by the loader).
+@export var colour_swatches: Array[Color] = []
 
 # --- Mode 2, every item (stored, never shown or used in Mode 1) ---
 @export var material: ItemMaterial = ItemMaterial.UNSET
