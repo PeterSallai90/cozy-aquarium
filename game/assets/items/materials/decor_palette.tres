@@ -1,6 +1,6 @@
 [gd_resource type="ShaderMaterial" format=3]
 
-[ext_resource type="Shader" uid="uid://ck2quutgkmq6v" path="res://shaders/palette_atlas.gdshader" id="1_shader"]
+[ext_resource type="Shader" path="res://shaders/decor_item.gdshader" id="1_shader"]
 [ext_resource type="Texture2D" uid="uid://blo8nsrhyc38i" path="res://assets/items/decor_palette_atlas.png" id="2_atlas"]
 
 [resource]
