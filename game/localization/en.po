@@ -74,7 +74,7 @@ msgid "placement.hint.place"
 msgstr "Click to place, %s to turn (Shift: fine), Esc to step back."
 
 msgid "placement.hint.selected"
-msgstr "Drag to move, %s to turn (Shift: fine), Esc to step back."
+msgstr "Drag to move, %s to turn (Shift: fine), %s to delete, Esc to step back."
 
 msgid "settings.close"
 msgstr "Close"
@@ -207,3 +207,27 @@ msgstr "%s cm"
 
 msgid "unit.litre"
 msgstr "%s L"
+
+msgid "ui.history.redo"
+msgstr "Redo"
+
+msgid "ui.history.redo.tooltip"
+msgstr "Redo (%s)"
+
+msgid "ui.history.undo"
+msgstr "Undo"
+
+msgid "ui.history.undo.tooltip"
+msgstr "Undo (%s)"
+
+msgid "ui.item.colour"
+msgstr "Colour"
+
+msgid "ui.item.colour_original"
+msgstr "Original colour"
+
+msgid "ui.item.delete"
+msgstr "Delete"
+
+msgid "ui.item.delete.tooltip"
+msgstr "Delete the selected item (%s)"

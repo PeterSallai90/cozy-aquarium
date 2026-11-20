@@ -201,6 +201,30 @@ msgstr ""
 msgid "tank.small_1.name"
 msgstr ""
 
+msgid "ui.history.redo"
+msgstr ""
+
+msgid "ui.history.redo.tooltip"
+msgstr ""
+
+msgid "ui.history.undo"
+msgstr ""
+
+msgid "ui.history.undo.tooltip"
+msgstr ""
+
+msgid "ui.item.colour"
+msgstr ""
+
+msgid "ui.item.colour_original"
+msgstr ""
+
+msgid "ui.item.delete"
+msgstr ""
+
+msgid "ui.item.delete.tooltip"
+msgstr ""
+
 msgid "unit.cm"
 msgstr ""
 

@@ -74,7 +74,7 @@ msgid "placement.hint.place"
 msgstr "Kattints a lerakáshoz, %s: forgatás (Shift: finom), Esc: vissza."
 
 msgid "placement.hint.selected"
-msgstr "Húzással mozgathatod, %s: forgatás (Shift: finom), Esc: vissza."
+msgstr "Húzással mozgathatod, %s: forgatás (Shift: finom), %s: törlés, Esc: vissza."
 
 msgid "settings.close"
 msgstr "Bezárás"
@@ -207,3 +207,27 @@ msgstr "%s cm"
 
 msgid "unit.litre"
 msgstr "%s l"
+
+msgid "ui.history.redo"
+msgstr "Újra"
+
+msgid "ui.history.redo.tooltip"
+msgstr "Ismétlés (%s)"
+
+msgid "ui.history.undo"
+msgstr "Vissza"
+
+msgid "ui.history.undo.tooltip"
+msgstr "Visszavonás (%s)"
+
+msgid "ui.item.colour"
+msgstr "Szín"
+
+msgid "ui.item.colour_original"
+msgstr "Eredeti szín"
+
+msgid "ui.item.delete"
+msgstr "Törlés"
+
+msgid "ui.item.delete.tooltip"
+msgstr "A kijelölt elem törlése (%s)"
