@@ -49,6 +49,24 @@ msgstr "Kövek"
 msgid "item.category.wood"
 msgstr "Fa"
 
+msgid "item.clay_amphora.description"
+msgstr "Kis, kétfülű terrakotta amfora a kövek között."
+
+msgid "item.clay_amphora.name"
+msgstr "Agyag amfora"
+
+msgid "item.driftwood_branch.description"
+msgstr "Íves, kopott fadarab meleg barna erezettel."
+
+msgid "item.driftwood_branch.name"
+msgstr "Uszadékfa ág"
+
+msgid "item.river_stone.description"
+msgstr "Folyóvíz csiszolta, sima, lekerekített kő."
+
+msgid "item.river_stone.name"
+msgstr "Folyami kő"
+
 msgid "number.unknown"
 msgstr "Ismeretlen"
 

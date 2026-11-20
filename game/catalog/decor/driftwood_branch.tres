@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://catalog/item_definition.gd" id="1_item"]
+[ext_resource type="PackedScene" path="res://assets/items/scenes/driftwood_branch.tscn" id="2_scene"]
+[ext_resource type="Texture2D" path="res://assets/items/thumbnails/driftwood_branch.png" id="3_thumb"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"driftwood_branch"
+name_key = "item.driftwood_branch.name"
+description_key = "item.driftwood_branch.description"
+category = 2
+scene = ExtResource("2_scene")
+thumbnail = ExtResource("3_thumb")
+sort_order = 10
+colourable = false
+material = 2
+aquarium_safe = true
+weight_kg = 0.4
+volume_displacement_l = 0.35
+footprint_cm = Vector3(28, 8, 7)
+ph_effect = 4
+hardness_effect = 1
+tannin_release = 0.4
+hiding_places = 0
+hiding_quality = 0.0
+shade_cover = 0.1
+edge_smoothness = 0.6
+flow_obstruction = 0.2
+waste_trapping = 0.2
+cleaning_difficulty = 0.4
+algae_surface = 0.5
+breaks_down = true

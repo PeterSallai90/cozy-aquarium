@@ -5,6 +5,8 @@ extends GdUnitTestSuite
 ## re-pick, the pick that survives filtering, clear_pick(), model_reset (clears) against
 ## EventBus.tank_displayed and a ChangeTankCommand (do not), and that a pick changes neither the
 ## model, the save nor the history. Tank controls on fixture items (item_browser_rig.gd).
+## #157 criterion 19 (owner: developer, after the technical-artist files exist) is the one test on
+## the shipped catalog (Ir.open_shipped) at the end of the file.
 
 const Ir := preload("res://tests/helpers/item_browser_rig.gd")
 const Ui := preload("res://tests/helpers/tank_ui_rig.gd")
@@ -363,3 +365,31 @@ func test_ac17_a_pick_made_after_a_reset_is_a_normal_pick() -> void:
 	_model.reset_from(_empty_model())
 	Ir.click_card(_controls, &"rock_slate")
 	assert_that(_listener.timeline).is_equal(["picked:rock_slate", "cleared", "picked:rock_slate"])
+
+
+# --- #157 criterion 19: the shipped starter items ---
+
+
+func test_157_ac19_picking_each_shipped_starter_card_emits_item_picked_once_with_its_id() -> void:
+	var shipped: Control = await Ir.open_shipped(self, _model)
+	auto_free(shipped)
+	if shipped == null or Ir.open_button(shipped) == null:
+		assert_bool(false).override_failure_message("TankControls has no ItemsButton").is_true()
+		return
+	await Ir.press_open(self, shipped)
+	var model_before: Dictionary = ModelState.snapshot(_model)
+	var expected: Array[StringName] = []
+	for id: String in ["river_stone", "driftwood_branch", "clay_amphora"]:
+		var card: Button = Ir.card(shipped, StringName(id))
+		(
+			assert_object(card)
+			. override_failure_message("the shipped catalog has no card %s" % id)
+			. is_not_null()
+		)
+		if card == null:
+			continue
+		Ir.click_card(shipped, StringName(id))
+		expected.append(StringName(id))
+		assert_that(_listener.picked).override_failure_message(id).is_equal(expected)
+		assert_str(Ir.picked_id(shipped)).is_equal(id)
+	assert_dict(ModelState.snapshot(_model)).is_equal(model_before)

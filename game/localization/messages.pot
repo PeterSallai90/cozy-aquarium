@@ -48,6 +48,24 @@ msgstr ""
 msgid "item.category.wood"
 msgstr ""
 
+msgid "item.clay_amphora.description"
+msgstr ""
+
+msgid "item.clay_amphora.name"
+msgstr ""
+
+msgid "item.driftwood_branch.description"
+msgstr ""
+
+msgid "item.driftwood_branch.name"
+msgstr ""
+
+msgid "item.river_stone.description"
+msgstr ""
+
+msgid "item.river_stone.name"
+msgstr ""
+
 msgid "number.unknown"
 msgstr ""
 

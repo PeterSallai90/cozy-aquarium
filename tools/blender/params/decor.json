@@ -1,0 +1,15 @@
+{
+  "stone_width_cm": 11.0,
+  "stone_height_cm": 6.0,
+  "stone_depth_cm": 8.0,
+  "stone_seed": 158,
+  "branch_width_cm": 28.0,
+  "branch_height_cm": 8.0,
+  "branch_depth_cm": 7.0,
+  "amphora_width_cm": 9.0,
+  "amphora_height_cm": 14.0,
+  "amphora_depth_cm": 8.0,
+  "amphora_opening_cm": 3.8,
+  "amphora_inside_depth_cm": 12.6,
+  "amphora_wall_cm": 0.6
+}

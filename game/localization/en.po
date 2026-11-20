@@ -49,6 +49,24 @@ msgstr "Rocks"
 msgid "item.category.wood"
 msgstr "Wood"
 
+msgid "item.clay_amphora.description"
+msgstr "A small two-handled terracotta amphora to rest among the stones."
+
+msgid "item.clay_amphora.name"
+msgstr "Clay amphora"
+
+msgid "item.driftwood_branch.description"
+msgstr "A curved piece of weathered driftwood with a warm brown grain."
+
+msgid "item.driftwood_branch.name"
+msgstr "Driftwood branch"
+
+msgid "item.river_stone.description"
+msgstr "A smooth, rounded stone worn by running water."
+
+msgid "item.river_stone.name"
+msgstr "River stone"
+
 msgid "number.unknown"
 msgstr "Unknown"
 
