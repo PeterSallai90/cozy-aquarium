@@ -31,6 +31,7 @@ static func _label_of(action: StringName) -> String:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	visible = false
 	EventBus.item_picked.connect(_on_item_picked)
 	EventBus.item_pick_cleared.connect(_on_item_pick_cleared)

@@ -176,7 +176,7 @@ func _on_key_early(key: InputEventKey) -> void:
 		if _hold.is_active() and key.is_action(_hold_action, false):
 			_end_hold(true)
 		return
-	if _hold.is_active() and (key.ctrl_pressed or key.alt_pressed or key.meta_pressed):
+	if _hold.is_active() and _is_cancel_modifier(key):
 		_cancel_hold()
 	if key.echo or not key.is_action_pressed(ACTION_CANCEL):
 		return
@@ -186,6 +186,15 @@ func _on_key_early(key: InputEventKey) -> void:
 	elif is_holding():
 		_cancel_hold()
 		get_viewport().set_input_as_handled()
+
+
+func _is_cancel_modifier(key: InputEventKey) -> bool:
+	if key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+		return true
+	return (
+		key.keycode in [KEY_CTRL, KEY_ALT, KEY_META]
+		or key.physical_keycode in [KEY_CTRL, KEY_ALT, KEY_META]
+	)
 
 
 func _on_key_late(key: InputEventKey) -> void:
