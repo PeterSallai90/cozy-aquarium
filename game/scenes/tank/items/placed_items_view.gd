@@ -8,7 +8,13 @@ extends Node3D
 ## a scene draws nothing and logs nothing. The ghost, the drag preview and the selection mark are
 ## never in the registry: the mark is the selection material as material_overlay on the meshes of
 ## the selected node, so it follows every transform change of that node.
+##
+## The colour of a colourable item is a per-instance shader parameter (#32, ADR 0012 Amendment 1
+## rule 11): every geometry instance of the node gets item_tint, alpha 1 for a stored colour of a
+## colourable definition and alpha 0 (the original look) otherwise. Meshes and materials stay
+## shared; it is set on create and on item_changed only, never for a pending rotation.
 
+const TINT_PARAM: StringName = &"item_tint"
 const SELECTION_MATERIAL: Material = preload("res://scenes/tank/items/item_selection_material.tres")
 
 var _model: AquariumModel = null
@@ -17,6 +23,8 @@ var _tank: TankDefinition = null
 var _substrate: SubstrateDefinition = null
 var _nodes: Dictionary[String, Node3D] = {}
 var _bounds: Dictionary[String, AABB] = {}
+## Whether the definition of each drawn item is colourable, cached at creation.
+var _colourable: Dictionary[String, bool] = {}
 ## Pending (hold) angles in degrees by uid; only the view shows them, the model keeps its angle.
 var _pending: Dictionary[String, float] = {}
 var _created: int = 0
@@ -111,6 +119,7 @@ func _on_item_changed(uid: String, _index: int) -> void:
 	_pending.erase(uid)
 	if _nodes.has(uid):
 		_update(uid)
+		_apply_tint(_model.get_item(uid), _nodes[uid])
 	else:
 		_create(_model.get_item(uid))
 
@@ -139,9 +148,11 @@ func _create(item: PlacedItem) -> void:
 	instance.name = item.uid
 	_bounds[item.uid] = _visual_bounds(instance)
 	_nodes[item.uid] = instance
+	_colourable[item.uid] = definition.colourable
 	add_child(instance)
 	_created += 1
 	_place(item, instance)
+	_apply_tint(item, instance)
 	if item.uid == _marked_uid or item.uid == _selected_uid:
 		_apply_mark()
 
@@ -150,6 +161,7 @@ func _drop(uid: String) -> void:
 	var node: Node3D = _nodes.get(uid)
 	_nodes.erase(uid)
 	_bounds.erase(uid)
+	_colourable.erase(uid)
 	_pending.erase(uid)
 	if uid == _marked_uid:
 		_marked_uid = ""
@@ -190,6 +202,16 @@ func _height_of(item: PlacedItem) -> float:
 		_tank.interior_size_m,
 		item.position
 	)
+
+
+func _apply_tint(item: PlacedItem, node: Node3D) -> void:
+	if item == null or node == null:
+		return
+	var tint: Color = Color(0.0, 0.0, 0.0, 0.0)
+	if _colourable.get(item.uid, false) and item.has_colour:
+		tint = Color(item.colour.r, item.colour.g, item.colour.b, 1.0)
+	for instance: GeometryInstance3D in geometry_of(node):
+		instance.set_instance_shader_parameter(TINT_PARAM, tint)
 
 
 func _apply_mark() -> void:

@@ -4,7 +4,7 @@ extends Label
 ## or a selection exists and hidden otherwise and while the world is blocked (a modal dialog or
 ## photo mode). It reads only EventBus signals and WorldInput, ignores the mouse and re-translates
 ## at once on language_changed. The text holds the live labels of the two rotate keys, left key
-## first, so a remapped key (#81) stays correct.
+## first, and for a selection also of the Delete key, so a remapped key (#81) stays correct.
 
 enum Mode { NONE, PLACE, SELECTED }
 
@@ -20,13 +20,7 @@ static func key_labels() -> String:
 
 
 static func _label_of(action: StringName) -> String:
-	if not InputMap.has_action(action):
-		return NO_KEY_LABEL
-	for event: InputEvent in InputMap.action_get_events(action):
-		var key: InputEventKey = event as InputEventKey
-		if key != null:
-			return key.as_text_physical_keycode()
-	return NO_KEY_LABEL
+	return InputLabels.primary_label(action)
 
 
 func _ready() -> void:
@@ -82,7 +76,10 @@ func _apply_text() -> void:
 		Mode.PLACE:
 			text = tr("placement.hint.place") % key_labels()
 		Mode.SELECTED:
-			text = tr("placement.hint.selected") % key_labels()
+			text = (
+				tr("placement.hint.selected")
+				% [key_labels(), InputLabels.primary_label(&"item_delete")]
+			)
 		_:
 			text = ""
 
