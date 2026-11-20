@@ -12,9 +12,12 @@
 // glow_hdr_threshold, so the mark adds no bloom. No shadows, no depth write (the item below has
 // already written the same depth), and no screen, depth or normal texture is read.
 //
-// Order: render_priority -4, like the ghost, so the caustics (-3) and the depth tint (-2) of the
-// water multiply over the mark as over the item, and the mark sits in the water instead of on top
-// of it.
+// Order: render_priority -1 (set on item_selection_material.tres), the same as the water surface
+// and unlike the ghost (-4). The mark is drawn after the caustics (-3) and the depth tint (-2),
+// which have already shaded the item below it, so the cream rim keeps its colour instead of being
+// tinted olive by the water; through the rim's partial opacity the item still shows its water
+// shading. It shares -1 with the water surface (the two are sorted by depth) and stays below the
+// glass (0), so the glass tint still lies over it.
 shader_type spatial;
 render_mode blend_mix, unshaded, cull_back, depth_draw_never, shadows_disabled;
 
