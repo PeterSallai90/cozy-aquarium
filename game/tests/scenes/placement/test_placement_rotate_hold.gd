@@ -47,9 +47,9 @@ func _open(model: AquariumModel = null) -> bool:
 
 
 ## Two items; the first stands at the free angle 10 and is selected by a click.
-func _select_first() -> bool:
+func _select_first(start_deg: float = START_DEG) -> bool:
 	var model: AquariumModel = Rig.model()
-	Rig.add_item(model, FIRST, Rig.BRANCH, -0.1, 0.0, START_DEG)
+	Rig.add_item(model, FIRST, Rig.BRANCH, -0.1, 0.0, start_deg)
 	Rig.add_item(model, SECOND, Rig.STONE, 0.15, 0.0, 0.0)
 	if not await _open(model):
 		return false
@@ -107,20 +107,20 @@ func test_ac27_a_tap_shows_the_pending_angle_at_once_and_commits_one_step_on_rel
 		return
 	_s.key(KEY_COMMA, true)
 	assert_bool(_s.holding()).is_true()
-	_drawn_is(START_DEG + 15.0)
+	_drawn_is(15.0)
 	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal(START_DEG)
 	assert_int(_changed_count()).is_equal(0)
 	assert_int(_s.history.get_undo_count()).is_equal(0)
 	_s.key(KEY_COMMA, false)
 	assert_bool(_s.holding()).is_false()
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(25.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(15.0, 0.001)
 	assert_int(_changed_count()).is_equal(1)
 	assert_int(_s.history.get_undo_count()).is_equal(1)
-	_drawn_is(25.0)
+	_drawn_is(15.0)
 	assert_bool(_s.history.undo()).is_true()
 	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal(START_DEG)
 	assert_bool(_s.history.redo()).is_true()
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(25.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(15.0, 0.001)
 
 
 func test_ac27_period_turns_the_item_clockwise_a_negative_step() -> void:
@@ -140,7 +140,7 @@ func test_ac27_a_hold_with_0_1_and_5_repeat_ticks_is_one_history_entry() -> void
 		_s.key(KEY_COMMA, true)
 		if ticks > 0:
 			_s.step(_time_for(ticks))
-		var final_deg: float = fposmod(START_DEG + 15.0 * (ticks + 1), 360.0)
+		var final_deg: float = fposmod(15.0 + 15.0 * ticks, 360.0)
 		_drawn_is(final_deg)
 		assert_int(_s.history.get_undo_count()).is_equal(0)
 		assert_int(_changed_count()).is_equal(0)
@@ -164,23 +164,23 @@ func test_ac27_a_hold_with_0_1_and_5_repeat_ticks_is_one_history_entry() -> void
 
 
 func test_ac27_24_steps_of_15_degrees_end_at_the_start_and_run_no_command() -> void:
-	if not await _select_first():
+	if not await _select_first(30.0):
 		return
 	_s.key(KEY_COMMA, true)
 	_s.step(_time_for(23))
-	_drawn_is(START_DEG)
+	_drawn_is(30.0)
 	_s.key(KEY_COMMA, false)
-	_assert_cancelled()
+	_assert_cancelled(30.0)
 
 
 func test_ac27_24_repeat_ticks_end_one_step_past_the_start_and_run_one_command() -> void:
-	if not await _select_first():
+	if not await _select_first(30.0):
 		return
 	_s.key(KEY_COMMA, true)
 	_s.step(_time_for(24))
 	_s.key(KEY_COMMA, false)
 	assert_int(_s.history.get_undo_count()).is_equal(1)
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(25.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(45.0, 0.001)
 
 
 func test_ac27_a_hold_with_shift_turns_in_one_degree_steps() -> void:
@@ -241,7 +241,7 @@ func test_ac41_a_esc_during_the_hold_cancels_it_and_keeps_the_selection() -> voi
 	_assert_cancelled()
 	_s.key(KEY_COMMA, true)
 	assert_bool(_s.holding()).is_true()
-	_drawn_is(START_DEG + 15.0)
+	_drawn_is(15.0)
 	_s.key(KEY_COMMA, false)
 	assert_int(_s.history.get_undo_count()).is_equal(1)
 
@@ -262,20 +262,20 @@ func test_ac41_switching_keys_ends_the_first_hold_and_starts_a_new_one() -> void
 	_s.key(KEY_COMMA, true)
 	_s.key(KEY_PERIOD, true)
 	assert_int(_s.history.get_undo_count()).is_equal(1)
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(25.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(15.0, 0.001)
 	assert_bool(_s.holding()).is_true()
-	_drawn_is(START_DEG)
+	_drawn_is(0.0)
 	_s.step(Api.tuning("REPEAT_DELAY_S") * 1.1)
-	_drawn_is(355.0)
+	_drawn_is(345.0)
 	_s.key(KEY_COMMA, false)
 	assert_bool(_s.holding()).is_true()
-	_drawn_is(355.0)
+	_drawn_is(345.0)
 	_s.key(KEY_PERIOD, false)
 	assert_bool(_s.holding()).is_false()
 	assert_int(_s.history.get_undo_count()).is_equal(2)
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(355.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(345.0, 0.001)
 	assert_bool(_s.history.undo()).is_true()
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(25.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(15.0, 0.001)
 	assert_bool(_s.history.undo()).is_true()
 	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal(START_DEG)
 
@@ -284,7 +284,7 @@ func test_ac41_a_click_on_empty_world_cancels_the_hold_before_the_click_is_handl
 	if not await _select_first():
 		return
 	_s.key(KEY_COMMA, true)
-	_s.click(_s.screen_of(0.0, -0.1))
+	_s.click(_s.screen_of(0.0, 0.1))
 	_assert_cancelled()
 	assert_str(_s.selected_uid()).is_equal("")
 	assert_array(_s.selection_timeline).is_equal(["selected:%s" % FIRST, "cleared"])
@@ -413,7 +413,7 @@ func test_ac41_a_key_release_ends_the_hold_wherever_the_pointer_is() -> void:
 	_s.key(KEY_COMMA, false)
 	assert_bool(_s.holding()).is_false()
 	assert_int(_s.history.get_undo_count()).is_equal(1)
-	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(25.0, 0.001)
+	assert_float(_s.model.get_item(FIRST).rotation_y).is_equal_approx(15.0, 0.001)
 	var item: PlacedItem = _s.model.get_item(FIRST)
 	assert_vector(item.position).is_equal(Vector3(-0.1, 0.0, 0.0))
 

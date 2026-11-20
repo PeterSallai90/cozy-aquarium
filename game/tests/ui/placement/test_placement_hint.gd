@@ -135,7 +135,7 @@ func test_ac38_a_remapped_key_changes_the_label() -> void:
 	InputMap.action_erase_events("place_rotate_left")
 	for event: InputEvent in original:
 		InputMap.action_add_event("place_rotate_left", event)
-	assert_str(key_text).begins_with(remapped.as_text_physical_keycode())
+	assert_str(key_text).starts_with(remapped.as_text_physical_keycode())
 	assert_str(shown).contains(remapped.as_text_physical_keycode())
 
 

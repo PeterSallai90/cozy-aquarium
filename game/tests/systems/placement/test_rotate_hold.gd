@@ -3,8 +3,8 @@ extends GdUnitTestSuite
 ## frame times. press(direction, start_deg, fine) turns by one step at once; tick(delta_s, fine)
 ## returns the repeat steps of the frame: the first repeat comes after REPEAT_DELAY_S, then one
 ## step every REPEAT_INTERVAL_S (FINE_REPEAT_INTERVAL_S with Shift, read again at every tick);
-## release() and cancel() end the hold. get_pending_deg() is the angle the view shows: the start
-## plus N + 1 steps, normalised. The constants come from PlacementTuning.
+## release() and cancel() end the hold. get_pending_deg() is the angle the view shows: N + 1
+## applications of RotationStep.step (AC 12), normalised. The constants come from PlacementTuning.
 ## Test decisions where the plan is silent: a single tick() call with a long delta returns every
 ## step that is due (it does not cap at one); the timing checks avoid the exact boundaries, so a
 ## timer that carries its remainder or resets it both pass; the "24 steps" edge case of AC 27 is
@@ -120,14 +120,14 @@ func test_ac27_hold_with_0_1_5_and_23_repeat_ticks_ends_at_start_plus_n_plus_1_s
 		return
 	for ticks: int in [0, 1, 5, 23]:
 		var hold: RefCounted = Api.new_hold()
-		hold.call("press", 1, 10.0, false)
+		hold.call("press", 1, 30.0, false)
 		var made: int = _run(hold, _time_for(ticks)) if ticks > 0 else 0
 		(
 			assert_int(made)
 			. override_failure_message("%d ticks wanted, %d made" % [ticks, made])
 			. is_equal(ticks)
 		)
-		_same_angle(_pending(hold), 10.0 + 15.0 * (ticks + 1))
+		_same_angle(_pending(hold), 30.0 + 15.0 * (ticks + 1))
 		assert_bool(hold.call("is_active")).is_true()
 
 
@@ -135,27 +135,27 @@ func test_ac27_23_ticks_of_15_degrees_come_back_to_the_start() -> void:
 	if not _have():
 		return
 	var hold: RefCounted = Api.new_hold()
-	hold.call("press", 1, 10.0, false)
+	hold.call("press", 1, 30.0, false)
 	_run(hold, _time_for(23))
-	_same_angle(_pending(hold), 10.0)
+	_same_angle(_pending(hold), 30.0)
 
 
 func test_ac27_24_ticks_end_one_step_past_the_start() -> void:
 	if not _have():
 		return
 	var hold: RefCounted = Api.new_hold()
-	hold.call("press", 1, 10.0, false)
+	hold.call("press", 1, 30.0, false)
 	_run(hold, _time_for(24))
-	_same_angle(_pending(hold), 25.0)
+	_same_angle(_pending(hold), 45.0)
 
 
 func test_ac10_the_right_key_repeats_downward() -> void:
 	if not _have():
 		return
 	var hold: RefCounted = Api.new_hold()
-	hold.call("press", -1, 10.0, false)
+	hold.call("press", -1, 30.0, false)
 	_run(hold, _time_for(3))
-	_same_angle(_pending(hold), 10.0 - 15.0 * 4)
+	_same_angle(_pending(hold), 30.0 - 15.0 * 4)
 
 
 func test_ac10_the_fine_step_repeats_at_the_fine_interval() -> void:
@@ -240,7 +240,7 @@ func test_ac41_switching_keys_is_a_release_and_a_new_press() -> void:
 	var hold: RefCounted = Api.new_hold()
 	hold.call("press", 1, 10.0, false)
 	hold.call("release")
-	hold.call("press", -1, 25.0, false)
+	hold.call("press", -1, 15.0, false)
 	assert_bool(hold.call("is_active")).is_true()
 	assert_int(hold.call("get_direction")).is_equal(-1)
-	_same_angle(_pending(hold), 10.0)
+	_same_angle(_pending(hold), 0.0)
