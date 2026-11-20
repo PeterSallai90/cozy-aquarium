@@ -1,11 +1,12 @@
 # ADR 0008: World input routing and modal blocking
 
 - Status: Accepted (pull request for #25; gated by `needs:owner`)
-- Date: 2026-11-11; Amendment 1 (#31): 2026-11-20
+- Date: 2026-11-11; Amendment 1 (#31): 2026-11-20; Amendment 2 (#32): 2026-11-20
 - Decision log reference: none (no row in the decisions table changes); refines the "Camera" row
   of Core systems in docs/architecture.md
 - Issue: #25 (B14 orbit camera); used by #26 (zoom, pan, Home), #44/#45 (photo mode), #81
-  (remappable bindings) and the placement system (#31, Amendment 1)
+  (remappable bindings), the placement system (#31, Amendment 1) and delete and undo/redo
+  shortcuts (#32, Amendment 2)
 
 ## Context
 
@@ -133,3 +134,74 @@ selection.
   a fake blocker.
 - #81 remaps the two rotate actions by name; Shift as the fine modifier is not remappable there
   unless #81 decides otherwise with a new amendment.
+
+## Amendment 2 (#32, delete and undo/redo shortcuts)
+
+- Status: Accepted (pull request for #32; gated by `needs:owner`). No row of the decisions table
+  changes; rules 1 to 11 stay in force except where this amendment says so.
+- Date: 2026-11-20
+
+### Context
+
+#32 adds three shortcuts: Delete removes the selected item (a world action), Ctrl+Z undoes and
+Ctrl+Y or Ctrl+Shift+Z redoes (global actions). All three are blocked during a drag, a rotate
+hold, a modal dialog, photo mode and while a text field has the focus; Delete is also blocked by a
+pick. A text field keeps its own Ctrl+Z. Only placement knows whether a drag or a rotate hold is
+running, and the history buttons live in the HUD, which may not reference placement. Rule 5 binds
+keys by physical code; on the Hungarian QWERTZ layout the physical Z position is labelled Y, so a
+physical Ctrl+Z would be "Ctrl+Y" for a Hungarian player and the two shortcuts would swap.
+
+### Decision
+
+12. **Delete is a world action of placement.** `item_delete` (physical Delete, no modifier) is read
+    by `PlacementSystem` in `_unhandled_input` with `exact_match = true` and no echo (rules 1 and
+    5), so Shift+Delete and Ctrl+Delete do nothing and a focused text field keeps its Delete key. It
+    acts only on the selection, with no pick, no running gesture, no blocker, no text focus and a
+    history that is not busy. A focused `Button` does not block it (rule 11). The HUD Delete button
+    and the colour dots do not run commands: they emit `EventBus.item_delete_requested` and
+    `EventBus.item_colour_requested(has_colour, colour)`, and placement answers both with the same
+    checks as the key (ADR 0012 Amendment 1), so every item edit has one owner.
+13. **Undo and redo are global HUD actions.** `history_undo` (Ctrl+Z) and `history_redo` (Ctrl+Y
+    and Ctrl+Shift+Z) are read by `HistoryControls` (a child of the `Hud` CanvasLayer) in
+    `_unhandled_input` with `exact_match = true` and no echo; one press is one step. Because the
+    GUI runs first (rule 1), a focused `LineEdit` or `TextEdit` consumes its own Ctrl+Z and Ctrl+Y
+    (`ui_undo`, `ui_redo`); the handler also checks `WorldInput.is_text_focused` as a second guard.
+    The handler and the two buttons do nothing while `WorldInput.is_blocked`, while
+    `WorldInput.is_gesture_running` or while `CommandHistory.is_busy()`; a pick does not block
+    them. "Global" means not tied to the selection or the tank; it never means "through a blocker".
+14. **Letter shortcuts bind the logical key.** Exception to rule 5: the events of `history_undo`
+    and `history_redo` use `keycode` (the key label of the active layout) with `ctrl_pressed`, not
+    `physical_keycode`, so Ctrl+Z is the key labelled Z on QWERTY and QWERTZ alike. Positional keys
+    (camera, rotate, Delete) stay physical. Tooltips and hints read the label of an action's first
+    key event from the live input map (`InputLabels`, logical or physical as bound).
+15. **An action may have more than one event.** Rule 7's "one event each" applies to the two
+    rotate actions only (it is how the Shift fine step works). `history_redo` has two events; the
+    first (Ctrl+Y) is the one shown in tooltips. #81 remaps per event and refuses a conflict with
+    any other action's event; the existing "no two actions share a binding" test covers all events.
+16. **Running gestures are queried through a group.** A world system with gestures joins the group
+    `world_gesture_sources` (`WorldInput.GESTURE_GROUP`) in `_ready` and implements
+    `has_running_gesture() -> bool`. `WorldInput.is_gesture_running(tree)` is true when any member
+    in the tree reports a running gesture. Placement reports a press on an item, a drag, any
+    rotate hold, and the tail of a rotate hold cancelled by a modifier (#31 AC 41 (d), unchanged).
+    The tail ends when Ctrl, Alt and Meta are all up, or when the first non-modifier key pressed
+    after the cancel (or carried by the cancelling event) is released. Placement cancels in
+    `_input`, before the HUD reads the key, so without the tail the Ctrl+Z whose Ctrl cancelled the
+    hold would undo a step; with it, that press does nothing (#32 AC 20) and the next Ctrl+Z press
+    undoes as usual. The still-held rotate key does not restart the hold (echoes are ignored). Like
+    rule 4 it is a stateless query: no EventBus state signal, no counter, and a freed system leaves
+    the group by itself.
+17. **Tree order.** `HistoryControls` and `ItemActions` (the Delete button and the colour row) are
+    children of `Hud`, after `TankControls` and `PlacementHint`. They handle no Esc and no world
+    key, so rule 9 is unchanged: placement stays under `RoomCorner`, before `Hud`, and its idle Esc
+    and Delete run after the HUD; a main-scene test pins the order.
+
+### Consequences
+
+- The Reserved keys text of docs/architecture.md lists Delete (world, no modifier) and Ctrl+Z,
+  Ctrl+Y and Ctrl+Shift+Z (global undo and redo).
+- #44 photo mode blocks the shortcuts through its blocker (rule 10); #69 text entry keeps its own
+  Ctrl+Z through rule 1; #81 remaps `item_delete`, `history_undo` and `history_redo` by name and
+  per event, keeping the logical binding of the letter shortcuts. Meta+Z (macOS) is not bound;
+  #81 may add it as a further event.
+- Later gesture owners (photo mode, feeding) join `world_gesture_sources` when undo must wait for
+  them.
