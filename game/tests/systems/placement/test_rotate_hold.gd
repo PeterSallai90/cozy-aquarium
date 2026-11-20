@@ -3,12 +3,15 @@ extends GdUnitTestSuite
 ## frame times. press(direction, start_deg, fine) turns by one step at once; tick(delta_s, fine)
 ## returns the repeat steps of the frame: the first repeat comes after REPEAT_DELAY_S, then one
 ## step every REPEAT_INTERVAL_S (FINE_REPEAT_INTERVAL_S with Shift, read again at every tick);
-## release() and cancel() end the hold. get_pending_deg() is the angle the view shows: N + 1
-## applications of RotationStep.step (AC 12), normalised. The constants come from PlacementTuning.
+## release() and cancel() end the hold. get_pending_deg() is the angle the view shows: the start
+## angle plus or minus (N + 1) whole steps of 15 degrees (1 degree with Shift), normalised; the
+## rule is additive, never snapping (AC 12, owner correction 2026-11-20). The constants come from
+## PlacementTuning.
 ## Test decisions where the plan is silent: a single tick() call with a long delta returns every
 ## step that is due (it does not cap at one); the timing checks avoid the exact boundaries, so a
 ## timer that carries its remainder or resets it both pass; the "24 steps" edge case of AC 27 is
-## 23 repeat ticks (press plus 23 ticks = 24 steps = 360 degrees); 24 ticks end at start + 15.
+## 23 repeat ticks (press plus 23 ticks = 24 steps = 360 degrees) and holds from any start angle,
+## a multiple of 15 and a free angle such as 10; 24 ticks end at start + 15.
 
 const Api := preload("res://tests/helpers/placement_api.gd")
 
@@ -88,7 +91,7 @@ func test_ac27_press_turns_one_step_at_once_and_records_direction_and_start() ->
 	assert_bool(hold.call("is_active")).is_true()
 	assert_int(hold.call("get_direction")).is_equal(1)
 	assert_float(hold.call("get_start_deg")).is_equal_approx(10.0, 0.0001)
-	_same_angle(_pending(hold), 15.0)
+	_same_angle(_pending(hold), 25.0)
 
 
 func test_ac27_press_right_and_fine_follow_rotation_step() -> void:
@@ -96,7 +99,7 @@ func test_ac27_press_right_and_fine_follow_rotation_step() -> void:
 		return
 	var hold: RefCounted = Api.new_hold()
 	hold.call("press", -1, 10.0, false)
-	_same_angle(_pending(hold), 0.0)
+	_same_angle(_pending(hold), 355.0)
 	hold.call("cancel")
 	hold.call("press", -1, 0.0, true)
 	_same_angle(_pending(hold), 359.0)
@@ -131,13 +134,41 @@ func test_ac27_hold_with_0_1_5_and_23_repeat_ticks_ends_at_start_plus_n_plus_1_s
 		assert_bool(hold.call("is_active")).is_true()
 
 
-func test_ac27_23_ticks_of_15_degrees_come_back_to_the_start() -> void:
+func test_ac27_a_hold_from_the_free_angle_10_adds_whole_steps() -> void:
 	if not _have():
 		return
-	var hold: RefCounted = Api.new_hold()
-	hold.call("press", 1, 30.0, false)
-	_run(hold, _time_for(23))
-	_same_angle(_pending(hold), 30.0)
+	for ticks: int in [0, 1, 5, 23]:
+		var hold: RefCounted = Api.new_hold()
+		hold.call("press", 1, 10.0, false)
+		if ticks > 0:
+			_run(hold, _time_for(ticks))
+		_same_angle(_pending(hold), 10.0 + 15.0 * (ticks + 1))
+	var five: RefCounted = Api.new_hold()
+	five.call("press", 1, 10.0, false)
+	_run(five, _time_for(5))
+	_same_angle(_pending(five), 100.0)
+
+
+func test_ac27_a_right_hold_from_the_free_angle_10_subtracts_whole_steps() -> void:
+	if not _have():
+		return
+	for ticks: int in [0, 1, 5]:
+		var hold: RefCounted = Api.new_hold()
+		hold.call("press", -1, 10.0, false)
+		if ticks > 0:
+			_run(hold, _time_for(ticks))
+		_same_angle(_pending(hold), 10.0 - 15.0 * (ticks + 1))
+
+
+func test_ac27_23_ticks_of_15_degrees_come_back_to_the_start_from_any_angle() -> void:
+	if not _have():
+		return
+	for start: float in [30.0, 10.0, 37.5]:
+		for direction: int in [1, -1]:
+			var hold: RefCounted = Api.new_hold()
+			hold.call("press", direction, start, false)
+			_run(hold, _time_for(23))
+			_same_angle(_pending(hold), start)
 
 
 func test_ac27_24_ticks_end_one_step_past_the_start() -> void:
@@ -228,10 +259,10 @@ func test_ac41_a_new_press_after_a_cancel_starts_a_fresh_hold_with_a_fresh_delay
 	hold.call("press", -1, 100.0, false)
 	assert_int(hold.call("get_direction")).is_equal(-1)
 	assert_float(hold.call("get_start_deg")).is_equal_approx(100.0, 0.0001)
-	_same_angle(_pending(hold), 90.0)
+	_same_angle(_pending(hold), 85.0)
 	assert_int(_run(hold, Api.tuning("REPEAT_DELAY_S") * 0.9)).is_equal(0)
 	_run(hold, Api.tuning("REPEAT_DELAY_S") * 0.2)
-	_same_angle(_pending(hold), 75.0)
+	_same_angle(_pending(hold), 70.0)
 
 
 func test_ac41_switching_keys_is_a_release_and_a_new_press() -> void:

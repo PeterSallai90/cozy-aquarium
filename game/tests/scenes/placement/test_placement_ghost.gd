@@ -280,7 +280,7 @@ func test_ac10_shift_turns_the_ghost_by_one_degree() -> void:
 	_s.tap(KEY_PERIOD, KEY_MASK_SHIFT)
 	assert_float(_s.ghost_rotation()).is_equal_approx(359.0, 0.001)
 	_s.tap(KEY_COMMA)
-	assert_float(_s.ghost_rotation()).is_equal_approx(0.0, 0.001)
+	assert_float(_s.ghost_rotation()).is_equal_approx(14.0, 0.001)
 
 
 func test_ac10_the_ghost_rotation_resets_when_the_pick_changes_or_is_cleared() -> void:
@@ -362,7 +362,7 @@ func test_ac10_releasing_shift_mid_hold_returns_the_repeat_to_15_degree_steps() 
 	assert_float(_s.ghost_rotation()).is_equal_approx(1.0, 0.001)
 	_s.shift(false)
 	_s.step(delay * 1.1)
-	assert_float(_s.ghost_rotation()).is_equal_approx(15.0, 0.001)
+	assert_float(_s.ghost_rotation()).is_equal_approx(16.0, 0.001)
 
 
 func test_ac07_a_substrate_change_moves_the_ghost_with_the_new_surface() -> void:
