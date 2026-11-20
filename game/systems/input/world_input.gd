@@ -20,6 +20,13 @@ static func is_text_focused(viewport: Viewport) -> bool:
 	return owner is LineEdit or owner is TextEdit
 
 
+## True when Ctrl, Alt and Meta are all up. Shift never matters here: Shift alone is the one
+## modifier the two rotate actions allow (ADR 0008 Amendment 1 rule 7); it only selects the fine
+## step.
+static func allows_fine_modifier(event: InputEventWithModifiers) -> bool:
+	return not (event.ctrl_pressed or event.alt_pressed or event.meta_pressed)
+
+
 ## True when a visible Control that stops the mouse covers the position. The engine marks the
 ## wheel as handled only for controls that use it, so the world checks this itself.
 static func is_over_stop_control(root: Node, position: Vector2) -> bool:

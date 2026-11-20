@@ -46,6 +46,7 @@ ALLOWED_AREAS: tuple[str, ...] = (
     "datetime",
     "number",
     "unit",
+    "placement",
 )
 KEY_PATTERN = re.compile(r"[a-z0-9_]+(?:\.[a-z0-9_]+)+\Z")
 PLURAL_SUFFIX = ".plural"

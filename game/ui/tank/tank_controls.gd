@@ -12,6 +12,7 @@ var _model: AquariumModel = null
 var _catalog: TankCatalog = null
 var _substrates: SubstrateCatalog = null
 var _items: ItemCatalog = null
+var _item_source: ItemCatalogSource = null
 var _items_by_keyboard: bool = false
 var _history: CommandHistory = null
 var _panels: Array[Control] = []
@@ -31,19 +32,22 @@ var _asked_card: Button = null
 
 
 ## Before the node enters the tree. Without `substrates` the catalog directory is loaded. Without
-## `items` the item browser loads the shipped item folders when it is first opened.
+## `items` the item browser loads the shipped item folders when it is first opened, through the
+## shared `item_source` when there is one (#31).
 func setup(
 	model: AquariumModel,
 	catalog: TankCatalog,
 	history: CommandHistory,
 	substrates: SubstrateCatalog = null,
-	items: ItemCatalog = null
+	items: ItemCatalog = null,
+	item_source: ItemCatalogSource = null
 ) -> void:
 	_model = model
 	_catalog = catalog
 	_history = history
 	_substrates = substrates
 	_items = items
+	_item_source = item_source
 
 
 func _ready() -> void:
@@ -64,7 +68,7 @@ func _ready() -> void:
 	_panels.append(_browser)
 	_openers[_substrate_chooser] = _substrate_button
 	_openers[_browser] = _items_button
-	_browser.setup(_model, _items)
+	_browser.setup(_model, _items, _item_source)
 	_substrate_chooser.setup(_model, _substrates)
 	_details.setup(_model, _catalog)
 	_open_button.pressed.connect(_on_open_pressed)

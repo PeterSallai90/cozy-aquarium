@@ -175,6 +175,7 @@ class ConstantsAndKeyRuleTest(unittest.TestCase):
                 "datetime",
                 "number",
                 "unit",
+                "placement",
             ),
         )
 

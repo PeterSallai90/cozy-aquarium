@@ -70,6 +70,12 @@ msgstr "River stone"
 msgid "number.unknown"
 msgstr "Unknown"
 
+msgid "placement.hint.place"
+msgstr "Click to place, %s to turn (Shift: fine), Esc to step back."
+
+msgid "placement.hint.selected"
+msgstr "Drag to move, %s to turn (Shift: fine), Esc to step back."
+
 msgid "settings.close"
 msgstr "Close"
 

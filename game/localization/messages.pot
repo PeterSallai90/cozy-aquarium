@@ -69,6 +69,12 @@ msgstr ""
 msgid "number.unknown"
 msgstr ""
 
+msgid "placement.hint.place"
+msgstr ""
+
+msgid "placement.hint.selected"
+msgstr ""
+
 msgid "settings.close"
 msgstr ""
 

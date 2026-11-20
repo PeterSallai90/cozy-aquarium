@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" uid="uid://dtgpolltne2nf" path="res://shaders/item_selection_glow.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "item_selection"
+render_priority = -1
+shader = ExtResource("1_shader")
+shader_parameter/glow_colour = Color(1, 0.86, 0.62, 1)
+shader_parameter/fresnel_strength = 0.7
+shader_parameter/fresnel_power = 1.6

@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://systems/placement/placement_system.gd" id="1_system"]
+[ext_resource type="Script" path="res://scenes/tank/items/placed_items_view.gd" id="2_view"]
+[ext_resource type="Script" path="res://scenes/tank/items/item_ghost.gd" id="3_ghost"]
+
+[node name="Placement" type="Node3D"]
+script = ExtResource("1_system")
+
+[node name="PlacedItems" type="Node3D" parent="."]
+script = ExtResource("2_view")
+
+[node name="Ghost" type="Node3D" parent="."]
+visible = false
+script = ExtResource("3_ghost")

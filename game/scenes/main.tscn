@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/room/room_corner.tscn" id="1_room"]
 [ext_resource type="PackedScene" path="res://ui/tank/tank_controls.tscn" id="2_controls"]
+[ext_resource type="PackedScene" path="res://ui/placement/placement_hint.tscn" id="3_hint"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -12,3 +13,5 @@ script = ExtResource("1_main")
 [node name="Hud" type="CanvasLayer" parent="."]
 
 [node name="TankControls" parent="Hud" instance=ExtResource("2_controls")]
+
+[node name="PlacementHint" parent="Hud" instance=ExtResource("3_hint")]
