@@ -4,6 +4,10 @@
 // Back faces are culled, which makes the single-sided room walls vanish when seen from outside
 // (the dollhouse cut-away of #22). Atlas cells with UV2.y >= emission_from_v glow (the bottom row
 // of the atlas, for example the LED diffuser under the lamp bar); 1.0 switches the glow off.
+// vertex_shade multiplies the atlas colour by the vertex colour RGB (a linear shade multiplier
+// baked by the generator, for example crevice darkening and grain on decor items, #157). The
+// default 0.0 ignores the vertex colours, so the room, cabinet, lamp and tank look unchanged;
+// the decor material sets 1.0. The vertex colour alpha is not read here.
 shader_type spatial;
 render_mode cull_back;
 
@@ -12,10 +16,11 @@ uniform float roughness : hint_range(0.0, 1.0) = 0.75;
 uniform float specular_amount : hint_range(0.0, 1.0) = 0.5;
 uniform float emission_from_v : hint_range(0.0, 1.0) = 1.0;
 uniform float emission_energy : hint_range(0.0, 16.0) = 0.0;
+uniform float vertex_shade : hint_range(0.0, 1.0) = 0.0;
 
 void fragment() {
 	vec3 colour = texture(palette_atlas, UV2).rgb;
-	ALBEDO = colour;
+	ALBEDO = colour * mix(vec3(1.0), COLOR.rgb, vertex_shade);
 	ROUGHNESS = roughness;
 	SPECULAR = specular_amount;
 	EMISSION = colour * emission_energy * step(emission_from_v, UV2.y);
