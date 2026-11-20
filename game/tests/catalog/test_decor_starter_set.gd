@@ -52,8 +52,8 @@ const PH_EFFECT: Dictionary[String, ItemDefinition.WaterEffect] = {
 }
 ## The float fields of the domain-ba table, in the order stone, branch, amphora.
 const FLOATS: Dictionary[String, Array] = {
-	"weight_kg": [0.75, 0.6, 0.35],
-	"volume_displacement_l": [0.3, 0.5, 0.2],
+	"weight_kg": [0.80, 0.40, 0.30],
+	"volume_displacement_l": [0.30, 0.35, 0.20],
 	"tannin_release": [0.0, 0.4, 0.0],
 	"hiding_quality": [0.0, 0.0, 0.7],
 	"shade_cover": [0.05, 0.1, 0.4],
