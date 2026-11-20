@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## starter items in the shipped game/catalog/decor folder, on purpose the real shipped data. The
 ## generic shipped-data rules (file name = id, files exist, value ranges) stay in
 ## test_item_catalog_shipped.gd; this file pins what is specific to river_stone, driftwood_branch
-## and clay_amphora: the ids, categories, keys, paths, colourable false, sort order 10, every
-## Mode 2 value of the domain-ba table, the scene wrappers and the six translation keys.
+## and clay_amphora: the ids, categories, keys, paths, colourable true for clay_amphora only (#32),
+## sort order 10, every Mode 2 value of the domain-ba table, the scene wrappers and the six
+## translation keys.
 ##
 ## Group that makes this file pass: developer (the .tres files, the three .tscn wrappers and
 ## the .po/.pot entries). The wrappers and the thumbnails need the technical-artist files first
@@ -166,7 +167,10 @@ func test_ac02_category_keys_paths_colourable_and_sort_order() -> void:
 		assert_str(String(definition.id)).is_equal(id)
 		assert_str(definition.name_key).is_equal("item.%s.name" % id)
 		assert_str(definition.description_key).is_equal("item.%s.description" % id)
-		assert_bool(definition.colourable).override_failure_message(id).is_false()
+		# #32 (owner decision on #157 Q3, option B): only the amphora is colourable.
+		assert_bool(definition.colourable).override_failure_message(id).is_equal(
+			id == "clay_amphora"
+		)
 		assert_int(definition.sort_order).override_failure_message(id).is_equal(10)
 		assert_object(definition.scene).override_failure_message("%s scene" % id).is_not_null()
 		if definition.scene != null:

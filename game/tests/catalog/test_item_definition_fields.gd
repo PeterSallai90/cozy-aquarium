@@ -43,8 +43,8 @@ func test_ac01_the_stored_fields_are_exactly_the_three_tables() -> void:
 		assert_bool(expected.has(field)).override_failure_message("%s is extra" % field).is_true()
 
 
-func test_ac01_the_field_blocks_hold_8_17_and_15_fields() -> void:
-	assert_int(Items.MODE_1.size()).is_equal(8)
+func test_ac01_the_field_blocks_hold_9_17_and_15_fields() -> void:
+	assert_int(Items.MODE_1.size()).is_equal(9)
 	assert_int(Items.COMMON.size()).is_equal(17)
 	assert_int(Items.PLANT.size()).is_equal(15)
 

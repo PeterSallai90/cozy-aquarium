@@ -28,7 +28,7 @@ const FishSource := preload("res://tests/helpers/proof_fish_source.gd")
 const MODEL_DIR := "res://assets/items/models/"
 const ATLAS_PATH := "res://assets/items/decor_palette_atlas.png"
 const MATERIAL_PATH := "res://assets/items/materials/decor_palette.tres"
-const SHADER_PATH := "res://shaders/palette_atlas.gdshader"
+const SHADER_PATH := "res://shaders/decor_item.gdshader"
 const IDS: Array[String] = ["river_stone", "driftwood_branch", "clay_amphora"]
 const SIZE_CM: Dictionary[String, Vector3] = {
 	"river_stone": Vector3(11.0, 6.0, 8.0),

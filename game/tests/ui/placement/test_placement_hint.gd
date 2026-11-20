@@ -18,9 +18,9 @@ const Browser := preload("res://tests/helpers/item_browser_rig.gd")
 const MAIN_SCENE := "res://scenes/main.tscn"
 const WINDOW := Vector2i(1152, 648)
 const EN_PLACE := "Click to place, %s to turn (Shift: fine), Esc to step back."
-const EN_SELECTED := "Drag to move, %s to turn (Shift: fine), Esc to step back."
+const EN_SELECTED := "Drag to move, %s to turn (Shift: fine), %s to delete, Esc to step back."
 const HU_PLACE := "Kattints a lerakáshoz, %s: forgatás (Shift: finom), Esc: vissza."
-const HU_SELECTED := "Húzással mozgathatod, %s: forgatás (Shift: finom), Esc: vissza."
+const HU_SELECTED := "Húzással mozgathatod, %s: forgatás (Shift: finom), %s: törlés, Esc: vissza."
 const KEYS_PATH := "res://localization"
 
 var _saved_locale: String = ""
@@ -66,6 +66,14 @@ func _labels() -> String:
 	var left: InputEventKey = InputMap.action_get_events("place_rotate_left")[0] as InputEventKey
 	var right: InputEventKey = InputMap.action_get_events("place_rotate_right")[0] as InputEventKey
 	return "%s / %s" % [left.as_text_physical_keycode(), right.as_text_physical_keycode()]
+
+
+## The label of the first event of item_delete from the live input map (#32 AC 25).
+func _delete_label() -> String:
+	var events: Array[InputEvent] = InputMap.action_get_events("item_delete")
+	if events.is_empty():
+		return "<no item_delete event>"
+	return (events[0] as InputEventKey).as_text_physical_keycode()
 
 
 func _shown() -> String:
@@ -144,7 +152,26 @@ func test_ac32_a_selection_shows_the_selected_text() -> void:
 		return
 	await _select()
 	assert_bool(_hint.is_visible_in_tree()).is_true()
-	assert_str(_shown()).is_equal(EN_SELECTED % _labels())
+	assert_str(_shown()).is_equal(EN_SELECTED % [_labels(), _delete_label()])
+
+
+func test_ac25_a_remapped_delete_key_changes_the_selected_text() -> void:
+	if not await _open_main():
+		return
+	if not InputMap.has_action("item_delete"):
+		assert_bool(false).override_failure_message("action item_delete is missing").is_true()
+		return
+	var original: Array[InputEvent] = InputMap.action_get_events("item_delete")
+	InputMap.action_erase_events("item_delete")
+	var remapped: InputEventKey = InputEventKey.new()
+	remapped.physical_keycode = KEY_BACKSPACE
+	InputMap.action_add_event("item_delete", remapped)
+	await _select()
+	var shown: String = _shown()
+	InputMap.action_erase_events("item_delete")
+	for event: InputEvent in original:
+		InputMap.action_add_event("item_delete", event)
+	assert_str(shown).is_equal(EN_SELECTED % [_labels(), remapped.as_text_physical_keycode()])
 
 
 func test_ac32_clearing_the_pick_or_the_selection_hides_the_hint() -> void:
@@ -171,7 +198,7 @@ func test_ac32_the_hint_retranslates_at_once_on_a_language_change() -> void:
 	assert_str(_shown()).is_equal(EN_PLACE % _labels())
 	await _select()
 	Localization.set_language("hu")
-	assert_str(_shown()).is_equal(HU_SELECTED % _labels())
+	assert_str(_shown()).is_equal(HU_SELECTED % [_labels(), _delete_label()])
 
 
 func test_ac37_the_hint_is_hidden_while_the_world_is_blocked() -> void:
@@ -241,7 +268,7 @@ func test_ac38_in_hungarian_the_hint_fits_the_window_and_meets_no_hud_control() 
 	_assert_layout()
 	EventBus.item_pick_cleared.emit()
 	await _select()
-	assert_str(_shown()).is_equal(HU_SELECTED % _labels())
+	assert_str(_shown()).is_equal(HU_SELECTED % [_labels(), _delete_label()])
 	_assert_layout()
 
 
@@ -266,8 +293,13 @@ func test_ac32_both_languages_have_both_texts_with_the_key_placeholder() -> void
 				. override_failure_message("%s: %s is empty" % [path, key])
 				. is_not_empty()
 			)
-			assert_str(text).override_failure_message("%s: %s has no %%s" % [path, key]).contains(
-				"%s"
+			var expected: int = 2 if key == "placement.hint.selected" else 1
+			(
+				assert_int(text.count("%s"))
+				. override_failure_message(
+					"%s: %s has %d %%s, expected %d" % [path, key, text.count("%s"), expected]
+				)
+				. is_equal(expected)
 			)
 	var template: String = FileAccess.get_file_as_string("%s/messages.pot" % KEYS_PATH)
 	assert_str(template).contains('msgid "placement.hint.place"')

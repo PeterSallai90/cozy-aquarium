@@ -51,6 +51,30 @@ func test_ac09_the_fixture_has_a_non_default_value_in_every_mode_2_field() -> vo
 			)
 
 
+func test_ac13_the_fixture_has_non_default_colour_swatches_that_survive_a_save() -> void:
+	if not _have_class():
+		return
+	var fixture: Resource = load(ROUND_ITEM) as Resource
+	assert_object(fixture).is_not_null()
+	if fixture == null:
+		return
+	var raw: Variant = fixture.get("colour_swatches")
+	assert_bool(raw is Array).override_failure_message("colour_swatches is missing").is_true()
+	if not raw is Array:
+		return
+	var swatches: Array = raw
+	assert_int(swatches.size()).override_failure_message("colour_swatches").is_equal(2)
+	assert_int(ResourceSaver.save(fixture.duplicate() as Resource, SAVED)).is_equal(OK)
+	var loaded: Resource = ResourceLoader.load(SAVED, "", ResourceLoader.CACHE_MODE_IGNORE)
+	assert_object(loaded).is_not_null()
+	if loaded == null:
+		return
+	var back: Array = loaded.get("colour_swatches") as Array
+	assert_int(back.size()).is_equal(2)
+	for index: int in swatches.size():
+		assert_bool((back[index] as Color).is_equal_approx(swatches[index] as Color)).is_true()
+
+
 func test_ac09_every_enum_field_of_the_fixture_is_not_unset() -> void:
 	if not _have_class():
 		return
