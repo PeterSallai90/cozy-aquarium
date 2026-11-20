@@ -1,0 +1,27 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
+
+[ext_resource type="Shader" uid="uid://c83kyvx5fqquh" path="res://shaders/item_ghost.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" uid="uid://blo8nsrhyc38i" path="res://assets/items/decor_palette_atlas.png" id="2_atlas"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_depth"]
+resource_name = "item_ghost_depth"
+render_priority = -5
+shader = ExtResource("1_shader")
+shader_parameter/palette_atlas = ExtResource("2_atlas")
+shader_parameter/depth_only = true
+
+[resource]
+resource_name = "item_ghost"
+render_priority = -4
+next_pass = SubResource("ShaderMaterial_depth")
+shader = ExtResource("1_shader")
+shader_parameter/palette_atlas = ExtResource("2_atlas")
+shader_parameter/vertex_shade = 1.0
+shader_parameter/ghost_alpha = 0.5
+shader_parameter/ghost_tint = Color(0.86, 0.94, 1, 1)
+shader_parameter/ghost_tint_amount = 0.15
+shader_parameter/ghost_edge_alpha = 0.3
+shader_parameter/ghost_edge_power = 2.0
+shader_parameter/ghost_lift = 0.05
+shader_parameter/roughness = 0.8
+shader_parameter/depth_only = false
