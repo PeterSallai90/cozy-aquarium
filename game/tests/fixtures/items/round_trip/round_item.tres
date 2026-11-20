@@ -10,6 +10,7 @@ description_key = "item.round_item.description"
 category = 4
 sort_order = 7
 colourable = true
+colour_swatches = Array[Color]([Color(0.2, 0.4, 0.6, 1), Color(0.8, 0.3, 0.1, 1)])
 material = 6
 weight_kg = 0.37
 volume_displacement_l = 0.13

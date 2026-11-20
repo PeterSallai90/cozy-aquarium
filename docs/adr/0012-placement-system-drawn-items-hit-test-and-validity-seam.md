@@ -1,7 +1,7 @@
 # ADR 0012: Placement system: drawn items, analytic hit test, validity seam and shared item catalog
 
 - Status: Accepted (pull request for #31; gated by `needs:owner`)
-- Date: 2026-11-20
+- Date: 2026-11-20; Amendment 1 (#32): 2026-11-20
 - Decision log reference: none (no row D1 to D21 changes; D18 is the guard). Refines the
   "Placement" row of Core systems and the Systems layer paragraph of docs/architecture.md.
 - Issue: #31 (B20 place, move and rotate items); used by #32 (delete, recolour, undo UI), #33
@@ -116,3 +116,45 @@ build camera.
   `PlacementRules`; #41 plants with another atlas extend the ghost material; #44 blocks placement
   through `world_input_blockers` (ADR 0008 Amendment 1).
 - docs/architecture.md: the Placement row and the Systems paragraph describe this design.
+
+## Amendment 1 (#32, delete, recolour and the drawn tint)
+
+- Status: Accepted (pull request for #32; gated by `needs:owner`). No row of the decisions table
+  changes; rules 1 to 8 stay in force.
+- Date: 2026-11-20
+
+### Decision
+
+9. **Two more commands.** `DeleteItemCommand(model, uid)` records the instance and its index in
+   `do()` and re-inserts that same instance at that index in `undo()` (Command rule 4).
+   `RecolourItemCommand(model, uid, has_colour, colour)` swaps in a copy with the new colour state
+   through `apply_replace_item` and puts the old instance back on undo; clearing sets
+   `has_colour = false` and the `PlacedItem` default colour. Both refuse a missing uid; the
+   recolour also refuses a request equal to the current state (`has_colour` equal and, when true,
+   equal by `to_rgba32()`). Both are catalog-free like the codec: whether an item may be recoloured
+   is checked by the caller.
+10. **Placement owns item edits.** Placement runs the delete and the recolour, from the Delete key
+    (ADR 0008 Amendment 2 rule 12) and from two EventBus requests the HUD emits:
+    `item_delete_requested` and `item_colour_requested(has_colour: bool, colour: Color)`. Both act
+    on the current selection only (no uid travels, so a stale HUD never edits another item); the
+    recolour also needs `colourable = true` in the item's definition. Deleting the selected item
+    clears the selection through the existing `item_removed` handler.
+11. **The tint is a per-instance shader parameter.** The decor material
+    (`assets/items/materials/decor_palette.tres`) uses `shaders/decor_item.gdshader`, which declares
+    `instance uniform vec4 item_tint` (alpha 0: the original look, unchanged; alpha 1: tinted with
+    the rgb colour). `PlacedItemsView` sets it with `set_instance_shader_parameter` on every
+    `GeometryInstance3D` of a drawn node when the node is created and on `item_changed`, never per
+    frame: `Color(colour, 1)` when the definition is colourable and the item has a colour, else
+    alpha 0. Mesh and material resources stay shared; no material is created or duplicated per
+    colour or per item, so the draw cost does not depend on the number of colours in use.
+    `shaders/palette_atlas.gdshader` (room, cabinet, lamp, tank frame) does not change. The ghost
+    and the drag preview stay untinted.
+
+### Consequences
+
+- Undo of a tank swap (`ChangeTankCommand`) restores the old tank id, then the heightmap, then
+  re-inserts the same item and fish instances at their old indices, so positions, rotations,
+  scales and colours come back exactly; placement rules are not consulted. Redo clears them again.
+- Later colourable items (#42) only set `colourable` and `colour_swatches` and use the decor
+  material; plants with another atlas (#41) declare the same `item_tint` uniform if they are ever
+  colourable.

@@ -64,6 +64,7 @@ const MODE_1: Dictionary = {
 	"thumbnail": [TYPE_OBJECT, "Texture2D", null],
 	"sort_order": [TYPE_INT, "", 0],
 	"colourable": [TYPE_BOOL, "", false],
+	"colour_swatches": [TYPE_ARRAY, "", []],
 }
 const COMMON: Dictionary = {
 	"material": [TYPE_INT, "ItemMaterial", 0],

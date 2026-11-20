@@ -46,6 +46,16 @@ signal item_selected(uid: String)
 ## Emitted once when the selection becomes empty (#31).
 @warning_ignore("unused_signal")
 signal item_selection_cleared
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted by the HUD when the player asks to delete the selected item (#32); placement applies
+## the same guards as the Delete key and runs the command.
+@warning_ignore("unused_signal")
+signal item_delete_requested
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Emitted by the HUD when the player picks a colour for the selected item (#32): has_colour false
+## means the original colour. Placement runs the recolour command; no uid is passed.
+@warning_ignore("unused_signal")
+signal item_colour_requested(has_colour: bool, colour: Color)
 
 var _history: CommandHistory = null
 

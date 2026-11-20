@@ -7,11 +7,17 @@ extends Node3D
 ##
 ## Everything the player sees before a commit lives in the views: the ghost rotation, the drag
 ## preview and the pending angle of a rotate hold are not in the model. The model changes through
-## exactly three commands: one per placement, one per committed drop and one per rotate hold. The
+## exactly five commands: one per placement, one per committed drop, one per rotate hold, one per
+## delete and one per recolour (#32, ADR 0012 Amendment 1). The
 ## browser owns the pick (placement mirrors it from item_picked and item_pick_cleared and asks it to
 ## clear through EventBus.item_pick_clear_requested); this system owns the selection and announces
 ## it on the EventBus. The world is blocked while a modal dialog or photo mode is up: nothing is
 ## handled, running gestures end with no command and the feedback is hidden.
+##
+## The selected item is edited here only: the Delete key and the HUD requests
+## EventBus.item_delete_requested and item_colour_requested run through the same guards. The node
+## is in WorldInput.GESTURE_GROUP and answers has_running_gesture(), which undo and redo ask
+## (ADR 0008 Amendment 2 rule 16).
 
 enum Target { NONE, GHOST, DRAG, ITEM }
 
@@ -19,6 +25,7 @@ const ACTION_PRIMARY: StringName = &"place_primary"
 const ACTION_LEFT: StringName = &"place_rotate_left"
 const ACTION_RIGHT: StringName = &"place_rotate_right"
 const ACTION_CANCEL: StringName = &"ui_cancel"
+const ACTION_DELETE: StringName = &"item_delete"
 
 var _model: AquariumModel = null
 var _history: CommandHistory = null
@@ -49,6 +56,11 @@ var _hold: RotateHold = RotateHold.new()
 var _hold_target: Target = Target.NONE
 var _hold_action: StringName = &""
 var _hold_uid: String = ""
+## True after a modifier cancelled a hold, until the cancelling chord is over (rule 16): the
+## Ctrl+Z that cancelled a hold must not also undo.
+var _cancel_tail: bool = false
+## The first non-modifier key of the cancelling chord; 0 while none was seen.
+var _tail_key: int = 0
 
 var _ray_origin: Vector3 = Vector3.ZERO
 var _ray_direction: Vector3 = Vector3.ZERO
@@ -57,6 +69,10 @@ var _probe: PlacedItem = PlacedItem.new()
 
 @onready var _view: PlacedItemsView = $PlacedItems
 @onready var _ghost: ItemGhost = $Ghost
+
+
+func _ready() -> void:
+	add_to_group(WorldInput.GESTURE_GROUP)
 
 
 ## Connects the system to the model, the history and the shared item source. Null history, source
@@ -75,6 +91,8 @@ func setup(
 	EventBus.item_picked.connect(_on_item_picked)
 	EventBus.item_pick_cleared.connect(_on_item_pick_cleared)
 	EventBus.tank_displayed.connect(_on_tank_displayed)
+	EventBus.item_delete_requested.connect(_on_delete_requested)
+	EventBus.item_colour_requested.connect(_on_colour_requested)
 
 
 ## The tank shown now and its frame in the world; null when no tank is shown.
@@ -110,6 +128,12 @@ func is_dragging() -> bool:
 ## True while a rotate hold on the selected item runs (not for the ghost or a drag preview).
 func is_holding() -> bool:
 	return _hold.is_active() and _hold_target == Target.ITEM
+
+
+## True while a drag, a press that may become a drag, a rotate hold or the tail of a cancelled
+## hold runs. Undo and redo wait for it (ADR 0008 Amendment 2 rule 16).
+func has_running_gesture() -> bool:
+	return _press_active or _dragging or _hold.is_active() or _cancel_tail
 
 
 func _process(delta: float) -> void:
@@ -172,12 +196,15 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_key_early(key: InputEventKey) -> void:
 	if key.keycode == KEY_SHIFT or key.physical_keycode == KEY_SHIFT:
 		_shift_down = key.pressed
+	if _cancel_tail:
+		_follow_tail(key)
 	if not key.pressed:
 		if _hold.is_active() and key.is_action(_hold_action, false):
 			_end_hold(true)
 		return
 	if _hold.is_active() and _is_cancel_modifier(key):
 		_cancel_hold()
+		_begin_tail(key)
 	if key.echo or not key.is_action_pressed(ACTION_CANCEL):
 		return
 	if _dragging:
@@ -186,6 +213,43 @@ func _on_key_early(key: InputEventKey) -> void:
 	elif is_holding():
 		_cancel_hold()
 		get_viewport().set_input_as_handled()
+
+
+## The cancelling chord goes on: its first plain key is remembered and its release ends the tail;
+## so does any key event with Ctrl, Alt and Meta all up.
+func _follow_tail(key: InputEventKey) -> void:
+	if not (key.ctrl_pressed or key.alt_pressed or key.meta_pressed):
+		_end_tail()
+		return
+	var id: int = _key_id(key)
+	if key.pressed:
+		if _tail_key == 0 and not key.echo and not _is_modifier_key(key):
+			_tail_key = id
+	elif _tail_key != 0 and id == _tail_key:
+		_end_tail()
+
+
+func _begin_tail(key: InputEventKey) -> void:
+	_cancel_tail = true
+	_tail_key = 0
+	if not key.echo and not _is_modifier_key(key):
+		_tail_key = _key_id(key)
+
+
+func _end_tail() -> void:
+	_cancel_tail = false
+	_tail_key = 0
+
+
+static func _key_id(key: InputEventKey) -> int:
+	return key.physical_keycode if key.physical_keycode != 0 else key.keycode
+
+
+static func _is_modifier_key(key: InputEventKey) -> bool:
+	return (
+		key.keycode in [KEY_CTRL, KEY_ALT, KEY_META, KEY_SHIFT]
+		or key.physical_keycode in [KEY_CTRL, KEY_ALT, KEY_META, KEY_SHIFT]
+	)
 
 
 func _is_cancel_modifier(key: InputEventKey) -> bool:
@@ -206,6 +270,10 @@ func _on_key_late(key: InputEventKey) -> void:
 			get_viewport().set_input_as_handled()
 		elif _selected_uid != "":
 			_clear_selection()
+			get_viewport().set_input_as_handled()
+		return
+	if key.is_action_pressed(ACTION_DELETE, false, true):
+		if not WorldInput.is_text_focused(get_viewport()) and _try_delete():
 			get_viewport().set_input_as_handled()
 		return
 	var left: bool = key.is_action_pressed(ACTION_LEFT, false, false)
@@ -333,6 +401,48 @@ func _end_drag() -> void:
 	_ghost.visible = false
 
 
+# --- delete and recolour ---
+
+
+## True when the selected item may be edited now: the same guard for the key and the HUD requests.
+func _can_edit_selection() -> bool:
+	return (
+		_model != null
+		and _tank != null
+		and _selected_uid != ""
+		and _picked_id == &""
+		and not has_running_gesture()
+		and not WorldInput.is_blocked(get_tree())
+		and not _history.is_busy()
+	)
+
+
+func _try_delete() -> bool:
+	if not _can_edit_selection():
+		return false
+	return _history.execute(DeleteItemCommand.new(_model, _selected_uid))
+
+
+func _try_recolour(has_colour: bool, colour: Color) -> bool:
+	if not _can_edit_selection():
+		return false
+	var item: PlacedItem = _model.get_item(_selected_uid)
+	if item == null:
+		return false
+	var definition: ItemDefinition = _source.get_catalog().get_definition(item.catalog_id)
+	if definition == null or not definition.colourable:
+		return false
+	return _history.execute(RecolourItemCommand.new(_model, _selected_uid, has_colour, colour))
+
+
+func _on_delete_requested() -> void:
+	_try_delete()
+
+
+func _on_colour_requested(has_colour: bool, colour: Color) -> void:
+	_try_recolour(has_colour, colour)
+
+
 # --- rotate hold ---
 
 
@@ -408,6 +518,7 @@ func _cancel_gestures() -> void:
 	if _dragging:
 		_end_drag()
 	_cancel_hold()
+	_end_tail()
 	_press_active = false
 	_press_uid = ""
 	_ghost.visible = false
