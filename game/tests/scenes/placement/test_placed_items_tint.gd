@@ -150,11 +150,11 @@ func test_ac11_recolouring_creates_no_material_and_no_override() -> void:
 		return
 	if not await _open(_model()):
 		return
-	var before: Material = (_geometry(FIRST)[0] as MeshInstance3D).get_active_material(0)
+	var before_state: Material = (_geometry(FIRST)[0] as MeshInstance3D).get_active_material(0)
 	await _set_colour(FIRST, TEAL)
 	await _set_colour(FIRST, BRICK)
 	var mesh: MeshInstance3D = _geometry(FIRST)[0] as MeshInstance3D
-	assert_object(mesh.get_active_material(0)).is_same(before)
+	assert_object(mesh.get_active_material(0)).is_same(before_state)
 	assert_object(mesh.material_override).is_null()
 	assert_object(mesh.get_surface_override_material(0)).is_null()
 

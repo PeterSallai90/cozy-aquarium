@@ -73,8 +73,8 @@ func _marked(uid: String) -> int:
 	return count
 
 
-func _assert_unchanged(before: Dictionary, events: Recorder) -> void:
-	assert_dict(ModelState.snapshot(_s.model)).is_equal(before)
+func _assert_unchanged(before_state: Dictionary, events: Recorder) -> void:
+	assert_dict(ModelState.snapshot(_s.model)).is_equal(before_state)
 	assert_int(events.count()).is_equal(0)
 	assert_int(_s.history.get_undo_count()).is_equal(0)
 
@@ -161,34 +161,34 @@ func test_ac10_the_current_colour_runs_no_command() -> void:
 	_select(VASE)
 	await _request(true, TEAL)
 	_s.history.clear()
-	var before: Dictionary = ModelState.snapshot(_s.model)
+	var before_state: Dictionary = ModelState.snapshot(_s.model)
 	var events: Recorder = Recorder.new()
 	events.watch(_s.model)
 	await _request(true, TEAL)
-	_assert_unchanged(before, events)
+	_assert_unchanged(before_state, events)
 
 
 func test_ac10_original_colour_on_an_uncoloured_item_runs_no_command() -> void:
 	if not await _open():
 		return
 	_select(VASE)
-	var before: Dictionary = ModelState.snapshot(_s.model)
+	var before_state: Dictionary = ModelState.snapshot(_s.model)
 	var events: Recorder = Recorder.new()
 	events.watch(_s.model)
 	await _request(false, Color.WHITE)
-	_assert_unchanged(before, events)
+	_assert_unchanged(before_state, events)
 
 
 func test_ac07_a_request_on_a_non_colourable_item_does_nothing() -> void:
 	if not await _open():
 		return
 	_select(STONE_UID)
-	var before: Dictionary = ModelState.snapshot(_s.model)
+	var before_state: Dictionary = ModelState.snapshot(_s.model)
 	var events: Recorder = Recorder.new()
 	events.watch(_s.model)
 	await _request(true, TEAL)
 	await _request(false, Color.WHITE)
-	_assert_unchanged(before, events)
+	_assert_unchanged(before_state, events)
 	assert_str(_s.selected_uid()).is_equal(STONE_UID)
 
 
@@ -199,22 +199,22 @@ func test_ac07_a_stored_colour_on_a_non_colourable_item_is_not_changed_by_a_requ
 	if not await _open(model):
 		return
 	_select(STONE_UID)
-	var before: Dictionary = ModelState.snapshot(_s.model)
+	var before_state: Dictionary = ModelState.snapshot(_s.model)
 	var events: Recorder = Recorder.new()
 	events.watch(_s.model)
 	await _request(false, Color.WHITE)
 	await _request(true, TEAL)
-	_assert_unchanged(before, events)
+	_assert_unchanged(before_state, events)
 
 
 func test_ac08_a_request_without_a_selection_does_nothing() -> void:
 	if not await _open():
 		return
-	var before: Dictionary = ModelState.snapshot(_s.model)
+	var before_state: Dictionary = ModelState.snapshot(_s.model)
 	var events: Recorder = Recorder.new()
 	events.watch(_s.model)
 	await _request(true, TEAL)
-	_assert_unchanged(before, events)
+	_assert_unchanged(before_state, events)
 
 
 func test_ac08_the_request_acts_on_the_current_selection_only() -> void:

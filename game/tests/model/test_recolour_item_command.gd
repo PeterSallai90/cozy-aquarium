@@ -101,18 +101,18 @@ func test_ac09_undo_restores_the_uncoloured_state_and_redo_the_new_colour() -> v
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var before_state: Dictionary = _state(model)
 	assert_bool(_recolour(model, true, TEAL)).is_true()
-	var after: Dictionary = _state(model)
+	var after_state: Dictionary = _state(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	assert_bool(_history.undo()).is_true()
 	assert_array(recorder.names()).is_equal(["item_changed"])
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(before_state)
 	assert_bool(model.get_item(B).has_colour).is_false()
 	assert_bool(_history.redo()).is_true()
 	assert_array(recorder.names()).is_equal(["item_changed", "item_changed"])
-	assert_dict(_state(model)).is_equal(after)
+	assert_dict(_state(model)).is_equal(after_state)
 
 
 func test_ac09_undo_restores_the_earlier_swatch() -> void:
@@ -132,7 +132,7 @@ func test_ac09_original_colour_clears_the_flag_with_one_command_and_undo_restore
 	if not _have():
 		return
 	var model: AquariumModel = _model(true)
-	var before: Dictionary = _state(model)
+	var before_state: Dictionary = _state(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	assert_bool(_recolour(model, false, Color.WHITE)).is_true()
@@ -140,7 +140,7 @@ func test_ac09_original_colour_clears_the_flag_with_one_command_and_undo_restore
 	assert_bool(model.get_item(B).has_colour).is_false()
 	assert_int(_history.get_undo_count()).is_equal(1)
 	assert_bool(_history.undo()).is_true()
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(before_state)
 	assert_bool(model.get_item(B).has_colour).is_true()
 	assert_int(model.get_item(B).colour.to_rgba32()).is_equal(TEAL.to_rgba32())
 
@@ -170,23 +170,23 @@ func test_ac09_do_is_repeatable_after_undo_when_called_directly() -> void:
 		return
 	var model: AquariumModel = _model()
 	var command: Command = Api.recolour_command(model, B, true, TEAL)
-	var before: Dictionary = _state(model)
+	var before_state: Dictionary = _state(model)
 	assert_bool(command.do()).is_true()
 	assert_bool(command.undo()).is_true()
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(before_state)
 	assert_bool(command.do()).is_true()
 	assert_bool(model.get_item(B).has_colour).is_true()
 
 
 func _refused(model: AquariumModel, has_colour: bool, colour: Color, uid: String = B) -> void:
-	var before: Dictionary = ModelState.snapshot(model)
+	var before_state: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	var outcome: Array = []
 	var command: Command = Api.recolour_command(model, uid, has_colour, colour)
 	await EngineOutput.capture(func() -> void: outcome.append(_history.execute(command)))
 	assert_bool(outcome[0]).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(before_state)
 	assert_int(recorder.count()).is_equal(0)
 	assert_int(_history.get_undo_count()).is_equal(0)
 

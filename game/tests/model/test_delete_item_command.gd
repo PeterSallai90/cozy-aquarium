@@ -136,14 +136,14 @@ func test_ac02_redo_deletes_again_with_one_item_removed() -> void:
 		return
 	var model: AquariumModel = _model()
 	assert_bool(_delete(model, B)).is_true()
-	var after: Dictionary = _state(model)
+	var after_state: Dictionary = _state(model)
 	assert_bool(_history.undo()).is_true()
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	assert_bool(_history.redo()).is_true()
 	assert_array(recorder.names()).is_equal(["item_removed"])
 	assert_array(recorder.args_of(0)).is_equal([B, 1])
-	assert_dict(_state(model)).is_equal(after)
+	assert_dict(_state(model)).is_equal(after_state)
 	assert_bool(_history.undo()).is_true()
 	assert_int(model.get_item_index(B)).is_equal(1)
 
@@ -164,10 +164,10 @@ func test_ac02_do_is_repeatable_after_undo_when_called_directly() -> void:
 		return
 	var model: AquariumModel = _model()
 	var command: Command = Api.delete_command(model, B)
-	var before: Dictionary = _state(model)
+	var before_state: Dictionary = _state(model)
 	assert_bool(command.do()).is_true()
 	assert_bool(command.undo()).is_true()
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(before_state)
 	assert_bool(command.do()).is_true()
 	assert_bool(model.has_uid(B)).is_false()
 
@@ -187,14 +187,14 @@ func test_ac06_a_uid_that_is_not_in_the_model_is_refused_without_a_change_or_a_s
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = ModelState.snapshot(model)
+	var before_state: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	var outcome: Array = []
 	var command: Command = Api.delete_command(model, "ffffffff")
 	await EngineOutput.capture(func() -> void: outcome.append(_history.execute(command)))
 	assert_bool(outcome[0]).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(before_state)
 	assert_int(recorder.count()).is_equal(0)
 	assert_int(_history.get_undo_count()).is_equal(0)
 
@@ -205,11 +205,11 @@ func test_ac06_a_uid_deleted_meanwhile_is_refused_on_do() -> void:
 	var model: AquariumModel = _model()
 	var command: Command = Api.delete_command(model, B)
 	model.apply_remove_item(B)
-	var before: Dictionary = ModelState.snapshot(model)
+	var before_state: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	var outcome: Array = []
 	await EngineOutput.capture(func() -> void: outcome.append(command.do()))
 	assert_bool(outcome[0]).is_false()
-	assert_dict(ModelState.snapshot(model)).is_equal(before)
+	assert_dict(ModelState.snapshot(model)).is_equal(before_state)
 	assert_int(recorder.count()).is_equal(0)

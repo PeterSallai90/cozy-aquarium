@@ -71,8 +71,8 @@ func test_ac13_the_field_is_documented_and_stays_in_the_mode_1_block() -> void:
 	var at: int = text.find("var colour_swatches")
 	assert_int(at).is_greater(0)
 	assert_int(at).is_less(text.find("# --- Mode 2"))
-	var before: String = text.substr(0, at)
-	var doc_line: String = before.get_slice("\n", before.count("\n") - 1)
+	var before_state: String = text.substr(0, at)
+	var doc_line: String = before_state.get_slice("\n", before_state.count("\n") - 1)
 	(
 		assert_str(doc_line.strip_edges())
 		. override_failure_message("colour_swatches needs a ## doc comment line right above it")
@@ -163,8 +163,8 @@ func test_ac13_every_swatch_is_an_exact_opaque_8_bit_colour() -> void:
 
 func test_ac13_the_swatch_checks_would_catch_a_bad_swatch_list() -> void:
 	# The rules are real: a duplicate and an off-grid colour are detected by the same formulas.
-	var duplicate: Array[Color] = [Color8(10, 20, 30), Color8(10, 20, 30)]
-	assert_int(duplicate[0].to_rgba32()).is_equal(duplicate[1].to_rgba32())
+	var dup_swatches: Array[Color] = [Color8(10, 20, 30), Color8(10, 20, 30)]
+	assert_int(dup_swatches[0].to_rgba32()).is_equal(dup_swatches[1].to_rgba32())
 	var off_grid: Color = Color(0.123456, 0.2, 0.3)
 	assert_bool(off_grid == Color.html(off_grid.to_html(false))).is_false()
 
