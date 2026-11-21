@@ -280,7 +280,7 @@ static func furnished(
 	model.apply_insert_item(Factory.coloured_item("a0000002", Color(0.2, 0.4, 0.6)), 1)
 	model.apply_insert_item(Factory.item("a0000003", &"plant_fern", Vector3(-0.2, 0.1, 0.05)), 2)
 	model.apply_insert_fish(Factory.fish("f0000001", &"neon_tetra", 1, "Nemo"), 0)
-	model.apply_insert_fish(Factory.fish("f0000002", &"guppy", 0, ""), 1)
+	model.apply_insert_fish(Factory.fish("f0000002", &"angelfish", 0, ""), 1)
 	return model
 
 
