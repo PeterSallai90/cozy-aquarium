@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="FishSpecies" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://catalog/fish_species.gd" id="1_species"]
+[ext_resource type="PackedScene" path="res://assets/fish/scenes/bronze_corydoras.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_species")
+id = &"bronze_corydoras"
+name_key = "fish.bronze_corydoras.name"
+description_key = "fish.bronze_corydoras.description"
+scientific_name = "Corydoras aeneus"
+scene = ExtResource("2_scene")
+colour_variants = Array[Color]([Color(0.60392157, 0.47843137, 0.29411765, 1), Color(0.96078431, 0.85098039, 0.77647059, 1)])
+adult_length_cm = 5.5
+preferred_zone = 3
+schooling = true
+swim_speed = 0.8
+temp_min_c = 22.0
+temp_max_c = 26.0
+ph_min = 6.0
+ph_max = 8.0
+min_group_size = 6
+min_tank_litres = 72
+bioload = 1.0
+temperament = 1
+diet = Array[StringName]([&"sinking_pellets", &"live", &"frozen"])
+light_preference = 2
+needs_hiding_places = true
+incompatible_with = Array[StringName]([])
