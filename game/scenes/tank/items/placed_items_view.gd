@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name PlacedItemsView
 extends Node3D
 ## The drawn items of the model (#31, ADR 0012 rule 2): one node per placed item uid, instanced from
@@ -14,14 +15,18 @@ extends Node3D
 ## colourable definition and alpha 0 (the original look) otherwise. Meshes and materials stay
 ## shared; it is set on create and on item_changed only, never for a pending rotation.
 ##
-## The refusal cue (#33 AC 15, ADR 0012 Amendment 2): play_refusal_cue() lets the glow of the
-## selection mark rise and fall once (RefusalCue). While it runs the marked meshes carry one
-## runtime copy of the selection material whose fresnel_strength is set from step_cue(); the shared
-## material is never written and goes back when the cue ends or is cancelled.
+## The refusal cue (#33 AC 13, 15, ADR 0012 Amendment 2 rule 16): play_refusal_cue() plays one
+## pulse (RefusalCue) on any drawn item. While it runs the item carries one runtime copy of the
+## selection material as overlay; step_cue() sets its glow_colour, fresnel_strength, fresnel_power
+## and glow_lift. The shared material is never written: it goes back on the marked item, and an
+## item that is not marked loses its overlay, when the cue ends or is cancelled.
 
 const TINT_PARAM: StringName = &"item_tint"
 const SELECTION_MATERIAL: Material = preload("res://scenes/tank/items/item_selection_material.tres")
 const STRENGTH_PARAM: StringName = &"fresnel_strength"
+const COLOUR_PARAM: StringName = &"glow_colour"
+const POWER_PARAM: StringName = &"fresnel_power"
+const LIFT_PARAM: StringName = &"glow_lift"
 
 var _model: AquariumModel = null
 var _source: ItemCatalogSource = null
@@ -115,33 +120,37 @@ func set_selected(uid: String) -> void:
 ## Hides or shows the selection mark (the world is blocked, for example in photo mode).
 func set_feedback_visible(shown: bool) -> void:
 	_feedback_visible = shown
+	if not shown:
+		_cancel_cue()
 	_apply_mark()
 
 
-## Plays the refusal cue on the marked item; a no-op for any other uid and while no mark is shown.
-## A cue that runs is restarted, never stacked.
+## Plays the refusal cue on any drawn item while the feedback is shown (the marked item keeps its
+## mark under the cue; another item gets the runtime copy as its overlay). A cue that runs, on this
+## or another item, is ended first and restarted, never stacked.
 func play_refusal_cue(uid: String) -> void:
-	if uid == "" or uid != _marked_uid:
+	if uid == "" or not _feedback_visible:
 		return
 	var node: Node3D = _nodes.get(uid)
 	if node == null:
 		return
+	_cancel_cue()
 	if _cue_material == null:
 		_cue_material = (SELECTION_MATERIAL as ShaderMaterial).duplicate() as ShaderMaterial
 	_cue.start()
 	_cue_plays += 1
 	_cue_uid = uid
-	_cue_material.set_shader_parameter(STRENGTH_PARAM, _cue.get_strength(_base_strength()))
+	_write_cue()
 	_set_overlay(node, _cue_material)
 
 
-## Advances the cue by one frame and writes its strength to the runtime copy.
+## Advances the cue by one frame and writes its uniforms to the runtime copy.
 func step_cue(delta_s: float) -> void:
 	if not _cue.is_active():
 		return
 	_cue.step(delta_s)
 	if _cue.is_active():
-		_cue_material.set_shader_parameter(STRENGTH_PARAM, _cue.get_strength(_base_strength()))
+		_write_cue()
 	else:
 		_cancel_cue()
 
@@ -155,25 +164,70 @@ func get_refusal_cue_count() -> int:
 	return _cue_plays
 
 
-## The fresnel strength on the marked meshes now: the base without a cue, 0.0 with nothing marked.
+## The uid the cue plays on; empty without a cue.
+func get_cue_uid() -> String:
+	return _cue_uid if _cue.is_active() else ""
+
+
+## The fresnel strength on the marked meshes now: the base without a cue (and for a cue on another
+## item), 0.0 with nothing marked.
 func get_mark_strength() -> float:
 	if _marked_uid == "":
 		return 0.0
+	if _cue.is_active() and _cue_uid == _marked_uid:
+		return _cue.get_strength(_base_strength())
+	return _base_strength()
+
+
+## The fresnel strength on the cued meshes; the base outside a cue.
+func get_cue_strength() -> float:
 	return _cue.get_strength(_base_strength())
+
+
+## The glow_colour of the cue now; the base colour outside a cue.
+func get_cue_colour() -> Color:
+	var base: Color = _base_colour()
+	return RefusalCue.colour_at(_cue.get_elapsed_s(), base) if _cue.is_active() else base
+
+
+func get_cue_fresnel_power() -> float:
+	var base: float = _base_power()
+	return RefusalCue.power_at(_cue.get_elapsed_s(), base) if _cue.is_active() else base
+
+
+## The glow_lift of the cue now; zero outside a cue.
+func get_cue_lift() -> Vector3:
+	return RefusalCue.lift_at(_cue.get_elapsed_s()) if _cue.is_active() else Vector3.ZERO
+
+
+func _write_cue() -> void:
+	_cue_material.set_shader_parameter(STRENGTH_PARAM, get_cue_strength())
+	_cue_material.set_shader_parameter(COLOUR_PARAM, get_cue_colour())
+	_cue_material.set_shader_parameter(POWER_PARAM, get_cue_fresnel_power())
+	_cue_material.set_shader_parameter(LIFT_PARAM, get_cue_lift())
 
 
 func _base_strength() -> float:
 	return float((SELECTION_MATERIAL as ShaderMaterial).get_shader_parameter(STRENGTH_PARAM))
 
 
-## Ends a running cue and puts the shared selection material back on the marked item.
+func _base_colour() -> Color:
+	return (SELECTION_MATERIAL as ShaderMaterial).get_shader_parameter(COLOUR_PARAM)
+
+
+func _base_power() -> float:
+	return float((SELECTION_MATERIAL as ShaderMaterial).get_shader_parameter(POWER_PARAM))
+
+
+## Ends a running cue: the shared selection material goes back on the marked item, and an item
+## that is not marked loses its overlay.
 func _cancel_cue() -> void:
 	_cue.cancel()
 	if _cue_uid == "":
 		return
 	var node: Node3D = _nodes.get(_cue_uid)
-	if node != null and _cue_uid == _marked_uid:
-		_set_overlay(node, SELECTION_MATERIAL)
+	if node != null:
+		_set_overlay(node, SELECTION_MATERIAL if _cue_uid == _marked_uid else null)
 	_cue_uid = ""
 
 

@@ -381,18 +381,29 @@ func _finish_drag(at: Vector2) -> void:
 	if WorldInput.is_over_stop_control(get_viewport(), at):
 		return
 	var target: Vector3 = ground as Vector3
-	if not _valid(item.catalog_id, target, rotation_deg, item.scale, item):
-		return
 	var same_spot: bool = (
 		Vector2(target.x - item.position.x, target.z - item.position.z).length()
 		< PlacementTuning.SAME_SPOT_M
 	)
-	if not (same_spot and _same_angle(rotation_deg, item.rotation_y)):
-		var move: TransformItemCommand = TransformItemCommand.new(
-			_model, uid, target, rotation_deg, _rules
-		)
-		if not _history.execute(move):
-			return
+	if same_spot and _same_angle(rotation_deg, item.rotation_y):
+		# A click: it selects, whatever the validity of the item (no cue).
+		_set_selection(uid)
+		return
+	if (
+		_tank != null
+		and not PlacementRules.is_point_inside(_tank.interior_size_m, target.x, target.z)
+	):
+		# Pointed at nothing (outside the tank): a plain cancellation, no cue.
+		return
+	if not _valid(item.catalog_id, target, rotation_deg, item.scale, item):
+		# A refused drop: the item stays, the selection is not touched, the pulse plays once.
+		_view.play_refusal_cue(uid)
+		return
+	var move: TransformItemCommand = TransformItemCommand.new(
+		_model, uid, target, rotation_deg, _rules
+	)
+	if not _history.execute(move):
+		return
 	_set_selection(uid)
 
 
