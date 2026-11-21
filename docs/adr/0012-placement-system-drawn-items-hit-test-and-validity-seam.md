@@ -245,8 +245,11 @@ visible cue for a refused rotation of the selected item (Q6, 1b with 2b), which 
        previewed rotation) is refused, the move is cancelled as before and the cue plays once on
        the dragged item, selected or not; it does not change the selection. Esc, a right click,
        focus loss, a modal dialog, photo mode, `model_reset`, removal of the item and a release
-       with no ground point are plain cancellations with no cue. A click with a pick on an invalid
-       spot gets no cue.
+       with no ground point are plain cancellations with no cue. The ground plane has no edges, so
+       a release whose ground point lies outside the interior rectangle
+       (`PlacementRules.is_point_inside` false, edges inside) also counts as pointing outside the
+       tank: it is cancelled with no cue. A point inside whose footprint still pokes through the
+       glass is a refused drop and cues. A click with a pick on an invalid spot gets no cue.
 16. **The refusal cue: a brightness flash that turns coral, on a runtime material copy**
     (revised twice after the owner's preview of PR #161: a soft coral red pulse with a clear
     brightness peak that changes both brightness and colour on every item colour, dark red and
@@ -257,7 +260,9 @@ visible cue for a refused rotation of the selected item (Q6, 1b with 2b), which 
       `glow_lift` x fresnel, with a = clamp(fresnel x `fresnel_strength`, 0, 1). At the default
       lift the output equals today's `blend_mix` result, so the selection mark of #31, #32 and
       #157 looks exactly as before; the technical-artist proves it with before and after renders.
-      `item_selection_material.tres` stores `glow_lift = Vector3(0, 0, 0)`.
+      `item_selection_material.tres` stores `glow_lift = Vector3(0, 0, 0)`. The shader also gets
+      `fog_disabled`: Godot mixes fog into the fragment colour before the blend, so the
+      premultiplied colour picked up fog even at zero rim opacity; the item below keeps its own fog.
     - Curve: `RefusalCue` (`game/systems/placement/refusal_cue.gd`, pure, `step(delta_s)`) gives
       three half-sine envelopes over `REFUSAL_CUE_DURATION_S` 0.30 s: the rim envelope on
       [0, 0.30) drives `fresnel_strength` (0.7 to `REFUSAL_CUE_PEAK_STRENGTH` 0.90) and
