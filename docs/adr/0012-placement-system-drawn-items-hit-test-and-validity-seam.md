@@ -1,7 +1,7 @@
 # ADR 0012: Placement system: drawn items, analytic hit test, validity seam and shared item catalog
 
 - Status: Accepted (pull request for #31; gated by `needs:owner`)
-- Date: 2026-11-20; Amendment 1 (#32): 2026-11-20
+- Date: 2026-11-20; Amendment 1 (#32): 2026-11-20; Amendment 2 (#33): 2026-11-21
 - Decision log reference: none (no row D1 to D21 changes; D18 is the guard). Refines the
   "Placement" row of Core systems and the Systems layer paragraph of docs/architecture.md.
 - Issue: #31 (B20 place, move and rotate items); used by #32 (delete, recolour, undo UI), #33
@@ -158,3 +158,142 @@ build camera.
 - Later colourable items (#42) only set `colourable` and `colour_swatches` and use the decor
   material; plants with another atlas (#41) declare the same `item_tint` uniform if they are ever
   colourable.
+
+## Amendment 2 (#33, placement validity and the refused rotation)
+
+- Status: Accepted (pull request for #33; gated by `needs:owner`). No row of the decisions table
+  changes. Rule 4 is amended by rules 13 and 14 below: its #31 body (centre inside the interior)
+  and the `_same_spot` shortcut are replaced. Rules 1 to 3 and 5 to 11 stay in force.
+- Date: 2026-11-21
+- Sources: #33 acceptance criteria, the BA decisions on review Q1 to Q12, the owner decisions on
+  Q6 (option 1b with 2b) and on the height rule.
+
+### Context
+
+#33 gives `PlacementRules.allows` its real body: the oriented footprint inside the interior, no
+overlap with other items, the interior height and, for rocks and ornaments, the water line. The
+rule needs three things the #31 seam did not have: the item definitions (footprint and category),
+the substrate definition of the model and the surface height under the item. The owner chose a
+visible cue for a refused rotation of the selected item (Q6, 1b with 2b), which #31 did not have.
+
+### Decision
+
+12. **What the rules are given.** `PlacementRules.new(tanks: TankCatalog, items:
+    ItemCatalogSource, substrates: SubstrateCatalog)`. The three are the shared read-only catalog
+    services the room already holds. `RoomCorner` creates the rules with the same instances it
+    uses itself; it resolves a missing item source to one new `ItemCatalogSource` before it hands
+    that one instance to both the rules and `PlacementSystem.setup`, so the bed, the drawn items,
+    the ghost and the commands read the same data. Everything else comes from the model passed to
+    `allows`: the tank id, the substrate id, the heightmap and the items. The rules keep no state
+    between calls, hold no Node and never touch the `EventBus`; `get_catalog()` is called inside
+    `allows` only, so the item catalog still loads on first need (rule 6), and the file access of
+    that first load stays in the catalog layer. Any of the three missing gives `false`, with no
+    log. The substrate definition is `SubstrateCatalog.resolve(id)`: the definition of the id,
+    else the default (ADR 0010), else null (then `false`). `RoomCorner._apply_substrate` uses the
+    same method, so the rules never judge another bed than the one shown. The surface is
+    `SubstrateSurface.height_at(...)` at the item origin (x, z), flat until #29.
+13. **The rule.** One tolerance, `PlacementRules.TOLERANCE_M = 0.0001` (0.1 mm), widens every
+    limit. The footprint of an item is the rectangle `footprint_cm.x` by `footprint_cm.z`, times
+    the item scale, divided by 100, centred on (position.x, position.z) and turned by `rotation_y`
+    exactly as the drawn node is turned (`Node3D.rotation.y = deg_to_rad(rotation_y)`): its local
+    x axis is (cos a, -sin a) and its local z axis is (sin a, cos a) in (x, z). A candidate is valid
+    when all of these hold, checked in this order (cheap first):
+    a. every number is finite; the candidate's definition exists; every component of
+       `footprint_cm` is above 0 and finite; the scale is above 0 and finite; |position.y| is at
+       most the tolerance (in Mode 1 every item rests on the substrate);
+    b. bounds: every corner satisfies |x| <= interior.x / 2 + tolerance and
+       |z| <= interior.z / 2 + tolerance;
+    c. height: top = surface at the origin + `footprint_cm.y` x scale / 100 and
+       top <= interior.y + tolerance; for `Category.ROCK` and `Category.ORNAMENT` also
+       top <= `water_line_height_m` + tolerance (both limits are absolute heights above the tank
+       floor);
+    d. overlap: for every model item whose uid is not `before.uid`, the separating axis test on
+       the four edge normals of the two rectangles; the pair overlaps only when the penetration
+       depth on every one of the four axes is greater than the tolerance, so touching edge to edge
+       or corner to corner is valid. A model item blocks nothing when its definition is unknown,
+       its footprint or scale fails the checks of (a), or its position or rotation is not finite.
+    Cost: one catalog lookup for the candidate and one per other model item in a check that
+    passes; a refusal may stop early. No array or object is created per item (scalars only).
+14. **Rotation in place replaces `_same_spot`.** `allows(model, candidate, before)` first runs
+    rule 13 on the candidate. When that fails, `before` is not null, `candidate.position ==
+    before.position` (exact; the placement system passes the model position unchanged) and the
+    candidate's rotation is finite, the answer is `true` exactly when `before` itself fails rule 13
+    in the current model: an item that is already invalid by any rule may turn to any finite
+    angle, so an old save never traps the player. Any change of position, a drag drop with a
+    rotation included, gets rule 13 only. Nothing calls the rules on load, `model_reset`, a tank
+    swap, a substrate change or an undo or redo of `ChangeTankCommand` (Amendment 1); items are
+    never moved, clipped or removed by them.
+15. **Refused rotations and refused drops (owner Q6: 1b with 2b; owner decision on refused
+    moves).** The placement system asks the same `allows` at three moments; for a and b it passes
+    the item's model position, so rule 14 applies:
+    a. the press of a rotate key on the selected item: when the first step is refused, the drawn
+       item keeps its model angle, the refusal cue plays once, and the hold still runs, so a long
+       hold shows the pending angles of its repeats from the first repeat on;
+    b. the release of a hold that made at least one repeat, when the final angle differs from the
+       model angle: refused means no command, the drawn item snaps back to its model angle at once
+       and the cue plays once; allowed means one `TransformItemCommand` as in #31. A release with
+       no repeat after a refused press runs nothing and plays no second cue.
+    No check runs during the hold: its pending angle may show the item through a neighbour or the
+    glass (2b). The drawn selected item is not a ghost, so the #31 rule "no ghost on an invalid
+    spot" is unchanged for the ghost and the drag preview. This supersedes #31 AC 41 case (e)
+    ("no validity rule applies at the release") for a hold that ends on a refused angle; its other
+    parts (selection kept, cancel cases, one undo step, no command when the final angle equals the
+    start) stay. A cancelled hold, a valid rotation and the ghost get no cue.
+    c. the release of a drag (owner decision after the first preview, #33 AC 13): when the
+       release has a ground point, is not over a panel, is not at the same spot with the same
+       angle (that is a click, handled first, as in #31) and the candidate (position and the
+       previewed rotation) is refused, the move is cancelled as before and the cue plays once on
+       the dragged item, selected or not; it does not change the selection. Esc, a right click,
+       focus loss, a modal dialog, photo mode, `model_reset`, removal of the item and a release
+       with no ground point are plain cancellations with no cue. The ground plane has no edges, so
+       a release whose ground point lies outside the interior rectangle
+       (`PlacementRules.is_point_inside` false, edges inside) also counts as pointing outside the
+       tank: it is cancelled with no cue. A point inside whose footprint still pokes through the
+       glass is a refused drop and cues. A click with a pick on an invalid spot gets no cue.
+16. **The refusal cue: a brightness flash that turns coral, on a runtime material copy**
+    (revised twice after the owner's preview of PR #161: a soft coral red pulse with a clear
+    brightness peak that changes both brightness and colour on every item colour, dark red and
+    salmon included; the owner accepted a shader change in this pull request).
+    - Shader: `item_selection_glow.gdshader` gains one uniform, `glow_lift` (vec3, linear light,
+      each channel 0 to 1, default `vec3(0.0)`), added at the rim times the fresnel term. The
+      blend becomes premultiplied: output = destination x (1 - a) + `glow_colour` x a +
+      `glow_lift` x fresnel, with a = clamp(fresnel x `fresnel_strength`, 0, 1). At the default
+      lift the output equals today's `blend_mix` result, so the selection mark of #31, #32 and
+      #157 looks exactly as before; the technical-artist proves it with before and after renders.
+      `item_selection_material.tres` stores `glow_lift = Vector3(0, 0, 0)`. The shader also gets
+      `fog_disabled`: Godot mixes fog into the fragment colour before the blend, so the
+      premultiplied colour picked up fog even at zero rim opacity; the item below keeps its own fog.
+    - Curve: `RefusalCue` (`game/systems/placement/refusal_cue.gd`, pure, `step(delta_s)`) gives
+      three half-sine envelopes over `REFUSAL_CUE_DURATION_S` 0.30 s: the rim envelope on
+      [0, 0.30) drives `fresnel_strength` (0.7 to `REFUSAL_CUE_PEAK_STRENGTH` 0.90) and
+      `fresnel_power` (1.6 to `REFUSAL_CUE_PEAK_FRESNEL_POWER` 0.5); the lift envelope on
+      [0, 0.20) drives `glow_lift` (0 to `REFUSAL_CUE_LIFT` (0, 0.30, 0.27)); the colour envelope
+      on [0.10, 0.30) drives `glow_colour` (cream to `REFUSAL_CUE_COLOUR` (1.0, 0.45, 0.40)). So the
+      rim first widens and brightens (peak at 0.10 s), then turns coral (peak at 0.20 s) and
+      fades: one pulse whose brightness change and colour change do not cancel on any item
+      colour. The bases are read from `item_selection_material.tres` and never written.
+    - No bloom: at every 5 ms step the brightest channel of linear `glow_colour` x strength +
+      `glow_lift` stays at most 0.921, below `glow_hdr_threshold` 1.0; the lift has no red, so
+      red items are never pushed over. The exact constants, the 0.05 s table and the visibility
+      minimums are in the #33 plan addendum and in `PlacementTuning`.
+    - `PlacedItemsView` owns one cue and one runtime copy of the selection material (made once,
+      never per frame or per item) and writes the four uniforms at each step. The same curve plays
+      on an unselected dragged item (the copy is set as `material_overlay` and removed at the
+      end); on the marked item the shared selection material goes back at the end. A new refusal
+      restarts the cue at t = 0 on its item (a cue on another item ends first). The cue is
+      cancelled by a change of the selection, hidden feedback (photo mode, modal dialogs),
+      `model_reset`, `set_tank` and the removal of its item. The owner judges the look on the
+      pull request preview.
+
+### Consequences
+
+- `footprint_cm` gets a second reader: Mode 1 placement validity reads width, height and depth;
+  Mode 2 keeps its meaning (the real size, never tuned for placement). docs/architecture.md,
+  Catalog schema, names the exception; the `ItemDefinition` comment says so on the field, so the
+  "stored, never shown or used in Mode 1" headings stay.
+- #29 (sculpted bed) decides whether the footprint then uses the highest surface point under it;
+  until then rule 12 reads the origin.
+- A later stacking issue replaces the substrate surface in rule 13c by the height of the part an
+  item rests on; that needs a height profile per item, more than `footprint_cm.y`.
+- #38 (load and autosave) never calls `allows`; legacy invalid items load unchanged.
+- #49 measures the cost: rule 13 is O(n) per ghost frame with n at most 100 (D18).

@@ -12,6 +12,7 @@ var _start_deg: float = 0.0
 var _pending_deg: float = 0.0
 var _timer_s: float = 0.0
 var _repeating: bool = false
+var _repeat_count: int = 0
 
 
 ## Starts a hold and makes the first step. direction is +1 (left, Comma) or -1 (right, Period).
@@ -22,6 +23,7 @@ func press(direction: int, start_deg: float, fine: bool) -> void:
 	_pending_deg = RotationStep.step(start_deg, _direction, fine)
 	_timer_s = 0.0
 	_repeating = false
+	_repeat_count = 0
 
 
 ## Advances the repeat timer; returns the number of steps made (every due step, not capped).
@@ -38,6 +40,7 @@ func tick(delta_s: float, fine: bool) -> int:
 		_repeating = true
 		_pending_deg = RotationStep.step(_pending_deg, _direction, fine)
 		made += 1
+		_repeat_count += 1
 	return made
 
 
@@ -64,3 +67,8 @@ func get_start_deg() -> float:
 ## The angle after the press and every repeat so far, in [0, 360).
 func get_pending_deg() -> float:
 	return _pending_deg
+
+
+## The repeat steps made since press(); 0 for a tap. Still readable after release().
+func get_repeat_count() -> int:
+	return _repeat_count

@@ -14,6 +14,8 @@ extends RefCounted
 ## - PlacedItemsView: get_hit_entries(), get_drawn_count(), get_created_count(),
 ##   get_node_for(uid) -> Node3D, show_pending_rotation(uid, deg), clear_pending(uid),
 ##   set_selected(uid), set_feedback_visible(bool).
+## - #33: PlacedItemsView.is_refusal_cue_active(), get_refusal_cue_count(), get_mark_strength();
+##   the cue runs on Placement.step(delta_s) (step_cue is called there).
 ## - The ghost is shown when "Ghost" is visible in the tree.
 ## Test decisions: the stub below plays the item browser (it answers
 ## EventBus.item_pick_clear_requested with item_pick_cleared when it holds a pick); item and
@@ -139,6 +141,46 @@ func drawn_count() -> int:
 
 func created_count() -> int:
 	return int(Api.call_on(view, "get_created_count", [], -1))
+
+
+## The refusal cue of the drawn items (#33): PlacedItemsView.is_refusal_cue_active(),
+## get_refusal_cue_count() (plays since setup, -1 while missing) and get_mark_strength() (the
+## fresnel_strength on the marked meshes now; base without a cue, 0.0 with nothing marked).
+func cue_active() -> bool:
+	return Api.call_on(view, "is_refusal_cue_active", [], null) == true
+
+
+func cue_count() -> int:
+	return int(Api.call_on(view, "get_refusal_cue_count", [], -1))
+
+
+func mark_strength() -> float:
+	return float(Api.call_on(view, "get_mark_strength", [], Api.MISSING_NUMBER))
+
+
+## #33 cue getters of the view (addendum 1 and 2): get_cue_uid() (the uid the cue plays on, "" with
+## none), get_cue_colour() (glow_colour), get_cue_fresnel_power(), get_cue_lift() (glow_lift) and
+## get_cue_strength() (the strength on the cued meshes; base outside a cue).
+func cue_uid() -> String:
+	return str(Api.call_on(view, "get_cue_uid", [], MISSING_TEXT))
+
+
+func cue_colour() -> Color:
+	var result: Variant = Api.call_on(view, "get_cue_colour", [], null)
+	return result if result is Color else Color(1.0, 0.0, 1.0, 0.0)
+
+
+func cue_power() -> float:
+	return float(Api.call_on(view, "get_cue_fresnel_power", [], Api.MISSING_NUMBER))
+
+
+func cue_lift() -> Vector3:
+	var result: Variant = Api.call_on(view, "get_cue_lift", [], null)
+	return result if result is Vector3 else Vector3(NAN, NAN, NAN)
+
+
+func cue_strength() -> float:
+	return float(Api.call_on(view, "get_cue_strength", [], Api.MISSING_NUMBER))
 
 
 func node_for(uid: String) -> Node3D:

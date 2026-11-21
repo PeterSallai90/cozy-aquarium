@@ -62,7 +62,8 @@ enum Anchoring { UNSET = 0, ROOTED = 1, EPIPHYTE = 2, FLOATING = 3, LOOSE = 4 }
 @export var aquarium_safe: bool = true
 @export var weight_kg: float = 0.0
 @export var volume_displacement_l: float = 0.0
-## Real size in cm: x width, y height, z depth.
+## Real size in cm: x width, y height, z depth. Shared: Mode 1 placement validity also reads it
+## (#33, ADR 0012 Amendment 2); keep the real size, never tune it for placement.
 @export var footprint_cm: Vector3 = Vector3.ZERO
 @export var ph_effect: WaterEffect = WaterEffect.UNSET
 @export var hardness_effect: WaterEffect = WaterEffect.UNSET

@@ -395,7 +395,7 @@ func test_ac05_a_freshly_placed_item_after_selecting_it_is_deleted() -> void:
 	if not await _open(_trio()):
 		return
 	_s.pick(Rig.STONE)
-	var at: Vector2 = _s.screen_of(0.2, -0.1)
+	var at: Vector2 = _s.screen_of(-0.2, -0.1)
 	_s.move(at)
 	_s.click(at)
 	assert_int(_s.model.get_item_count()).is_equal(4)

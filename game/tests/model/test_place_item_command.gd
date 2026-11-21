@@ -6,6 +6,10 @@ extends GdUnitTestSuite
 ## changes the model only through the apply_* methods (created and modified stay as they were).
 ## Test decision: the engine output of a rejected do() is not pinned (the plan does not say whether
 ## it logs); the rejected cases run under EngineOutput.capture so either way passes.
+## #33 AC 14 (owner: developer): the command refuses every invalid spot of PlacementRules (overlap,
+## through the glass, degenerate data) with the model unchanged, no signal and no history entry; the
+## sequence place A, place B beside it, undo B, place C on the spot of B works. The fixture items
+## of #31 are spread out (the stone is 11 x 8 cm, turned by 37 degrees it needs about 14 cm).
 
 const Api := preload("res://tests/helpers/placement_api.gd")
 const Factory := preload("res://tests/helpers/factory.gd")
@@ -116,7 +120,10 @@ func test_ac14_several_placements_come_back_in_the_same_order_after_undo_and_red
 		return
 	var model: AquariumModel = _model()
 	for uid: String in ["a0000001", "a0000002", "a0000003", "a0000004"]:
-		assert_bool(_place(model, _item(uid, 0.01 * model.get_item_count(), 0.0))).is_true()
+		(
+			assert_bool(_place(model, _item(uid, -0.225 + 0.15 * model.get_item_count(), 0.0)))
+			. is_true()
+		)
 	var order: Array[String] = _uids(model)
 	var full: Dictionary = ModelState.snapshot(model)
 	assert_bool(_history.undo()).is_true()
@@ -210,3 +217,74 @@ func test_ac30_a_null_item_is_refused() -> void:
 	var model: AquariumModel = _model()
 	_undo_before = 0
 	await _rejected(model, null)
+
+
+# --- #33 AC 14: the rules of validity ---
+
+
+func test_ac14_an_overlapping_item_is_refused_without_a_change_a_signal_or_a_history_entry(
+) -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	assert_bool(_place(model, _item("a0000001", 0.0, 0.0))).is_true()
+	_undo_before = _history.get_undo_count()
+	await _rejected(model, _item("a0000002", 0.05, 0.0))
+	await _rejected(model, _item("a0000003", 0.0, 0.0))
+
+
+func test_ac14_an_item_through_the_glass_is_refused() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	_undo_before = 0
+	# The stone turned by 37 degrees reaches 6.8 cm in x: 0.2315 is flush, 0.27 is not.
+	await _rejected(model, _item("a0000001", 0.27, 0.0))
+	await _rejected(model, _item("a0000002", 0.0, 0.14))
+	assert_bool(_place(model, _item("a0000003", 0.2315, 0.0))).is_true()
+
+
+func test_ac14_a_degenerate_item_is_refused() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	_undo_before = 0
+	await _rejected(model, Factory.item("a0000001", &"no_such_item", Vector3.ZERO, 0.0, 1.0))
+	await _rejected(model, Factory.item("a0000002", &"river_stone", Vector3.ZERO, 0.0, 0.0))
+	await _rejected(model, Factory.item("a0000003", &"river_stone", Vector3.ZERO, 0.0, -1.0))
+	await _rejected(model, Factory.item("a0000004", &"river_stone", Vector3(0, 0.02, 0), 0.0, 1.0))
+	await _rejected(model, Factory.item("a0000005", &"river_stone", Vector3(0, -0.02, 0), 0.0, 1.0))
+
+
+func test_ac14_touching_items_are_both_placed() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	var first: PlacedItem = Factory.item("a0000001", &"river_stone", Vector3.ZERO, 0.0, 1.0)
+	assert_bool(_place(model, first)).is_true()
+	var beside: PlacedItem = Factory.item("a0000002", &"river_stone", Vector3(0.11, 0, 0), 0.0, 1.0)
+	assert_bool(_place(model, beside)).is_true()
+	assert_int(model.get_item_count()).is_equal(2)
+
+
+func test_ac14_place_a_place_b_beside_undo_b_place_c_on_the_spot_of_b() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	var a: PlacedItem = Factory.item("a0000001", &"river_stone", Vector3(-0.1, 0, 0), 0.0, 1.0)
+	var b: PlacedItem = Factory.item("a0000002", &"river_stone", Vector3(0.1, 0, 0), 0.0, 1.0)
+	var c: PlacedItem = Factory.item("a0000003", &"river_stone", Vector3(0.1, 0, 0), 0.0, 1.0)
+	assert_bool(_place(model, a)).is_true()
+	assert_bool(_place(model, b)).is_true()
+	# While B stands, another item on its spot is refused.
+	var blocked: PlacedItem = Factory.item("a0000004", &"river_stone", Vector3(0.1, 0, 0), 0.0, 1.0)
+	_undo_before = _history.get_undo_count()
+	await _rejected(model, blocked)
+	assert_bool(_history.undo()).is_true()
+	assert_bool(model.has_uid("a0000002")).is_false()
+	assert_bool(_place(model, c)).is_true()
+	assert_array(_uids(model)).is_equal(["a0000001", "a0000003"])
+	# Undo C and redo C: the uid stays.
+	assert_bool(_history.undo()).is_true()
+	assert_bool(_history.redo()).is_true()
+	assert_array(_uids(model)).is_equal(["a0000001", "a0000003"])

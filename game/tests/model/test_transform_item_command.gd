@@ -7,6 +7,9 @@ extends GdUnitTestSuite
 ## base class stays as it is (AC 29: used unchanged), which is pinned here by its method list.
 ## Test decision: the engine output of a rejected do() is not pinned (see
 ## test_place_item_command.gd).
+## #33 AC 14 and 16 (owner: developer): the command refuses every invalid spot and every turn into a
+## neighbour or the glass with the model untouched, no signal and no history entry; an item that is
+## already invalid still turns in place; a drop of an invalid item gets the full check.
 
 const Api := preload("res://tests/helpers/placement_api.gd")
 const Factory := preload("res://tests/helpers/factory.gd")
@@ -35,21 +38,22 @@ func _have() -> bool:
 	return found
 
 
-## Three items; the middle one has a colour and scale 1.5 so that unchanged fields are visible.
+## Three items on the medium tank, all valid and apart; the middle one (a 22.4 x 5.6 cm branch at
+## scale 0.8) has a colour so that unchanged fields are visible.
 func _model() -> AquariumModel:
 	var model: AquariumModel = AquariumModel.new("2026-11-01T12:00:00Z")
 	model.apply_set_tank_id(&"tank_medium_1")
 	model.apply_insert_item(
-		Factory.item("a0000001", &"river_stone", Vector3(-0.1, 0, 0), 5.0, 1.0), 0
+		Factory.item("a0000001", &"river_stone", Vector3(-0.22, 0, -0.08), 5.0, 1.0), 0
 	)
 	var middle: PlacedItem = Factory.coloured_item(UID, Color(0.2, 0.4, 0.6))
 	middle.catalog_id = &"driftwood_branch"
 	middle.position = Vector3(0.1, 0.0, 0.05)
 	middle.rotation_y = 10.0
-	middle.scale = 1.5
+	middle.scale = 0.8
 	model.apply_insert_item(middle, 1)
 	model.apply_insert_item(
-		Factory.item("a0000003", &"clay_amphora", Vector3(0, 0, 0.1), 0.0, 1.0), 2
+		Factory.item("a0000003", &"clay_amphora", Vector3(-0.1, 0, 0.1), 0.0, 1.0), 2
 	)
 	return model
 
@@ -77,9 +81,9 @@ func test_ac23_do_moves_and_turns_with_one_item_changed() -> void:
 	var model: AquariumModel = _model()
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
-	assert_bool(_transform(model, Vector3(-0.2, 0.0, 0.12), 45.0)).is_true()
+	assert_bool(_transform(model, Vector3(0.18, 0.0, 0.0), 45.0)).is_true()
 	var item: PlacedItem = model.get_item(UID)
-	assert_vector(item.position).is_equal(Vector3(-0.2, 0.0, 0.12))
+	assert_vector(item.position).is_equal(Vector3(0.18, 0.0, 0.0))
 	assert_float(item.rotation_y).is_equal(45.0)
 	assert_array(recorder.names()).is_equal(["item_changed"])
 	assert_array(recorder.args_of(0)).is_equal([UID, 1])
@@ -90,10 +94,10 @@ func test_ac23_uid_catalog_id_scale_colour_and_list_order_stay() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	assert_bool(_transform(model, Vector3(-0.2, 0.0, 0.12), 45.0)).is_true()
+	assert_bool(_transform(model, Vector3(0.18, 0.0, 0.0), 45.0)).is_true()
 	var item: PlacedItem = model.get_item(UID)
 	assert_that(item.catalog_id).is_equal(&"driftwood_branch")
-	assert_float(item.scale).is_equal(1.5)
+	assert_float(item.scale).is_equal(0.8)
 	assert_bool(item.has_colour).is_true()
 	assert_bool(item.colour.is_equal_approx(Color(0.2, 0.4, 0.6))).is_true()
 	assert_int(model.get_item_index(UID)).is_equal(1)
@@ -105,7 +109,7 @@ func test_ac23_undo_restores_the_exact_start_and_redo_drops_again() -> void:
 		return
 	var model: AquariumModel = _model()
 	var state_before: Dictionary = ModelState.snapshot(model)
-	assert_bool(_transform(model, Vector3(-0.2, 0.0, 0.12), 45.0)).is_true()
+	assert_bool(_transform(model, Vector3(0.18, 0.0, 0.0), 45.0)).is_true()
 	var state_after: Dictionary = ModelState.snapshot(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
@@ -200,3 +204,70 @@ func test_ac30_non_finite_values_are_refused() -> void:
 	await _rejected(UID, Vector3(0.0, 0.0, INF), 15.0)
 	await _rejected(UID, Vector3(0.1, 0.0, 0.05), NAN)
 	await _rejected(UID, Vector3(0.1, 0.0, 0.05), -INF)
+
+
+# --- #33 AC 14 and 16: the rules of validity ---
+
+
+func test_ac14_a_drop_onto_a_neighbour_is_refused() -> void:
+	if not _have():
+		return
+	# The amphora stands at (-0.1, 0.1); the branch dropped there overlaps it.
+	await _rejected(UID, Vector3(-0.1, 0.0, 0.1), 0.0)
+	await _rejected(UID, Vector3(-0.22, 0.0, -0.08), 5.0)
+
+
+func test_ac14_a_drop_through_the_glass_is_refused() -> void:
+	if not _have():
+		return
+	# 22.4 cm long: x 0.2 puts the end at 0.312; at 90 degrees z 0.12 reaches 0.232.
+	await _rejected(UID, Vector3(0.2, 0.0, 0.0), 0.0)
+	await _rejected(UID, Vector3(0.0, 0.0, 0.12), 90.0)
+
+
+func test_ac14_a_drop_flush_against_a_neighbour_is_allowed() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	# The amphora spans x -0.145 .. -0.055; the branch (22.4 cm) touches it at centre x 0.057.
+	assert_bool(_transform(model, Vector3(0.057, 0.0, 0.1), 0.0)).is_true()
+
+
+func test_ac16_a_turn_into_the_glass_is_refused_and_a_small_turn_is_allowed() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	# Valid now at (0.1, 0.05); turned to 90 degrees it is 22.4 cm in z: z 0.05 reaches 0.162.
+	await _rejected(UID, Vector3(0.1, 0.0, 0.05), 90.0)
+	assert_bool(_transform(model, Vector3(0.1, 0.0, 0.05), 25.0)).is_true()
+
+
+func test_ac16_an_already_invalid_item_turns_in_place_to_a_worse_angle() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	var old: PlacedItem = Factory.item("a0000009", &"river_stone", Vector3(0.5, 0, 0), 0.0, 1.0)
+	model.apply_insert_item(old, 3)
+	for angle: float in [15.0, 90.0, 200.0]:
+		var command: Command = Api.transform_command(
+			model, "a0000009", Vector3(0.5, 0, 0), angle, _rules
+		)
+		assert_bool(_history.execute(command)).is_true()
+		assert_float(model.get_item("a0000009").rotation_y).is_equal(angle)
+
+
+func test_ac16_an_already_invalid_item_dropped_on_an_invalid_spot_is_refused() -> void:
+	if not _have():
+		return
+	var model: AquariumModel = _model()
+	var old: PlacedItem = Factory.item("a0000009", &"river_stone", Vector3(0.5, 0, 0), 0.0, 1.0)
+	model.apply_insert_item(old, 3)
+	var state_before: Dictionary = ModelState.snapshot(model)
+	var command: Command = Api.transform_command(
+		model, "a0000009", Vector3(0.45, 0, 0), 15.0, _rules
+	)
+	var outcome: Array = []
+	await EngineOutput.capture(func() -> void: outcome.append(_history.execute(command)))
+	assert_bool(outcome[0]).is_false()
+	assert_dict(ModelState.snapshot(model)).is_equal(state_before)
+	assert_int(_history.get_undo_count()).is_equal(0)

@@ -56,6 +56,8 @@ var _hold: RotateHold = RotateHold.new()
 var _hold_target: Target = Target.NONE
 var _hold_action: StringName = &""
 var _hold_uid: String = ""
+## True when the first step of the running hold on an item was refused at the press (#33 AC 15).
+var _hold_press_refused: bool = false
 ## True after a modifier cancelled a hold, until the cancelling chord is over (rule 16): the
 ## Ctrl+Z that cancelled a hold must not also undo.
 var _cancel_tail: bool = false
@@ -83,7 +85,11 @@ func setup(
 	_model = model
 	_history = history if history != null else CommandHistory.new()
 	_source = source if source != null else ItemCatalogSource.new()
-	_rules = rules if rules != null else PlacementRules.new(TankCatalog.load_dir())
+	_rules = (
+		rules
+		if rules != null
+		else PlacementRules.new(TankCatalog.load_dir(), _source, SubstrateCatalog.load_dir())
+	)
 	_view.setup(_model, _source)
 	_model.item_removed.connect(_on_item_removed)
 	_model.item_changed.connect(_on_item_changed)
@@ -150,6 +156,7 @@ func step(delta_s: float) -> void:
 	if _hold.is_active():
 		if _hold.tick(delta_s, _shift_down) > 0:
 			_apply_hold_pending()
+	_view.step_cue(delta_s)
 	_update_ghost()
 
 
@@ -339,7 +346,7 @@ func _place_at(at: Vector2) -> void:
 	if _scene_for(_picked_id) == null:
 		return
 	var ground: Variant = _ground_position(at)
-	if ground == null or not _valid(ground as Vector3, _ghost_rotation, null):
+	if ground == null or not _valid(_picked_id, ground as Vector3, _ghost_rotation, 1.0, null):
 		return
 	var item: PlacedItem = PlacedItem.new()
 	item.uid = _uids.generate(_model)
@@ -374,18 +381,29 @@ func _finish_drag(at: Vector2) -> void:
 	if WorldInput.is_over_stop_control(get_viewport(), at):
 		return
 	var target: Vector3 = ground as Vector3
-	if not _valid(target, rotation_deg, item):
-		return
 	var same_spot: bool = (
 		Vector2(target.x - item.position.x, target.z - item.position.z).length()
 		< PlacementTuning.SAME_SPOT_M
 	)
-	if not (same_spot and _same_angle(rotation_deg, item.rotation_y)):
-		var move: TransformItemCommand = TransformItemCommand.new(
-			_model, uid, target, rotation_deg, _rules
-		)
-		if not _history.execute(move):
-			return
+	if same_spot and _same_angle(rotation_deg, item.rotation_y):
+		# A click: it selects, whatever the validity of the item (no cue).
+		_set_selection(uid)
+		return
+	if (
+		_tank != null
+		and not PlacementRules.is_point_inside(_tank.interior_size_m, target.x, target.z)
+	):
+		# Pointed at nothing (outside the tank): a plain cancellation, no cue.
+		return
+	if not _valid(item.catalog_id, target, rotation_deg, item.scale, item):
+		# A refused drop: the item stays, the selection is not touched, the pulse plays once.
+		_view.play_refusal_cue(uid)
+		return
+	var move: TransformItemCommand = TransformItemCommand.new(
+		_model, uid, target, rotation_deg, _rules
+	)
+	if not _history.execute(move):
+		return
 	_set_selection(uid)
 
 
@@ -469,6 +487,15 @@ func _start_hold(direction: int, action: StringName) -> bool:
 	_hold_target = target
 	_hold_action = action
 	_hold.press(direction, start_deg, _shift_down)
+	_hold_press_refused = false
+	if target == Target.ITEM:
+		# The first step is judged at the press: a refused one keeps the drawn angle and cues.
+		var held: PlacedItem = _model.get_item(_hold_uid)
+		var pending: float = _hold.get_pending_deg()
+		if not _valid(held.catalog_id, held.position, pending, held.scale, held):
+			_hold_press_refused = true
+			_view.play_refusal_cue(_hold_uid)
+			return true
 	_apply_hold_pending()
 	return true
 
@@ -497,9 +524,17 @@ func _end_hold(commit: bool) -> void:
 	if target != Target.ITEM:
 		return
 	var item: PlacedItem = _model.get_item(uid)
-	if commit and item != null and not _same_angle(pending, item.rotation_y):
+	var tap_refused: bool = _hold_press_refused and _hold.get_repeat_count() == 0
+	_hold_press_refused = false
+	if tap_refused or item == null or not commit or _same_angle(pending, item.rotation_y):
+		_view.clear_pending(uid)
+		return
+	if _valid(item.catalog_id, item.position, pending, item.scale, item):
 		_history.execute(TransformItemCommand.new(_model, uid, item.position, pending, _rules))
-	_view.clear_pending(uid)
+		_view.clear_pending(uid)
+	else:
+		_view.clear_pending(uid)
+		_view.play_refusal_cue(uid)
 
 
 ## Drops a hold with no command; a hold on the selected item shows its model angle again.
@@ -510,6 +545,7 @@ func _cancel_hold() -> void:
 	var uid: String = _hold_uid
 	_hold.cancel()
 	_hold_target = Target.NONE
+	_hold_press_refused = false
 	if target == Target.ITEM:
 		_view.clear_pending(uid)
 
@@ -621,7 +657,7 @@ func _update_ghost() -> void:
 	var scene: PackedScene = _scene_for(item_id) if item_id != &"" else null
 	if scene != null and _pointer_known and not _over_ui:
 		var ground: Variant = _ground_position(_pointer)
-		if ground != null and _valid(ground as Vector3, rotation_deg, before):
+		if ground != null and _valid(item_id, ground as Vector3, rotation_deg, item_scale, before):
 			var spot: Vector3 = ground as Vector3
 			if _ghost.show_item(item_id, scene):
 				_ghost.place(
@@ -686,7 +722,11 @@ func _hit_at(screen: Vector2) -> String:
 
 
 ## What is shown is what is committed: the same rule the commands ask.
-func _valid(spot: Vector3, rotation_deg: float, before: PlacedItem) -> bool:
+func _valid(
+	item_id: StringName, spot: Vector3, rotation_deg: float, item_scale: float, before: PlacedItem
+) -> bool:
+	_probe.catalog_id = item_id
+	_probe.scale = item_scale
 	_probe.position = spot
 	_probe.rotation_y = rotation_deg
 	return _rules.allows(_model, _probe, before)

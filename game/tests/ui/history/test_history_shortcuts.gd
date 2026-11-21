@@ -484,7 +484,7 @@ func test_ac21_with_a_pick_ctrl_z_changes_only_the_model_and_the_ghost_stays() -
 	assert_vector(_s.local_position(_s.ghost)).is_equal_approx(
 		ghost_at, Vector3(0.0002, 0.0002, 0.0002)
 	)
-	var moved: Vector2 = _s.screen_of(0.1, 0.05)
+	var moved: Vector2 = _s.screen_of(0.1, 0.1)
 	_s.move(moved)
 	assert_vector(_s.local_position(_s.ghost)).is_equal_approx(
 		_s.ground_local(moved), Vector3(0.0002, 0.0002, 0.0002)

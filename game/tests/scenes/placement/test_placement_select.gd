@@ -160,12 +160,14 @@ func test_ac20_esc_clears_the_selection_once_and_sends_no_pick_request() -> void
 	assert_array(_s.selection_timeline).is_equal(["selected:%s" % FIRST, "cleared"])
 
 
-func test_ac20_with_a_pick_a_click_on_an_item_places_and_never_selects() -> void:
+## #33 update: the click lands on the spot the stone occupies, so nothing is placed there (the
+## footprint rule); the click still never selects.
+func test_ac20_with_a_pick_a_click_on_an_item_never_selects() -> void:
 	if not await _open(_pair()):
 		return
 	_s.pick(Rig.AMPHORA)
 	_s.click(_s.screen_of_item(FIRST))
-	assert_int(_s.model.get_item_count()).is_equal(3)
+	assert_int(_s.model.get_item_count()).is_equal(2)
 	assert_str(_s.selected_uid()).is_equal("")
 	assert_array(_s.selection_timeline).is_empty()
 

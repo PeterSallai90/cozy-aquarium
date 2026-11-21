@@ -186,11 +186,13 @@ func test_ac15_the_buttons_follow_the_session_history_and_a_clear_disables_them(
 		return
 	var undo: Button = _part("Hud/HistoryControls").find_child("UndoButton", true, false) as Button
 	var redo: Button = _part("Hud/HistoryControls").find_child("RedoButton", true, false) as Button
-	Rig.add_item(_s.model, STONE_UID, Rig.STONE, 0.0, 0.0)
+	var spots: Array[Vector2] = _free_ground_points()
+	# The stone already there stands 0.2 m from the spot to place on (the footprint rule, #33).
+	var side: float = -1.0 if spots[0].x > 0.0 else 1.0
+	Rig.add_item(_s.model, STONE_UID, Rig.STONE, spots[0].x + 0.2 * side, spots[0].y)
 	assert_bool(undo.disabled).is_true()
 	_s.pick(Rig.STONE)
-	var spots: Array[Vector2] = _free_ground_points()
-	var at: Vector2 = _s.screen_of(spots[0].x + 0.05, spots[0].y)
+	var at: Vector2 = _s.screen_of(spots[0].x, spots[0].y)
 	_s.move(at)
 	_s.click(at)
 	await _s.frame()

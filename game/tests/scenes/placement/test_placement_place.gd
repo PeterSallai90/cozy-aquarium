@@ -79,17 +79,23 @@ func test_ac13_one_click_places_one_item_at_the_ghost_with_the_picked_id() -> vo
 	assert_int(_s.drawn_count()).is_equal(1)
 
 
-func test_ac11_two_items_may_stand_on_exactly_the_same_spot() -> void:
+## #33 update (AC 6 replaces the #31 rule that two items may stand on the same spot): the second
+## click on the same spot places nothing; the pick stays.
+func test_ac11_a_second_item_on_exactly_the_same_spot_is_refused() -> void:
 	if not await _open():
 		return
 	_s.pick(Rig.STONE)
 	var at: Vector2 = _s.screen_of(0.05, 0.05)
 	_s.move(at)
 	_s.click(at)
+	assert_int(_s.model.get_item_count()).is_equal(1)
 	_s.click(at)
+	assert_int(_s.model.get_item_count()).is_equal(1)
+	assert_int(_s.history.get_undo_count()).is_equal(1)
+	assert_str(_s.picked_id()).is_equal(String(Rig.STONE))
+	_s.move(_s.screen_of(-0.1, 0.0))
+	_s.click(_s.screen_of(-0.1, 0.0))
 	assert_int(_s.model.get_item_count()).is_equal(2)
-	assert_vector(_s.model.get_item_at(0).position).is_equal(_s.model.get_item_at(1).position)
-	assert_bool(_s.model.get_item_at(0).uid != _s.model.get_item_at(1).uid).is_true()
 
 
 func test_ac14_undo_returns_the_model_to_the_state_before_the_click_and_redo_restores_it() -> void:
@@ -140,17 +146,19 @@ func test_ac15_the_pick_and_the_ghost_stay_after_a_placement_and_the_rotation_st
 	if not await _open():
 		return
 	_s.pick(Rig.BRANCH)
-	var at: Vector2 = _s.screen_of(0.1, 0.0)
+	var at: Vector2 = _s.screen_of(0.15, 0.0)
 	_s.move(at)
 	_s.tap(KEY_COMMA)
 	_s.tap(KEY_COMMA)
 	_s.click(at)
 	assert_str(_s.picked_id()).is_equal(String(Rig.BRANCH))
-	assert_bool(_s.ghost_shown()).is_true()
 	assert_float(_s.ghost_rotation()).is_equal_approx(30.0, 0.001)
 	assert_int(_s.clear_requests).is_equal(0)
-	var next: Vector2 = _s.screen_of(-0.1, 0.0)
+	# #33: the ghost now overlaps the item just placed and is hidden; it comes back beside it.
+	var next: Vector2 = _s.screen_of(-0.15, 0.0)
 	_s.move(next)
+	assert_bool(_s.ghost_shown()).is_true()
+	assert_float(_s.ghost_rotation()).is_equal_approx(30.0, 0.001)
 	_s.click(next)
 	assert_int(_s.model.get_item_count()).is_equal(2)
 	assert_float(_s.model.get_item_at(1).rotation_y).is_equal_approx(30.0, 0.001)
