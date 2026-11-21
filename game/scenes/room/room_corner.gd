@@ -79,7 +79,11 @@ func _ready() -> void:
 	if _caustic_settings == null:
 		_caustic_settings = load(CAUSTIC_SETTINGS_PATH) as WaterCausticSettings
 	_setup_fog()
-	_placement.setup(_model, _history, _item_source, PlacementRules.new(_catalog))
+	if _item_source == null:
+		_item_source = ItemCatalogSource.new()
+	_placement.setup(
+		_model, _history, _item_source, PlacementRules.new(_catalog, _item_source, _substrates)
+	)
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
 	_model.substrate_changed.connect(_on_substrate_changed)
@@ -194,11 +198,10 @@ func _apply_substrate() -> void:
 		anchor.add_child(bed)
 	var id: StringName = _model.get_substrate_id()
 	var colour: Color = _model.get_substrate_colour()
-	var definition: SubstrateDefinition = _substrates.get_definition(id)
+	var definition: SubstrateDefinition = _substrates.resolve(id)
 	if definition == null:
-		definition = _substrates.get_default()
-		if definition == null:
-			return
+		return
+	if definition.id != id:
 		colour = definition.default_colour
 	_placement.set_substrate(definition)
 	bed.show_type(_displayed_tank, definition, colour)
