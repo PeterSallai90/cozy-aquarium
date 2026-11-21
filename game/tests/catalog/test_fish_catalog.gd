@@ -70,15 +70,15 @@ const VARIANT_COUNTS: Dictionary[StringName, int] = {
 
 
 func _have_catalog() -> bool:
-	var ready: bool = (
+	var is_ready: bool = (
 		Api.script_of(Api.CATALOG_PATH) != null and Api.script_of(Api.SPECIES_PATH) != null
 	)
 	(
-		assert_bool(ready)
+		assert_bool(is_ready)
 		. override_failure_message("FishSpecies and FishCatalog scripts are missing")
 		. is_true()
 	)
-	return ready and Api.shipped() != null
+	return is_ready and Api.shipped() != null
 
 
 func _species_or_fail(id: StringName) -> Resource:

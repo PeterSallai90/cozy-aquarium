@@ -627,7 +627,7 @@ static func neon_extent_failures(m: FishModel, mask: Image) -> PackedStringArray
 	if widths.is_empty():
 		failures.append("neon stripe: no stripe samples between s 0.25 and 0.75")
 	else:
-		var median: float = widths[widths.size() / 2]  # lower-middle element of the sorted list
+		var median: float = widths[int(widths.size() / 2.0)]  # lower-middle element of the sorted list
 		if median < 0.07 or median > 0.16:
 			failures.append("neon stripe width %.3f, need 0.10 to 0.13 +- 0.03" % median)
 	if red_s_low == INF:

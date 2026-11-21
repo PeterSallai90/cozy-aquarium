@@ -13,9 +13,9 @@ const UIDS: PackedStringArray = ["f1000001", "0badf00d", "00000000", "ffffffff",
 
 
 func _have_hash() -> bool:
-	var ready: bool = Api.script_of(Api.HASH_PATH) != null
-	assert_bool(ready).override_failure_message("FishHash is missing").is_true()
-	return ready
+	var is_ready: bool = Api.script_of(Api.HASH_PATH) != null
+	assert_bool(is_ready).override_failure_message("FishHash is missing").is_true()
+	return is_ready
 
 
 func test_the_reference_fnv1a_matches_the_published_vectors() -> void:

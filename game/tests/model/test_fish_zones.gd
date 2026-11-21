@@ -28,9 +28,9 @@ const SMALL_WATER := 0.25
 
 
 func _have_zones() -> bool:
-	var ready: bool = Api.script_of(Api.ZONES_PATH) != null
-	assert_bool(ready).override_failure_message("FishZones is missing").is_true()
-	return ready
+	var is_ready: bool = Api.script_of(Api.ZONES_PATH) != null
+	assert_bool(is_ready).override_failure_message("FishZones is missing").is_true()
+	return is_ready
 
 
 func _flat(height: float) -> Callable:

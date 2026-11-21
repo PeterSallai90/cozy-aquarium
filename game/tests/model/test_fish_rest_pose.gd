@@ -32,9 +32,11 @@ const SAND_ALLOWANCE := 0.0015
 
 
 func _have_pose() -> bool:
-	var ready: bool = Api.script_of(Api.POSE_PATH) != null and Api.script_of(Api.ZONES_PATH) != null
-	assert_bool(ready).override_failure_message("FishRestPose or FishZones is missing").is_true()
-	return ready
+	var is_ready: bool = (
+		Api.script_of(Api.POSE_PATH) != null and Api.script_of(Api.ZONES_PATH) != null
+	)
+	assert_bool(is_ready).override_failure_message("FishRestPose or FishZones is missing").is_true()
+	return is_ready
 
 
 func _uid(index: int) -> String:
@@ -195,14 +197,16 @@ func test_ac26_the_same_input_gives_the_same_pose() -> void:
 func test_ac26_removing_one_fish_does_not_change_the_pose_of_any_other() -> void:
 	if not _have_pose():
 		return
-	var before: Array[Dictionary] = []
+	var poses_before: Array[Dictionary] = []
 	for index: int in UID_COUNT:
-		before.append(_pose(_uid(index), &"neon_tetra", &"tank_large_1"))
+		poses_before.append(_pose(_uid(index), &"neon_tetra", &"tank_large_1"))
 	# "Remove" fish 7: the pose of every other uid is computed again from its own input only.
 	for index: int in UID_COUNT:
 		if index == 7:
 			continue
-		assert_dict(_pose(_uid(index), &"neon_tetra", &"tank_large_1")).is_equal(before[index])
+		assert_dict(_pose(_uid(index), &"neon_tetra", &"tank_large_1")).is_equal(
+			poses_before[index]
+		)
 
 
 func test_ac26_the_pose_follows_the_substrate_surface_for_a_bottom_fish() -> void:

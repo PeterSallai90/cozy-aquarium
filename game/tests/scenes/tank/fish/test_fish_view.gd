@@ -641,9 +641,7 @@ func test_ac27_change_tank_command_do_undo_redo_keeps_nodes_and_model_in_step() 
 	assert_bool(command.do()).is_true()
 	await _frame()
 	assert_int(rig.view.get_child_count()).is_equal(0)
-	assert_int(rig.model.get_tank_id()).is_equal(
-		FishRig.SMALL.hash() if false else rig.model.get_tank_id()
-	)
+	assert_int(rig.model.get_tank_id()).is_equal(rig.model.get_tank_id())
 
 
 # --- AC 28: fish height and the water column ---
@@ -750,9 +748,11 @@ func test_ac29_a_variant_change_updates_the_parameters_on_the_same_node() -> voi
 	var changed: FishInstance = rig.model.get_fish("f1000003").copy()
 	changed.variant = 2
 	rig.model.apply_replace_fish(changed)
-	var after: Node3D = FishRig.node_of(rig, "f1000003")
-	assert_int(after.get_instance_id()).override_failure_message("the node was recreated").is_equal(
-		id_before
+	var node_after: Node3D = FishRig.node_of(rig, "f1000003")
+	(
+		assert_int(node_after.get_instance_id())
+		. override_failure_message("the node was recreated")
+		. is_equal(id_before)
 	)
 	assert_int(node.get_child(0).get_instance_id()).is_equal(child_before)
 	assert_vector(node.position).is_equal(position_before)
@@ -805,10 +805,10 @@ func test_ac29_a_species_change_recreates_the_node_with_the_new_species_scene() 
 	changed.species_id = Api.CORY
 	rig.model.apply_replace_fish(changed)
 	await _frame()
-	var after: Node3D = FishRig.node_of(rig, "f1000001")
-	assert_object(after).is_not_null()
+	var node_after: Node3D = FishRig.node_of(rig, "f1000001")
+	assert_object(node_after).is_not_null()
 	if after != null:
-		assert_int(after.get_instance_id()).is_not_equal(id_before)
+		assert_int(node_after.get_instance_id()).is_not_equal(id_before)
 		var scene: PackedScene = Api.field(Api.CORY, "scene", null) as PackedScene
-		assert_str(after.get_child(0).scene_file_path).is_equal(scene.resource_path)
+		assert_str(node_after.get_child(0).scene_file_path).is_equal(scene.resource_path)
 	assert_int(rig.view.get_child_count()).is_equal(3)

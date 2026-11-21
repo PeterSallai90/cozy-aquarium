@@ -59,11 +59,11 @@ func test_the_fish_child_is_the_same_node_after_a_tank_change_and_follows_the_ta
 	var view: Node3D = _fish_view(room)
 	if view == null:
 		return
-	var before: int = view.get_instance_id()
+	var id_before: int = view.get_instance_id()
 	model.apply_set_tank_id(FishRig.LARGE)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_int(room.get_node("Fish").get_instance_id()).is_equal(before)
+	assert_int(room.get_node("Fish").get_instance_id()).is_equal(id_before)
 	var tank: Node3D = room.get_node("Tank") as Node3D
 	assert_vector(view.global_position).is_equal_approx(tank.global_position, Vector3.ONE * 0.0001)
 	assert_int(view.get_child_count()).is_equal(3)
