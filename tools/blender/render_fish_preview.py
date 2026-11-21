@@ -19,8 +19,8 @@ gitignored).
 
 ``--species <id>`` (#34) reads ``game/assets/fish/<id>.glb``, the shared ``fish_palette_atlas.png``
 and the species mask ``<id>_mask.png`` (UV0): R and G regions and the B eye bands (pupil, iris
-ring, painted dot, read unfiltered) are painted with the stand-in colours of ``PREVIEW_COLOURS``.
-These are preview stand-ins only; the game colours are the species material parameters.
+ring, painted dot, read unfiltered) are painted with ``PREVIEW_COLOURS``, the linearised colours of
+the species materials; the material files stay the source of the game colours.
 
 Exit code 0 on success, 1 on any error.
 """
@@ -40,32 +40,37 @@ DEFAULT_GLB = ASSET_DIR / "proof_fish.glb"
 ATLAS_NAME = "proof_palette_atlas.png"
 SPECIES_ATLAS_NAME = "fish_palette_atlas.png"
 FIN_OPACITY = 0.55
+# fin_opacity of the species materials (game/assets/fish/materials/<id>.tres).
+SPECIES_FIN_OPACITY = {"neon_tetra": 0.4, "angelfish": 0.35, "bronze_corydoras": 0.6}
 CUBE_EDGE_M = 0.04
 BACKGROUND = (0.035, 0.09, 0.11)
 PROOF_LENGTH_M = 0.035  # the framing below was set for the 3.5 cm proof fish
 
-# Preview stand-ins (linear RGB) for the mask regions: R, G, eye pupil, iris ring, painted dot.
+# Preview colours (linear RGB) for the mask regions: R, G, eye pupil, iris ring, painted dot. They
+# are the sRGB values of game/assets/fish/materials/<id>.tres linearised (the painted dot is
+# mix(eye_colour, eye_highlight_colour, eye_highlight_strength 0.85)). Shimmer, tint, glint and the
+# bend are shader effects and show only in the in-engine previews.
 PREVIEW_COLOURS: dict[str, dict[str, tuple[float, float, float]]] = {
     "neon_tetra": {
-        "r": (0.02, 0.45, 0.62),
-        "g": (0.70, 0.04, 0.05),
-        "pupil": (0.01, 0.01, 0.012),
-        "iris": (0.01, 0.01, 0.012),
-        "dot": (0.95, 0.95, 0.92),
+        "r": (0.0153, 0.3931, 0.6038),
+        "g": (0.6739, 0.0153, 0.0174),
+        "pupil": (0.0039, 0.0039, 0.0049),
+        "iris": (0.0039, 0.0039, 0.0049),
+        "dot": (0.794, 0.794, 0.739),
     },
     "angelfish": {
-        "r": (0.035, 0.035, 0.04),
-        "g": (0.6, 0.6, 0.6),
-        "pupil": (0.01, 0.01, 0.012),
-        "iris": (0.75, 0.12, 0.03),
-        "dot": (0.95, 0.95, 0.92),
+        "r": (0.022, 0.022, 0.0272),
+        "g": (0.6383, 0.6383, 0.6038),
+        "pupil": (0.0039, 0.0031, 0.0031),
+        "iris": (0.7106, 0.0637, 0.0072),
+        "dot": (0.794, 0.794, 0.739),
     },
     "bronze_corydoras": {
-        "r": (0.03, 0.10, 0.07),
-        "g": (0.55, 0.22, 0.05),
-        "pupil": (0.01, 0.01, 0.012),
-        "iris": (0.01, 0.01, 0.012),
-        "dot": (0.95, 0.95, 0.92),
+        "r": (0.0397, 0.1065, 0.0637),
+        "g": (0.5705, 0.233, 0.055),
+        "pupil": (0.0039, 0.0039, 0.0049),
+        "iris": (0.0039, 0.0039, 0.0049),
+        "dot": (0.794, 0.794, 0.739),
     },
 }
 
@@ -151,6 +156,7 @@ def _material(  # noqa: ANN202
     mask=None,  # noqa: ANN001
     uv0_name: str = "",
     colours: dict | None = None,
+    fin_opacity: float = FIN_OPACITY,
 ):
     material = bpy.data.materials.new(name)
     material.use_backface_culling = name != "fin"
@@ -174,7 +180,7 @@ def _material(  # noqa: ANN202
     colour.layer_name = colour_name
     opacity = nodes.new("ShaderNodeMath")
     opacity.operation = "MULTIPLY_ADD"  # opacity = a * (fin_opacity - 1) + 1 = mix(1, fin_opacity, a)
-    opacity.inputs[1].default_value = FIN_OPACITY - 1.0
+    opacity.inputs[1].default_value = fin_opacity - 1.0
     opacity.inputs[2].default_value = 1.0
     links.new(colour.outputs["Alpha"], opacity.inputs[0])
     clear = nodes.new("ShaderNodeBsdfTransparent")
@@ -218,9 +224,10 @@ def build_scene(bpy, args: argparse.Namespace):  # noqa: ANN001, ANN201
     uv1 = mesh.uv_layers[1].name
     colour_name = mesh.color_attributes[0].name
     colours = PREVIEW_COLOURS.get(args.species or "", {})
+    fin_opacity = SPECIES_FIN_OPACITY.get(args.species or "", FIN_OPACITY)
     for slot in fish.material_slots:
         slot.material = _material(
-            bpy, slot.material.name, atlas, uv1, colour_name, mask, uv0, colours
+            bpy, slot.material.name, atlas, uv1, colour_name, mask, uv0, colours, fin_opacity
         )
     scale = args.length_cm / 100.0
     fish.scale = (scale, scale, scale)
