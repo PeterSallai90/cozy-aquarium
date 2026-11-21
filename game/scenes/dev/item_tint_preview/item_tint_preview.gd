@@ -36,6 +36,8 @@ extends Node3D
 ##   refusal cue at one step. "glow_shader" (absolute path of a .gdshader file) replaces the shader
 ##   of that overlay, for the look before a shader change.
 ## - Set "fixtures": the colourable item once per entry of "tints" (a list of sRGB [r, g, b]).
+##   Five fit every tank: on a tank too narrow for the usual row spacing the row closes up (see
+##   ROW_REACH_M), so only the small tank frames differ from the medium and large ones.
 ## - "proof" ({"set": "proof", "items", "tank", "view", "before", "after", "out_before", "out"})
 ##   renders the room three times in the same frame, each in a SubViewport of its own (no TAA, the
 ##   same shader TIME, so the three differ only in the overlay): unmarked, marked with the shader
@@ -66,6 +68,10 @@ const SPACING_M: float = 0.1
 ## turned by TURN_DEG must fit the small tank (0.40 x 0.25 m) under the footprint rule (#33).
 const ROW_SPACING_M: float = 0.09
 const ROW_ZIGZAG_M: float = 0.04
+## Half the x extent of an amphora turned by TURN_DEG (9 x 8 cm footprint: 5.8 cm) plus a margin,
+## metres: a row centre stays this far inside the interior wall, and on a narrow tank the row
+## spacing shrinks below ROW_SPACING_M to keep it so (five fixtures on the small tank: 7 cm).
+const ROW_REACH_M: float = 0.06
 ## Turn of every item, degrees, so the amphora handles read in the front view.
 const TURN_DEG: float = 25.0
 ## "plain" set: tank-local spots by catalog order (category, then id), so a long piece of wood
@@ -203,7 +209,10 @@ func _build_room(job: Dictionary, parent: Node) -> Node3D:
 		ChangeTankCommand.new(model, tanks, tank_id).do()
 	var rules: PlacementRules = PlacementRules.new(tanks, source, SubstrateCatalog.load_dir())
 	var entries: Array[Dictionary] = _entries(
-		str(job.get("set", "a")), source.get_catalog(), job.get("tints", []) as Array
+		str(job.get("set", "a")),
+		source.get_catalog(),
+		job.get("tints", []) as Array,
+		tank.interior_size_m.x
 	)
 	for index: int in entries.size():
 		var item: PlacedItem = PlacedItem.new()
@@ -342,8 +351,11 @@ func _byte_difference(a: Image, b: Image) -> Vector2i:
 
 
 ## The items of a set: {"id", "tinted", "colour"} in row order, left to right; "at" (tank-local,
-## metres) replaces the row position where the items would overlap.
-func _entries(set_id: String, catalog: ItemCatalog, tints: Array) -> Array[Dictionary]:
+## metres) replaces the row position where the items would overlap. `interior_width_m` closes up
+## the row of a narrow tank (see ROW_REACH_M); the default leaves ROW_SPACING_M as it is.
+func _entries(
+	set_id: String, catalog: ItemCatalog, tints: Array, interior_width_m: float = INF
+) -> Array[Dictionary]:
 	var subject: ItemDefinition = _colourable(catalog)
 	var swatches: Array[Color] = subject.colour_swatches
 	var original: Dictionary = {"id": subject.id, "tinted": false, "colour": Color.WHITE}
@@ -372,8 +384,12 @@ func _entries(set_id: String, catalog: ItemCatalog, tints: Array) -> Array[Dicti
 			for index: int in range(0, mini(3, swatches.size())):
 				list.append({"id": subject.id, "tinted": true, "colour": swatches[index]})
 	if set_id != "plain":
+		var spacing: float = ROW_SPACING_M
+		if list.size() > 1:
+			var reach: float = interior_width_m / 2.0 - ROW_REACH_M
+			spacing = minf(spacing, 2.0 * reach / (list.size() - 1))
 		for index: int in list.size():
-			var row_x: float = (index - (list.size() - 1) / 2.0) * ROW_SPACING_M
+			var row_x: float = (index - (list.size() - 1) / 2.0) * spacing
 			var zigzag: float = ROW_ZIGZAG_M if index % 2 == 0 else -ROW_ZIGZAG_M
 			list[index]["at"] = Vector3(row_x, 0.0, zigzag)
 	return list
