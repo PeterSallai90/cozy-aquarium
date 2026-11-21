@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "name": "Bad fish entries",
+  "tank_id": "tank_medium_1",
+  "substrate": {
+    "id": "sand_fine",
+    "colour": "#A39B8F",
+    "heightmap": {
+      "size": [0, 0],
+      "data": ""
+    }
+  },
+  "items": [],
+  "fish": [
+    { "uid": "b1000001", "species_id": "neon_tetra", "variant": 0, "nickname": "" },
+    { "uid": "b1000002", "species_id": "no_such_fish", "variant": 0, "nickname": "Ghost" },
+    { "uid": "b1000003", "species_id": "neon_tetra", "variant": 7, "nickname": "Odd" }
+  ],
+  "created": "2026-11-01T08:00:00Z",
+  "modified": "2026-11-01T08:30:00Z"
+}
