@@ -44,6 +44,15 @@ func get_definition(id: StringName) -> SubstrateDefinition:
 	return _definitions.get(id) as SubstrateDefinition
 
 
+## The definition of `id`, else the default (ADR 0010: an unknown or empty id shows the default),
+## else null when the catalog has no default either.
+func resolve(id: StringName) -> SubstrateDefinition:
+	var definition: SubstrateDefinition = get_definition(id)
+	if definition != null:
+		return definition
+	return get_default()
+
+
 ## The ids in chooser order: by sort_order, then by id.
 func get_ids() -> Array[StringName]:
 	return _ids.duplicate()

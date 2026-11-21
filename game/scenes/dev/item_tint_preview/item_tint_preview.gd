@@ -165,7 +165,7 @@ func _stage(job: Dictionary) -> void:
 	var model: AquariumModel = AquariumModel.new()
 	if model.get_tank_id() != tank_id:
 		ChangeTankCommand.new(model, tanks, tank_id).do()
-	var rules: PlacementRules = PlacementRules.new(tanks)
+	var rules: PlacementRules = PlacementRules.new(tanks, source, SubstrateCatalog.load_dir())
 	var entries: Array[Dictionary] = _entries(str(job.get("set", "a")), source.get_catalog())
 	for index: int in entries.size():
 		var item: PlacedItem = PlacedItem.new()
