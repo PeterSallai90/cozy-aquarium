@@ -368,16 +368,24 @@ func test_ac15d_a_second_refusal_restarts_the_cue_and_does_not_stack() -> void:
 	_assert_cue_only_at_the_base()
 
 
-func test_ac15d_play_refusal_cue_is_a_no_op_for_an_item_that_is_not_selected() -> void:
+func test_ac15d_play_refusal_cue_is_a_no_op_for_an_item_that_is_not_drawn() -> void:
 	if not await _select_refused():
 		return
-	Api.call_on(_s.view, "play_refusal_cue", [SECOND], null)
+	Api.call_on(_s.view, "play_refusal_cue", ["ffffffff"], null)
+	Api.call_on(_s.view, "play_refusal_cue", [""], null)
 	assert_int(_s.cue_count()).is_equal(0)
 	assert_bool(_s.cue_active()).is_false()
-	Api.call_on(_s.view, "play_refusal_cue", ["ffffffff"], null)
-	assert_int(_s.cue_count()).is_equal(0)
-	Api.call_on(_s.view, "play_refusal_cue", [FIRST], null)
+	# Any drawn item may carry the cue (AC 13 c, addendum 1 section 5); the selection stays.
+	Api.call_on(_s.view, "play_refusal_cue", [SECOND], null)
 	assert_int(_s.cue_count()).is_equal(1)
+	assert_str(_s.cue_uid()).is_equal(SECOND)
+	assert_str(_s.selected_uid()).is_equal(FIRST)
+	# A cue on another item ends first and leaves no overlay behind on the unmarked one.
+	Api.call_on(_s.view, "play_refusal_cue", [FIRST], null)
+	assert_int(_s.cue_count()).is_equal(2)
+	assert_str(_s.cue_uid()).is_equal(FIRST)
+	for mesh: GeometryInstance3D in PlacedItemsView.geometry_of(_s.node_for(SECOND)):
+		assert_object(mesh.material_overlay).is_null()
 
 
 func test_ac15d_play_refusal_cue_is_a_no_op_while_the_mark_is_hidden() -> void:
