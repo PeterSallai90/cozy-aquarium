@@ -231,7 +231,7 @@ func test_ac15d_the_glow_follows_the_table_at_fixed_steps_and_ends_at_the_base()
 		)
 		if index < TABLE.size() - 1:
 			assert_bool(_s.cue_active()).override_failure_message(label).is_true()
-	_s.step(0.02)
+	_s.step(Api.tuning("REFUSAL_CUE_DURATION_S") - 0.05 * (TABLE.size() - 1) + 0.02)
 	_assert_cue_only_at_the_base()
 	assert_float(_overlay_strength()).is_equal_approx(BASE, TOLERANCE)
 

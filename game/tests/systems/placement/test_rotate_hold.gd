@@ -296,7 +296,7 @@ func test_ac15_get_repeat_count_is_zero_after_the_press_and_counts_the_repeat_st
 	assert_int(hold.call("get_repeat_count")).is_equal(0)
 	_run(hold, Api.tuning("REPEAT_DELAY_S") * 0.5)
 	assert_int(hold.call("get_repeat_count")).is_equal(0)
-	_run(hold, _time_for(1))
+	_run(hold, _time_for(1) - Api.tuning("REPEAT_DELAY_S") * 0.5)
 	assert_int(hold.call("get_repeat_count")).is_equal(1)
 	_run(hold, Api.tuning("REPEAT_INTERVAL_S") * 3.0)
 	assert_int(hold.call("get_repeat_count")).is_greater_equal(3)
