@@ -205,6 +205,23 @@ static func new_cue() -> RefCounted:
 	return script.new() as RefCounted
 
 
+## RefusalCue.power_at(t_s, base) (fresnel_power), or MISSING_NUMBER.
+static func cue_power_at(t_s: float, base: float) -> float:
+	return float(call_static(CUE, "power_at", [t_s, base], MISSING_NUMBER))
+
+
+## RefusalCue.colour_at(t_s, base) (glow_colour, sRGB), or a transparent magenta while missing.
+static func cue_colour_at(t_s: float, base: Color) -> Color:
+	var result: Variant = call_static(CUE, "colour_at", [t_s, base], null)
+	return result if result is Color else Color(1.0, 0.0, 1.0, 0.0)
+
+
+## RefusalCue.lift_at(t_s) (glow_lift, linear), or NaN components while missing.
+static func cue_lift_at(t_s: float) -> Vector3:
+	var result: Variant = call_static(CUE, "lift_at", [t_s], null)
+	return result if result is Vector3 else Vector3(NAN, NAN, NAN)
+
+
 ## RefusalCue.strength_at(t_s, base), or MISSING_NUMBER.
 static func cue_strength_at(t_s: float, base: float) -> float:
 	return float(call_static(CUE, "strength_at", [t_s, base], MISSING_NUMBER))

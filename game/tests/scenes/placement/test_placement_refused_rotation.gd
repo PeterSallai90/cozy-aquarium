@@ -36,7 +36,14 @@ const SELECTION_MATERIAL := "res://scenes/tank/items/item_selection_material.tre
 const BASE: float = 0.7
 const TOLERANCE: float = 0.0001
 const ANGLE_TOLERANCE := 0.05
-const TABLE: Array[float] = [0.7, 0.825, 0.916506, 0.95, 0.916506, 0.825]
+const TABLE: Array[float] = [0.7, 0.8, 0.873205, 0.9, 0.873205, 0.8]
+## Addendum 2 table, steps 0 to 5 of 0.05 s: fresnel_power, glow_colour green and blue (red stays
+## 1.0) and glow_lift green and blue (red stays 0.0).
+const POWER: Array[float] = [1.6, 1.05, 0.647372, 0.5, 0.647372, 1.05]
+const COLOUR_G: Array[float] = [0.86, 0.86, 0.86, 0.570086, 0.45, 0.570086]
+const COLOUR_B: Array[float] = [0.62, 0.62, 0.62, 0.464437, 0.40, 0.464437]
+const LIFT_G: Array[float] = [0.0, 0.212132, 0.3, 0.212132, 0.0, 0.0]
+const LIFT_B: Array[float] = [0.0, 0.190919, 0.27, 0.190919, 0.0, 0.0]
 
 var _s: Session = null
 var _events: Recorder = null
@@ -131,6 +138,19 @@ func _overlay_strength() -> float:
 		return Api.MISSING_NUMBER
 	var material: ShaderMaterial = meshes[0].material_overlay as ShaderMaterial
 	return float(material.get_shader_parameter("fresnel_strength"))
+
+
+## A uniform of the overlay material of the first marked mesh (or of its next_pass, for the
+## glow_lift of a two-pass cue); null while nothing is marked.
+func _overlay_uniform(uniform_name: String) -> Variant:
+	var meshes: Array[GeometryInstance3D] = _marked_meshes()
+	if meshes.is_empty():
+		return null
+	var material: ShaderMaterial = meshes[0].material_overlay as ShaderMaterial
+	var value: Variant = material.get_shader_parameter(uniform_name)
+	if value == null and material.next_pass is ShaderMaterial:
+		value = (material.next_pass as ShaderMaterial).get_shader_parameter(uniform_name)
+	return value
 
 
 func _assert_untouched(model_deg: float = 0.0) -> void:
@@ -236,6 +256,68 @@ func test_ac15d_the_glow_follows_the_table_at_fixed_steps_and_ends_at_the_base()
 	assert_float(_overlay_strength()).is_equal_approx(BASE, TOLERANCE)
 
 
+func test_ac15d_every_uniform_follows_the_addendum_table_on_the_overlay_of_the_node() -> void:
+	if not await _select_refused():
+		return
+	_s.tap(KEY_COMMA)
+	for index: int in TABLE.size():
+		if index > 0:
+			_s.step(0.05)
+		var label: String = "step %d" % index
+		var colour: Variant = _overlay_uniform("glow_colour")
+		var power: Variant = _overlay_uniform("fresnel_power")
+		var lift: Variant = _overlay_uniform("glow_lift")
+		assert_bool(colour is Color).override_failure_message(label + ": glow_colour").is_true()
+		assert_bool(lift is Vector3).override_failure_message(label + ": glow_lift").is_true()
+		if not (colour is Color and lift is Vector3):
+			return
+		assert_float((colour as Color).r).override_failure_message(label).is_equal_approx(
+			1.0, TOLERANCE
+		)
+		assert_float((colour as Color).g).override_failure_message(label).is_equal_approx(
+			COLOUR_G[index], TOLERANCE
+		)
+		assert_float((colour as Color).b).override_failure_message(label).is_equal_approx(
+			COLOUR_B[index], TOLERANCE
+		)
+		assert_float(float(power)).override_failure_message(label).is_equal_approx(
+			POWER[index], TOLERANCE
+		)
+		assert_float((lift as Vector3).x).override_failure_message(label).is_equal(0.0)
+		assert_float((lift as Vector3).y).override_failure_message(label).is_equal_approx(
+			LIFT_G[index], TOLERANCE
+		)
+		assert_float((lift as Vector3).z).override_failure_message(label).is_equal_approx(
+			LIFT_B[index], TOLERANCE
+		)
+		# The view getters read the same values.
+		assert_float(_s.cue_power()).override_failure_message(label).is_equal_approx(
+			POWER[index], TOLERANCE
+		)
+		assert_float(_s.cue_lift().y).override_failure_message(label).is_equal_approx(
+			LIFT_G[index], TOLERANCE
+		)
+		assert_float(_s.cue_colour().g).override_failure_message(label).is_equal_approx(
+			COLOUR_G[index], TOLERANCE
+		)
+		assert_float(_s.cue_strength()).override_failure_message(label).is_equal_approx(
+			TABLE[index], TOLERANCE
+		)
+		assert_str(_s.cue_uid()).override_failure_message(label).is_equal(FIRST)
+	_s.step(0.4)
+	assert_bool(_s.cue_active()).is_false()
+	assert_str(_s.cue_uid()).is_equal("")
+	var after_colour: Variant = _overlay_uniform("glow_colour")
+	assert_bool(after_colour is Color).is_true()
+	assert_float((after_colour as Color).g).is_equal_approx(COLOUR_G[0], TOLERANCE)
+	assert_float(float(_overlay_uniform("fresnel_power"))).is_equal_approx(POWER[0], TOLERANCE)
+	var after_lift: Variant = _overlay_uniform("glow_lift")
+	(
+		assert_bool(after_lift is Vector3 and (after_lift as Vector3).is_equal_approx(Vector3.ZERO))
+		. is_true()
+	)
+
+
 func test_ac15d_the_shared_selection_material_is_never_written_and_comes_back() -> void:
 	if not await _select_refused():
 		return
@@ -243,6 +325,9 @@ func test_ac15d_the_shared_selection_material_is_never_written_and_comes_back() 
 	_s.tap(KEY_COMMA)
 	_s.step(0.1)
 	assert_float(float(shared.get_shader_parameter("fresnel_strength"))).is_equal(BASE)
+	assert_float(float(shared.get_shader_parameter("fresnel_power"))).is_equal(1.6)
+	assert_bool((shared.get_shader_parameter("glow_colour") as Color).g > 0.85).is_true()
+	assert_bool(shared.get_shader_parameter("glow_lift") == Vector3.ZERO).is_true()
 	_s.step(1.0)
 	var meshes: Array[GeometryInstance3D] = _marked_meshes()
 	assert_int(meshes.size()).is_greater(0)

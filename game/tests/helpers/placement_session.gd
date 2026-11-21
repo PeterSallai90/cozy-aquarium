@@ -158,6 +158,31 @@ func mark_strength() -> float:
 	return float(Api.call_on(view, "get_mark_strength", [], Api.MISSING_NUMBER))
 
 
+## #33 cue getters of the view (addendum 1 and 2): get_cue_uid() (the uid the cue plays on, "" with
+## none), get_cue_colour() (glow_colour), get_cue_fresnel_power(), get_cue_lift() (glow_lift) and
+## get_cue_strength() (the strength on the cued meshes; base outside a cue).
+func cue_uid() -> String:
+	return str(Api.call_on(view, "get_cue_uid", [], MISSING_TEXT))
+
+
+func cue_colour() -> Color:
+	var result: Variant = Api.call_on(view, "get_cue_colour", [], null)
+	return result if result is Color else Color(1.0, 0.0, 1.0, 0.0)
+
+
+func cue_power() -> float:
+	return float(Api.call_on(view, "get_cue_fresnel_power", [], Api.MISSING_NUMBER))
+
+
+func cue_lift() -> Vector3:
+	var result: Variant = Api.call_on(view, "get_cue_lift", [], null)
+	return result if result is Vector3 else Vector3(NAN, NAN, NAN)
+
+
+func cue_strength() -> float:
+	return float(Api.call_on(view, "get_cue_strength", [], Api.MISSING_NUMBER))
+
+
 func node_for(uid: String) -> Node3D:
 	return Api.call_on(view, "get_node_for", [uid], null) as Node3D
 
