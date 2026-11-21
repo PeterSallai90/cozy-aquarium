@@ -34,6 +34,10 @@ var _catalog: FishCatalog = null
 var _nodes: Dictionary[String, Node3D] = {}
 var _skipped: Dictionary[String, String] = {}
 var _pin_warned: Dictionary[String, bool] = {}
+## Species of the entries skipped for their species, and the entries that already warned about a
+## bad variant; both per build.
+var _skipped_species: Dictionary[String, StringName] = {}
+var _variant_warned: Dictionary[String, bool] = {}
 ## Scene path to [horizontal radius, below, above] of the unscaled model (metres per body unit).
 var _unscaled: Dictionary[String, Vector3] = {}
 
@@ -107,7 +111,9 @@ func _rebuild() -> void:
 		node.queue_free()
 	_nodes.clear()
 	_skipped.clear()
+	_skipped_species.clear()
 	_pin_warned.clear()
+	_variant_warned.clear()
 	visible = has_tank()
 	for entry: FishInstance in _model.get_fish_list():
 		_add_fish(entry.uid)
@@ -125,6 +131,8 @@ func _on_fish_changed(uid: String, _index: int) -> void:
 	var entry: FishInstance = _model.get_fish(uid)
 	var node: Node3D = _nodes.get(uid)
 	if entry == null:
+		return
+	if node == null and _skipped_species.get(uid) == entry.species_id:
 		return
 	if node == null or node.get_meta(_META_SPECIES) != entry.species_id:
 		_remove_fish(uid)
@@ -158,11 +166,13 @@ func _add_fish(uid: String) -> void:
 	var species: FishSpecies = _species_catalog().get_definition(entry.species_id)
 	if species == null:
 		_skipped[uid] = 'unknown species "%s"' % entry.species_id
+		_skipped_species[uid] = entry.species_id
 		push_warning(WARNING_PREFIX + "%s shows no fish: %s" % [uid, _skipped[uid]])
 		return
 	var scene: Node3D = _instantiate(species.scene)
 	if scene == null:
 		_skipped[uid] = 'species "%s" has no loadable scene' % entry.species_id
+		_skipped_species[uid] = entry.species_id
 		push_warning(WARNING_PREFIX + "%s shows no fish: %s" % [uid, _skipped[uid]])
 		return
 	var node: Node3D = Node3D.new()
@@ -178,7 +188,9 @@ func _add_fish(uid: String) -> void:
 
 func _remove_fish(uid: String) -> void:
 	_skipped.erase(uid)
+	_skipped_species.erase(uid)
 	_pin_warned.erase(uid)
+	_variant_warned.erase(uid)
 	var node: Node3D = _nodes.get(uid)
 	if node == null:
 		return
@@ -203,6 +215,9 @@ func _instantiate(scene: PackedScene) -> Node3D:
 func _shown_variant(uid: String, entry: FishInstance, species: FishSpecies) -> int:
 	if entry.variant >= 0 and entry.variant < species.colour_variants.size():
 		return entry.variant
+	if _variant_warned.has(uid):
+		return 0
+	_variant_warned[uid] = true
 	push_warning(
 		(
 			WARNING_PREFIX

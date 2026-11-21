@@ -9,7 +9,7 @@ const DEFAULT_DIR: String = "res://catalog/fish"
 static var _id_pattern: RegEx = null
 
 var _definitions: Dictionary = {}
-var _ids: Array[String] = []
+var _ids: Array[StringName] = []
 var _skipped: Array[SkippedSpecies] = []
 
 
@@ -62,9 +62,8 @@ func get_definition(id: StringName) -> FishSpecies:
 	return _definitions.get(id) as FishSpecies
 
 
-## The ids in catalog order (alphabetical). Plain Strings: a Godot sort of StringName values is
-## by hash, not alphabetical, so callers (and tests) that sort the list get the order they expect.
-func get_ids() -> Array[String]:
+## The ids in catalog order (alphabetical).
+func get_ids() -> Array[StringName]:
 	return _ids.duplicate()
 
 
@@ -94,10 +93,10 @@ static func _build(resources: Array[Resource], sources: Array[String]) -> FishCa
 			skipped.source = source
 			skipped.reason = reason
 			catalog._skipped.append(skipped)
-	var ids: Array[String] = []
+	var ids: Array[StringName] = []
 	for id: Variant in catalog._definitions.keys():
-		ids.append(String(id as StringName))
-	ids.sort()
+		ids.append(id as StringName)
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	catalog._ids = ids
 	return catalog
 
