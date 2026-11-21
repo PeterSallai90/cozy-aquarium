@@ -70,13 +70,26 @@ const TIME_SAMPLES := 24
 const EPS := 1e-6
 
 
+## The index of a // comment in a line, ignoring the // of a :// path; -1 when there is none.
+func _comment_start(line: String) -> int:
+	var from: int = 0
+	while true:
+		var index: int = line.find("//", from)
+		if index < 0:
+			return -1
+		if index == 0 or line[index - 1] != ":":
+			return index
+		from = index + 2
+	return -1
+
+
 ## The source of a shader file without // and /* */ comments.
 func _code(path: String) -> String:
 	var source: String = FileAccess.get_file_as_string(path)
 	source = RegEx.create_from_string("(?s)/\\*.*?\\*/").sub(source, "", true)
 	var kept: PackedStringArray = PackedStringArray()
 	for line: String in source.split("\n"):
-		var index: int = line.find("//")
+		var index: int = _comment_start(line)
 		kept.append(line if index < 0 else line.substr(0, index))
 	return "\n".join(kept)
 

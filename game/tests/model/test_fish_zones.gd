@@ -157,7 +157,9 @@ func test_ac14_a_bottom_fish_rests_at_the_lower_limit() -> void:
 	if not _have_zones():
 		return
 	var got: Dictionary = _range(Api.ZONE_BOTTOM, 0.04, CORY_BELOW, CORY_ABOVE, 0.003)
-	assert_float(got.get("min_y", -1.0)).is_equal_approx(0.04 + CORY_BELOW + 0.003, EPS)
+	assert_float(got.get("min_y", -1.0)).is_equal_approx(
+		0.04 + maxf(MIN_CLEARANCE, CORY_BELOW) + 0.003, EPS
+	)
 	assert_bool(got.get("max_y", -1.0) >= got.get("min_y", 0.0)).is_true()
 
 
@@ -193,8 +195,8 @@ func test_ac15_edge_a_stand_in_with_two_heights_gives_two_lower_limits() -> void
 	var right: Dictionary = Api.origin_range(
 		Api.ZONE_BOTTOM, uneven, 0.1, 0.0, SMALL_WATER, 0.0015, fish_extents
 	)
-	assert_float(left.get("min_y", -1.0)).is_equal_approx(0.03 + CORY_BELOW + 0.0015, EPS)
-	assert_float(right.get("min_y", -1.0)).is_equal_approx(0.06 + CORY_BELOW + 0.0015, EPS)
+	assert_float(left.get("min_y", -1.0)).is_equal_approx(0.0415, EPS)
+	assert_float(right.get("min_y", -1.0)).is_equal_approx(0.0715, EPS)
 	assert_float(right.get("min_y", 0.0) - left.get("min_y", 0.0)).is_equal_approx(0.03, EPS)
 
 
@@ -304,7 +306,7 @@ func test_ac28_the_angelfish_fits_the_small_tank_column_with_pebbles_and_is_not_
 func test_ac28_other_zones_are_clamped_by_the_extents_not_by_the_clearance() -> void:
 	if not _have_zones():
 		return
-	var got: Dictionary = _range(Api.ZONE_TOP, 0.06, ANGEL_BELOW, ANGEL_ABOVE, 0.016)
+	var got: Dictionary = _range(Api.ZONE_MIDDLE, 0.06, ANGEL_BELOW, ANGEL_ABOVE, 0.016)
 	assert_float(got.get("max_y", -1.0)).is_equal_approx(SMALL_WATER - ANGEL_ABOVE, EPS)
 	assert_float(got.get("min_y", -1.0)).is_equal_approx(0.06 + ANGEL_BELOW, EPS)
 

@@ -205,9 +205,9 @@ func test_ac21_the_idle_speed_factor_is_0_35_and_the_three_species_bend_at_diffe
 		if node == null:
 			assert_bool(false).override_failure_message("no node for %s" % uid).is_true()
 			return
-		seen[snappedf(float(_params(node)[0]["speed"]), 0.0001)] = true
+		seen[roundi(float(_params(node)[0]["speed"]) * 10000.0)] = true
 	assert_int(seen.size()).is_equal(3)
-	assert_bool(seen.has(0.455) and seen.has(0.28) and seen.has(0.175)).is_true()
+	assert_bool(seen.has(4550) and seen.has(2800) and seen.has(1750)).is_true()
 
 
 func test_ac18_the_swim_phase_differs_between_fish_and_uses_its_own_salt() -> void:
@@ -241,7 +241,7 @@ func test_ac18_the_phase_and_the_pose_are_never_written_to_the_save_file() -> vo
 	var parsed: Dictionary = JSON.parse_string(result.text)
 	for entry: Dictionary in parsed["fish"]:
 		assert_array(entry.keys()).is_equal(["uid", "species_id", "variant", "nickname"])
-	assert_int(parsed["format_version"]).is_equal(1)
+	assert_int(int(parsed["format_version"])).is_equal(1)
 
 
 func test_the_view_has_no_per_frame_process() -> void:
@@ -426,6 +426,31 @@ func test_ac19_the_warning_comes_once_per_build_and_never_per_frame() -> void:
 		if text.begins_with("FishView:"):
 			count += int(rebuilt["warnings"][text])
 	assert_int(count).override_failure_message("a rebuild must warn once per bad entry").is_equal(2)
+
+
+func test_ac19_a_later_fish_changed_does_not_warn_again_for_a_bad_entry() -> void:
+	var source: AquariumModel = _decoded(BAD_FIXTURE)
+	var holder: Array = []
+	await EngineOutput.capture(func() -> void: holder.append(_ready_rig(source)))
+	var rig: FishRig.Rig = holder[0]
+	if rig == null:
+		return
+	var later: Dictionary = await EngineOutput.capture(
+		func() -> void:
+			for uid: String in ["b1000002", "b1000003"]:
+				var changed: FishInstance = rig.model.get_fish(uid).copy()
+				changed.nickname = "Renamed"
+				rig.model.apply_replace_fish(changed)
+			var other: FishInstance = rig.model.get_fish("b1000001").copy()
+			other.nickname = "Fine"
+			rig.model.apply_replace_fish(other)
+	)
+	(
+		assert_dict(later["warnings"])
+		. override_failure_message("a nickname-only change warned again: %s" % [later["warnings"]])
+		. is_empty()
+	)
+	assert_dict(later["errors"]).is_empty()
 
 
 func test_ac19_an_unknown_tank_hides_the_fish_without_a_warning() -> void:
@@ -641,7 +666,7 @@ func test_ac27_change_tank_command_do_undo_redo_keeps_nodes_and_model_in_step() 
 	assert_bool(command.do()).is_true()
 	await _frame()
 	assert_int(rig.view.get_child_count()).is_equal(0)
-	assert_int(rig.model.get_tank_id()).is_equal(rig.model.get_tank_id())
+	assert_str(String(rig.model.get_tank_id())).is_equal(String(FishRig.SMALL))
 
 
 # --- AC 28: fish height and the water column ---

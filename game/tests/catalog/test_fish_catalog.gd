@@ -116,9 +116,11 @@ func test_ac01_catalog_has_exactly_the_three_species() -> void:
 	if not _have_catalog():
 		return
 	var ids: Array = Api.shipped().call("get_ids")
-	var sorted_ids: Array = ids.duplicate()
-	sorted_ids.sort()
-	assert_array(sorted_ids).is_equal([&"angelfish", &"bronze_corydoras", &"neon_tetra"])
+	var names: Array[String] = []
+	for id: Variant in ids:
+		names.append(String(id))
+	names.sort()
+	assert_array(names).is_equal(["angelfish", "bronze_corydoras", "neon_tetra"])
 	var skipped: Array = Api.shipped().call("get_skipped")
 	assert_int(skipped.size()).is_equal(0)
 
@@ -300,7 +302,8 @@ func test_ac02_edge_a_species_with_an_unset_enum_or_inverted_temperature_fails()
 	species.set("min_group_size", 1)
 	species.set("min_tank_litres", 10)
 	species.set("bioload", 1.0)
-	species.set("diet", [&"flakes"])
+	var diet: Array[StringName] = [&"flakes"]
+	species.set("diet", diet)
 	species.set("temperament", PEACEFUL)
 	species.set("light_preference", LIGHT_LOW)
 	assert_int(_mode2_failures(species).size()).is_equal(0)
