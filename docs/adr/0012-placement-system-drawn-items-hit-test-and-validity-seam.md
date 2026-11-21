@@ -247,34 +247,38 @@ visible cue for a refused rotation of the selected item (Q6, 1b with 2b), which 
        focus loss, a modal dialog, photo mode, `model_reset`, removal of the item and a release
        with no ground point are plain cancellations with no cue. A click with a pick on an invalid
        spot gets no cue.
-16. **The refusal cue is script-driven uniforms on a runtime material copy, not a new look
-    resource** (revised after the owner's first preview: a soft coral red pulse with a clear
-    strength peak, visible on red, pink and orange items). `RefusalCue`
-    (`game/systems/placement/refusal_cue.gd`, pure, driven by `step(delta_s)` like `RotateHold`)
-    gives one envelope `w = sin(PI x t / DURATION)` for 0 <= t < DURATION (0 otherwise, the cue
-    then ends). `PlacedItemsView` owns one cue, `PlacementSystem.step` steps it, and the view
-    writes three existing uniforms of the glow shader on one runtime copy of the selection
-    material (made once per view, never per frame or per item):
-    - `glow_colour` = the base colour lerped (sRGB values) towards
-      `PlacementTuning.REFUSAL_CUE_COLOUR` = (1.0, 0.45, 0.40) by w;
-    - `fresnel_strength` = base + (`REFUSAL_CUE_PEAK_STRENGTH` 0.95 - base) x w;
-    - `fresnel_power` = base + (`REFUSAL_CUE_PEAK_FRESNEL_POWER` 0.8 - base) x w.
-    The bases are read from `item_selection_material.tres` (cream (1.0, 0.86, 0.62), 0.7, 1.6) and
-    never written; `REFUSAL_CUE_DURATION_S` stays 0.30. Lowering the power widens the rim, so the
-    rim opacity at the reference facing 0.5 rises from 0.231 to 0.546 (factor 2.36): this is the
-    strength peak. The coral colour carries the hue change. The brightest channel of every colour
-    on the path is 1.0 and the strength never exceeds 0.95, so the existing bloom guard (brightest
-    channel x strength < `glow_hdr_threshold` 1.0) holds. The same curve plays on an unselected
-    dragged item (the copy is put on as `material_overlay` and removed at the end); on the marked
-    item the shared selection material goes back at the end. A new refusal restarts the cue at
-    t = 0 on its item (a cue on another item ends first): one state, never stacked. The cue is
-    cancelled by a change of the selection, hidden feedback (photo mode, modal dialogs),
-    `model_reset`, `set_tank` and the removal of its item. `item_selection_glow.gdshader` and
-    `item_selection_material.tres` do not change. Known limit: with an alpha blend under the
-    bloom threshold, no single cue colour changes both luminance and colour by a large amount on
-    every possible item colour; the tested fixtures and margins are in the #33 plan addendum, and
-    an additive brightness term would need a shader change (technical-artist) in a later issue.
-    The owner judges the look on the pull request preview.
+16. **The refusal cue: a brightness flash that turns coral, on a runtime material copy**
+    (revised twice after the owner's preview of PR #161: a soft coral red pulse with a clear
+    brightness peak that changes both brightness and colour on every item colour, dark red and
+    salmon included; the owner accepted a shader change in this pull request).
+    - Shader: `item_selection_glow.gdshader` gains one uniform, `glow_lift` (vec3, linear light,
+      each channel 0 to 1, default `vec3(0.0)`), added at the rim times the fresnel term. The
+      blend becomes premultiplied: output = destination x (1 - a) + `glow_colour` x a +
+      `glow_lift` x fresnel, with a = clamp(fresnel x `fresnel_strength`, 0, 1). At the default
+      lift the output equals today's `blend_mix` result, so the selection mark of #31, #32 and
+      #157 looks exactly as before; the technical-artist proves it with before and after renders.
+      `item_selection_material.tres` stores `glow_lift = Vector3(0, 0, 0)`.
+    - Curve: `RefusalCue` (`game/systems/placement/refusal_cue.gd`, pure, `step(delta_s)`) gives
+      three half-sine envelopes over `REFUSAL_CUE_DURATION_S` 0.30 s: the rim envelope on
+      [0, 0.30) drives `fresnel_strength` (0.7 to `REFUSAL_CUE_PEAK_STRENGTH` 0.90) and
+      `fresnel_power` (1.6 to `REFUSAL_CUE_PEAK_FRESNEL_POWER` 0.5); the lift envelope on
+      [0, 0.20) drives `glow_lift` (0 to `REFUSAL_CUE_LIFT` (0, 0.30, 0.27)); the colour envelope
+      on [0.10, 0.30) drives `glow_colour` (cream to `REFUSAL_CUE_COLOUR` (1.0, 0.45, 0.40)). So the
+      rim first widens and brightens (peak at 0.10 s), then turns coral (peak at 0.20 s) and
+      fades: one pulse whose brightness change and colour change do not cancel on any item
+      colour. The bases are read from `item_selection_material.tres` and never written.
+    - No bloom: at every 5 ms step the brightest channel of linear `glow_colour` x strength +
+      `glow_lift` stays at most 0.921, below `glow_hdr_threshold` 1.0; the lift has no red, so
+      red items are never pushed over. The exact constants, the 0.05 s table and the visibility
+      minimums are in the #33 plan addendum and in `PlacementTuning`.
+    - `PlacedItemsView` owns one cue and one runtime copy of the selection material (made once,
+      never per frame or per item) and writes the four uniforms at each step. The same curve plays
+      on an unselected dragged item (the copy is set as `material_overlay` and removed at the
+      end); on the marked item the shared selection material goes back at the end. A new refusal
+      restarts the cue at t = 0 on its item (a cue on another item ends first). The cue is
+      cancelled by a change of the selection, hidden feedback (photo mode, modal dialogs),
+      `model_reset`, `set_tank` and the removal of its item. The owner judges the look on the
+      pull request preview.
 
 ### Consequences
 
