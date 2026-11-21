@@ -9,6 +9,24 @@ msgstr ""
 msgid "datetime.unknown"
 msgstr ""
 
+msgid "fish.angelfish.description"
+msgstr ""
+
+msgid "fish.angelfish.name"
+msgstr ""
+
+msgid "fish.bronze_corydoras.description"
+msgstr ""
+
+msgid "fish.bronze_corydoras.name"
+msgstr ""
+
+msgid "fish.neon_tetra.description"
+msgstr ""
+
+msgid "fish.neon_tetra.name"
+msgstr ""
+
 msgid "item.browser.close"
 msgstr ""
 
