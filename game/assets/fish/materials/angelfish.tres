@@ -1,0 +1,29 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
+
+[ext_resource type="Shader" path="res://shaders/fish.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/fish/fish_palette_atlas.png" id="2_atlas"]
+[ext_resource type="Texture2D" path="res://assets/fish/angelfish_mask.png" id="3_mask"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/palette_atlas = ExtResource("2_atlas")
+shader_parameter/fish_mask = ExtResource("3_mask")
+shader_parameter/region_r_colour = Color(0.16, 0.16, 0.18, 1)
+shader_parameter/region_g_colour = Color(0.82, 0.82, 0.8, 1)
+shader_parameter/eye_colour = Color(0.05, 0.04, 0.04, 1)
+shader_parameter/eye_iris_colour = Color(0.86, 0.28, 0.08, 1)
+shader_parameter/eye_highlight_colour = Color(0.97, 0.97, 0.94, 1)
+shader_parameter/eye_highlight_strength = 0.85
+shader_parameter/eye_glint_strength = 0.8
+shader_parameter/transmission_strength = 0.7
+shader_parameter/transmission_color = Color(0.92, 0.95, 0.94, 1)
+shader_parameter/fin_opacity = 0.35
+shader_parameter/roughness = 0.35
+shader_parameter/specular_amount = 0.6
+shader_parameter/metallic = 0.15
+shader_parameter/swim_amplitude = 0.08
+shader_parameter/swim_frequency = 1.0
+shader_parameter/swim_speed_scale = 1.0
+shader_parameter/shimmer_strength = 0.0
+shader_parameter/variant_tint_keep = 0.3
