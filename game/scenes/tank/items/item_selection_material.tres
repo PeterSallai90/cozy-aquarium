@@ -9,3 +9,4 @@ shader = ExtResource("1_shader")
 shader_parameter/glow_colour = Color(1, 0.86, 0.62, 1)
 shader_parameter/fresnel_strength = 0.7
 shader_parameter/fresnel_power = 1.6
+shader_parameter/glow_lift = Vector3(0, 0, 0)

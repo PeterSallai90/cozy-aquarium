@@ -28,6 +28,20 @@ extends Node3D
 ##   (palette_atlas.gdshader and the decor parameters) or the shipped decor material with item_tint
 ##   alpha 0. A "new" job after an "old" job prints how many pixels differ (0: the untinted look is
 ##   exactly the #157 look).
+##
+## Selection mark and refusal cue jobs (#33 AC 15 d):
+## - "mark" on a room job: "selection" puts the selection material on every item as
+##   material_overlay (the selected look), "cue" puts a copy of it with the uniforms of "cue"
+##   ({"strength", "power", "colour" [r, g, b] sRGB, "lift" [r, g, b] linear}), the frame of the
+##   refusal cue at one step. "glow_shader" (absolute path of a .gdshader file) replaces the shader
+##   of that overlay, for the look before a shader change.
+## - Set "fixtures": the colourable item once per entry of "tints" (a list of sRGB [r, g, b]).
+## - "proof" ({"set": "proof", "items", "tank", "view", "before", "after", "out_before", "out"})
+##   renders the room three times in the same frame, each in a SubViewport of its own (no TAA, the
+##   same shader TIME, so the three differ only in the overlay): unmarked, marked with the shader
+##   at "before" and marked with the shader at "after" (a path; empty for the shipped shader). It
+##   prints the rim pixels (unmarked vs before) and the largest 8-bit channel difference of before
+##   vs after (the default selection look must not change).
 
 const JOB_FILE: String = "user://item_tint_preview.json"
 const ROOM_SCENE: String = "res://scenes/room/room_corner.tscn"
@@ -35,6 +49,11 @@ const DECOR_SHADER: String = "res://shaders/decor_item.gdshader"
 const OLD_SHADER: String = "res://shaders/palette_atlas.gdshader"
 const DECOR_MATERIAL: String = "res://assets/items/materials/decor_palette.tres"
 const SELECTION_MATERIAL: String = "res://scenes/tank/items/item_selection_material.tres"
+## Uniforms of the selection glow that a cue job sets.
+const STRENGTH_PARAM: StringName = &"fresnel_strength"
+const POWER_PARAM: StringName = &"fresnel_power"
+const COLOUR_PARAM: StringName = &"glow_colour"
+const LIFT_PARAM: StringName = &"glow_lift"
 const TINT_PARAM: StringName = &"item_tint"
 const SHOT_SIZE: Vector2i = Vector2i(1920, 1080)
 ## Frames between staging a job and saving it (TAA and shadows settle).
@@ -65,6 +84,8 @@ var _stage_root: Node = null
 var _check_viewport: SubViewport = null
 ## The last image of an "old" parity job.
 var _parity_reference: Image = null
+## The SubViewports of a proof job: unmarked, before, after; empty for any other job.
+var _proof_viewports: Array[SubViewport] = []
 
 
 func _ready() -> void:
@@ -101,6 +122,8 @@ func _run() -> void:
 			_stage_calibration()
 		elif set_id == "parity":
 			_stage_parity(old)
+		elif set_id == "proof":
+			_stage_proof(job)
 		else:
 			_stage(job)
 		if not _batch:
@@ -108,6 +131,9 @@ func _run() -> void:
 		for _frame: int in SETTLE_FRAMES:
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw
+		if set_id == "proof":
+			_report_proof(job)
+			continue
 		var image: Image = null
 		if _check_viewport != null:
 			image = _check_viewport.get_texture().get_image()
@@ -131,6 +157,7 @@ func _clear_stage() -> void:
 		_stage_root.queue_free()
 		_stage_root = null
 	_check_viewport = null
+	_proof_viewports.clear()
 
 
 ## Every catalog item, by category and then id.
@@ -155,9 +182,14 @@ func _colourable(catalog: ItemCatalog) -> ItemDefinition:
 	return null
 
 
-## Builds the room with the items of one job, tints them and places the camera.
+## Builds the room with the items of one job, tints and marks them and places the camera.
 func _stage(job: Dictionary) -> void:
 	_clear_stage()
+	_stage_root = _build_room(job, self)
+
+
+## The room of a job as a child of `parent`; null when the tank or the item is unknown.
+func _build_room(job: Dictionary, parent: Node) -> Node3D:
 	var tank_id: StringName = StringName(str(job.get("tank", "tank_small_1")))
 	var tanks: TankCatalog = TankCatalog.load_dir()
 	var tank: TankDefinition = tanks.get_definition(tank_id)
@@ -165,12 +197,14 @@ func _stage(job: Dictionary) -> void:
 	var subject: ItemDefinition = _colourable(source.get_catalog())
 	if tank == null or subject == null:
 		push_error("item tint preview: unknown tank %s or no colourable item" % tank_id)
-		return
+		return null
 	var model: AquariumModel = AquariumModel.new()
 	if model.get_tank_id() != tank_id:
 		ChangeTankCommand.new(model, tanks, tank_id).do()
 	var rules: PlacementRules = PlacementRules.new(tanks, source, SubstrateCatalog.load_dir())
-	var entries: Array[Dictionary] = _entries(str(job.get("set", "a")), source.get_catalog())
+	var entries: Array[Dictionary] = _entries(
+		str(job.get("set", "a")), source.get_catalog(), job.get("tints", []) as Array
+	)
 	for index: int in entries.size():
 		var item: PlacedItem = PlacedItem.new()
 		item.uid = "%08x" % (0x7a000000 + index)
@@ -186,12 +220,12 @@ func _stage(job: Dictionary) -> void:
 			)
 	var room: Node3D = (load(ROOM_SCENE) as PackedScene).instantiate() as Node3D
 	room.call("setup", model, tanks, null, null, null, null, source)
-	_stage_root = room
-	add_child(room)
+	parent.add_child(room)
 	var view: PlacedItemsView = _find_view(room)
 	if view == null:
 		push_error("item tint preview: the room has no PlacedItemsView")
-		return
+		return room
+	var overlay: Material = _overlay(job)
 	var centres: Array[Vector3] = []
 	for item: PlacedItem in model.get_items():
 		var node: Node3D = view.get_node_for(item.uid)
@@ -203,12 +237,113 @@ func _stage(job: Dictionary) -> void:
 			tint = Color(item.colour.r, item.colour.g, item.colour.b, 1.0)
 		for geometry: GeometryInstance3D in PlacedItemsView.geometry_of(node):
 			geometry.set_instance_shader_parameter(TINT_PARAM, tint)
+			if overlay != null:
+				geometry.material_overlay = overlay
 	_aim(room, view, str(job.get("view", "front")), centres)
+	return room
+
+
+## The overlay of a job's "mark" (see the header); null for no mark.
+func _overlay(job: Dictionary) -> Material:
+	var mark: String = str(job.get("mark", ""))
+	if mark != "selection" and mark != "cue":
+		return null
+	var material: ShaderMaterial = load(SELECTION_MATERIAL) as ShaderMaterial
+	var shader_path: String = str(job.get("glow_shader", ""))
+	if mark == "selection" and shader_path.is_empty():
+		return material
+	material = material.duplicate() as ShaderMaterial
+	if not shader_path.is_empty():
+		var shader: Shader = Shader.new()
+		shader.code = FileAccess.get_file_as_string(shader_path)
+		material.shader = shader
+	if mark == "cue":
+		var cue: Dictionary = job.get("cue", {}) as Dictionary
+		material.set_shader_parameter(STRENGTH_PARAM, float(cue.get("strength", 0.7)))
+		material.set_shader_parameter(POWER_PARAM, float(cue.get("power", 1.6)))
+		var colour: Array = cue.get("colour", [1.0, 0.86, 0.62]) as Array
+		material.set_shader_parameter(
+			COLOUR_PARAM, Color(float(colour[0]), float(colour[1]), float(colour[2]), 1.0)
+		)
+		var lift: Array = cue.get("lift", [0.0, 0.0, 0.0]) as Array
+		material.set_shader_parameter(
+			LIFT_PARAM, Vector3(float(lift[0]), float(lift[1]), float(lift[2]))
+		)
+	return material
+
+
+## Three rooms of the same job in SubViewports of their own (see the header).
+func _stage_proof(job: Dictionary) -> void:
+	_clear_stage()
+	var holder: Node = Node.new()
+	holder.name = "Proof"
+	add_child(holder)
+	_stage_root = holder
+	var variants: Array[Dictionary] = [
+		{"mark": ""},
+		{"mark": "selection", "glow_shader": str(job.get("before", ""))},
+		{"mark": "selection", "glow_shader": str(job.get("after", ""))},
+	]
+	for variant: Dictionary in variants:
+		var port: SubViewport = SubViewport.new()
+		port.size = SHOT_SIZE
+		port.own_world_3d = true
+		port.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		holder.add_child(port)
+		_proof_viewports.append(port)
+		var room_job: Dictionary = job.duplicate()
+		room_job["set"] = str(job.get("items", "plain"))
+		room_job.merge(variant, true)
+		_build_room(room_job, port)
+
+
+func _report_proof(job: Dictionary) -> void:
+	var images: Array[Image] = []
+	for port: SubViewport in _proof_viewports:
+		var image: Image = port.get_texture().get_image()
+		image.convert(Image.FORMAT_RGB8)
+		images.append(image)
+	var rim: Vector2i = _byte_difference(images[0], images[1])
+	var change: Vector2i = _byte_difference(images[1], images[2])
+	print(
+		(
+			"selection proof %s: %d rim pixels; before vs after: %d pixels differ, largest %d/255"
+			% [str(job.get("out", "")).get_file(), rim.x, change.x, change.y]
+		)
+	)
+	_save(images[1], str(job.get("out_before", "")))
+	_save(images[2], str(job.get("out", "")))
+
+
+func _save(image: Image, out: String) -> void:
+	if out.is_empty():
+		return
+	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
+	image.save_png(out)
+	print("item tint preview: saved %s" % out)
+
+
+## Pixels that differ and the largest 8-bit channel difference of two RGB8 images.
+func _byte_difference(a: Image, b: Image) -> Vector2i:
+	var first: PackedByteArray = a.get_data()
+	var second: PackedByteArray = b.get_data()
+	if first.size() != second.size():
+		return Vector2i(-1, -1)
+	var pixels: int = 0
+	var largest: int = 0
+	for index: int in range(0, first.size(), 3):
+		var worst: int = 0
+		for channel: int in 3:
+			worst = maxi(worst, absi(first[index + channel] - second[index + channel]))
+		if worst > 0:
+			pixels += 1
+			largest = maxi(largest, worst)
+	return Vector2i(pixels, largest)
 
 
 ## The items of a set: {"id", "tinted", "colour"} in row order, left to right; "at" (tank-local,
 ## metres) replaces the row position where the items would overlap.
-func _entries(set_id: String, catalog: ItemCatalog) -> Array[Dictionary]:
+func _entries(set_id: String, catalog: ItemCatalog, tints: Array) -> Array[Dictionary]:
 	var subject: ItemDefinition = _colourable(catalog)
 	var swatches: Array[Color] = subject.colour_swatches
 	var original: Dictionary = {"id": subject.id, "tinted": false, "colour": Color.WHITE}
@@ -223,6 +358,11 @@ func _entries(set_id: String, catalog: ItemCatalog) -> Array[Dictionary]:
 				if index < PLAIN_SPOTS.size():
 					entry["at"] = PLAIN_SPOTS[index]
 				list.append(entry)
+		"fixtures":
+			for tint: Variant in tints:
+				var rgb: Array = tint as Array
+				var colour: Color = Color(float(rgb[0]), float(rgb[1]), float(rgb[2]))
+				list.append({"id": subject.id, "tinted": true, "colour": colour})
 		"b":
 			for index: int in range(3, mini(6, swatches.size())):
 				list.append({"id": subject.id, "tinted": true, "colour": swatches[index]})
