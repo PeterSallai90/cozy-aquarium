@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "name": "Three species",
+  "tank_id": "tank_medium_1",
+  "substrate": {
+    "id": "sand_fine",
+    "colour": "#A39B8F",
+    "heightmap": {
+      "size": [0, 0],
+      "data": ""
+    }
+  },
+  "items": [],
+  "fish": [
+    { "uid": "f1000001", "species_id": "neon_tetra", "variant": 0, "nickname": "" },
+    { "uid": "f1000002", "species_id": "neon_tetra", "variant": 1, "nickname": "Gold" },
+    { "uid": "f1000003", "species_id": "angelfish", "variant": 0, "nickname": "" },
+    { "uid": "f1000004", "species_id": "angelfish", "variant": 1, "nickname": "" },
+    { "uid": "f1000005", "species_id": "angelfish", "variant": 2, "nickname": "" },
+    { "uid": "f1000006", "species_id": "bronze_corydoras", "variant": 0, "nickname": "" },
+    { "uid": "f1000007", "species_id": "bronze_corydoras", "variant": 1, "nickname": "" }
+  ],
+  "created": "2026-11-01T08:00:00Z",
+  "modified": "2026-11-01T08:30:00Z"
+}

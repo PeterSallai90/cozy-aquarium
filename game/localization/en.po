@@ -10,6 +10,24 @@ msgstr ""
 msgid "datetime.unknown"
 msgstr "Unknown"
 
+msgid "fish.angelfish.description"
+msgstr "A graceful, slow-gliding fish with long, trailing fins and a tall, sail-like body. It likes a quiet corner among the plants."
+
+msgid "fish.angelfish.name"
+msgstr "Angelfish"
+
+msgid "fish.bronze_corydoras.description"
+msgstr "A friendly bottom dweller that shuffles along the sand in a small group. It rests quietly between short, busy runs."
+
+msgid "fish.bronze_corydoras.name"
+msgstr "Bronze corydoras"
+
+msgid "fish.neon_tetra.description"
+msgstr "A tiny, glowing tetra that darts about in a tight shoal. Its blue-green stripe flickers as the light moves."
+
+msgid "fish.neon_tetra.name"
+msgstr "Neon tetra"
+
 msgid "item.browser.close"
 msgstr "Close"
 

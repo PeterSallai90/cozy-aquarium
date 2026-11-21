@@ -14,6 +14,11 @@ extends RefCounted
 ## No bed is shallower than this (metres).
 const MIN_DEPTH_M: float = 0.03
 const ERR_NO_DEFINITION: String = "SubstrateSurface: no substrate definition"
+## Reach of single grains above the nominal surface by grain shape, metres (ADR 0011 rule 5).
+const TOP_ALLOWANCE_SAND_M: float = 0.0015
+const TOP_ALLOWANCE_ANGULAR_M: float = 0.003
+const TOP_ALLOWANCE_ROUND_M: float = 0.00325
+const TOP_ALLOWANCE_PEBBLE_M: float = 0.016
 
 
 ## The depth of a flat bed of the type in metres, never below MIN_DEPTH_M. A null definition logs
@@ -43,6 +48,22 @@ static func height_at(
 	_z: float
 ) -> float:
 	return flat_depth(definition)
+
+
+## How far single grains or stones of the type reach above the nominal surface in metres (ADR 0011
+## rule 5, by grain shape). Fish use it so a bottom fish rests on the stone tops, not in them. A
+## null definition gives the sand value without logging; height_at is not affected.
+static func top_allowance(definition: SubstrateDefinition) -> float:
+	if definition == null:
+		return TOP_ALLOWANCE_SAND_M
+	match definition.grain_shape:
+		SubstrateDefinition.GrainShape.ANGULAR:
+			return TOP_ALLOWANCE_ANGULAR_M
+		SubstrateDefinition.GrainShape.ROUND:
+			return TOP_ALLOWANCE_ROUND_M
+		SubstrateDefinition.GrainShape.PEBBLE:
+			return TOP_ALLOWANCE_PEBBLE_M
+	return TOP_ALLOWANCE_SAND_M
 
 
 ## The tank-local height an item stands at: the surface at its (x, z) plus its position.y (H1).

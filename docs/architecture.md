@@ -183,28 +183,37 @@ Every species carries its simulation attributes from day one. Mode 1 ignores the
 class_name FishSpecies
 extends Resource
 
+# Enum values are only appended, never renumbered; UNSET = 0 so a filled field never equals the
+# empty default (#34, ADR 0013).
+enum Zone { UNSET = 0, TOP = 1, MIDDLE = 2, BOTTOM = 3 }
+enum Temperament { UNSET = 0, PEACEFUL = 1, SEMI_AGGRESSIVE = 2, AGGRESSIVE = 3 }
+enum Light { UNSET = 0, LOW = 1, MODERATE = 2, HIGH = 3 }
+
 # --- Mode 1: identity and presentation ---
-@export var id: StringName                  # "neon_tetra"
-@export var name_key: String                # translation key "fish.neon_tetra.name"
-@export var description_key: String
-@export var scene: PackedScene              # stylized model with swim shader
+@export var id: StringName = &""            # "neon_tetra"; frozen once a save can contain it
+@export var name_key: String = ""           # translation key "fish.neon_tetra.name"
+@export var description_key: String = ""    # "fish.neon_tetra.description"
+@export var scientific_name: String = ""    # Latin binomial; data, never a key, never in .po/.pot
+@export var scene: PackedScene = null       # wrapper scene with the species ShaderMaterial (ADR 0013)
+# Append-only: a saved fish stores `variant` as an index into this list. Never remove, reorder or
+# change an entry; the snapshot test (game/tests/data/colour_variants_frozen.json) fails otherwise.
 @export var colour_variants: Array[Color] = []
-@export var adult_length_cm: float = 3.5
-@export var preferred_zone: Zone = Zone.MIDDLE   # TOP, MIDDLE, BOTTOM
-@export var schooling: bool = true
-@export var swim_speed: float = 1.0          # relative, drives behaviour
+@export var adult_length_cm: float = 0.0    # standard length (snout to tail base), drives the scale
+@export var preferred_zone: Zone = Zone.UNSET
+@export var schooling: bool = false
+@export var swim_speed: float = 0.0          # relative, 1.0 = a medium mid-water fish
 
 # --- Mode 2: simulation (stored now, used later) ---
-@export var temp_min_c: float = 20.0
-@export var temp_max_c: float = 26.0
-@export var ph_min: float = 6.0
-@export var ph_max: float = 7.5
-@export var min_group_size: int = 6
-@export var min_tank_litres: int = 40
-@export var bioload: float = 1.0             # waste production, relative
-@export var temperament: Temperament = Temperament.PEACEFUL
-@export var diet: Array[StringName] = []     # "flakes", "live", "algae"
-@export var light_preference: Light = Light.MODERATE
+@export var temp_min_c: float = 0.0
+@export var temp_max_c: float = 0.0
+@export var ph_min: float = 0.0
+@export var ph_max: float = 0.0
+@export var min_group_size: int = 0
+@export var min_tank_litres: int = 0
+@export var bioload: float = 0.0             # waste production, relative design scale
+@export var temperament: Temperament = Temperament.UNSET
+@export var diet: Array[StringName] = []     # "flakes", "pellets", "sinking_pellets", "live", ...
+@export var light_preference: Light = Light.UNSET
 @export var needs_hiding_places: bool = false
 @export var incompatible_with: Array[StringName] = []
 ```
@@ -259,7 +268,7 @@ Model conventions (issue #16): positions are metres in tank-local space (+Y up, 
 | Placement | Pick, place, move, rotate, delete items inside the tank | Ghost preview; the pointer ray meets the plane of the nominal substrate surface from `SubstrateSurface`, item y above it (ADR 0011); free position, rotation in 15° steps with a 1° Shift fine step; selection by an analytic hit test of item bounds, no physics; validity through `PlacementRules`: the oriented footprint rectangle from `footprint_cm` lies inside the interior, overlaps no other item (touching allowed, 0.1 mm tolerance) and stays under the interior height and, for rocks and ornaments, under the water line, measured from the floor with the surface at the item origin; a refused rotation of the selected item returns to its model angle and a refused drag drop is cancelled, each with a short coral pulse of the selection glow on the item (ADR 0012 Amendment 2); one command per place, drop, rotate hold, delete or recolour; delete and recolour are asked through `EventBus.item_delete_requested` and `item_colour_requested`, and the tint of a colourable item is a per-instance shader parameter on shared meshes and materials ([ADR 0012](adr/0012-placement-system-drawn-items-hit-test-and-validity-seam.md)) |
 | Substrate | Five substrate types from the catalog, colour from a short swatch list, sculpting slopes (#29) | 3D bed: settled baked stones, dark core, ray-cast sand, assembled on a worker thread, flat at the fill depth of the type until #29 ([ADR 0011](adr/0011-substrate-bed-surface-height-and-grain-instancing.md)); colour as a shader parameter on the bed's material copies; defaults and load fallback: ADR 0010 |
 | Fish behaviour | Natural movement within the tank | Boids (separation, alignment, cohesion), preferred depth zone, obstacle avoidance, idle and dart states; species personality with individual variation per fish (D20) |
-| Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed |
+| Fish animation | Swimming without rigs | Vertex shader: sine-wave body bend scaled by speed (`game/shaders/fish.gdshader`, one material per species, per-fish instance parameters); `FishView` (`game/scenes/tank/fish/`) draws one node per fish at a resting pose derived from the uid, never saved, with the swim bottom from `SubstrateSurface` through `FishZones` ([ADR 0013](adr/0013-fish-presentation-mask-layout-shader-contract-and-derived-resting-pose.md)) |
 | Feeding | Drop food; fish notice and eat it gradually, not all at once; no hunger or overfeeding consequences in Mode 1 | Particle food with simple physics; each fish notices food after its own short random delay, then switches to a seek state |
 | Camera | Orbit, zoom, limits, photo mode | See the camera specification; world input routing and modal blocking: [ADR 0008 (Amendments 1 and 2)](adr/0008-world-input-routing-and-modal-blocking.md); build camera collision: [ADR 0009](adr/0009-build-camera-collision-analytic-solids.md) |
 | Water rendering | Cozy, readable water | Glass shader; water surface; in-tank fog as a `FogVolume` bounded to the water, with all fog values in one `WaterFogSettings` resource; depth tint scaled by path length; caustics from the lamp onto the surfaces inside the water, with the caustic values in one `WaterCausticSettings` resource; bubbles. Water volume contract, fog quality hook and caustics (Amendment 1): [ADR 0007](adr/0007-water-volume-contract-and-fog-quality-hook.md) |

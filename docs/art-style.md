@@ -37,7 +37,8 @@ How to read this guide:
 
 - **Rule:** each species issue lists 2 to 3 "must stay recognisable" features (silhouette,
   proportion, colour or pattern). Recognition comes from these, not from triangle count. Examples:
-  - neon tetra: iridescent blue-green lateral stripe above a red lower half, about 3.5 cm;
+  - neon tetra: iridescent blue-green lateral stripe above a red lower half, about 3.0 cm standard
+    length (about 3.5 cm total length);
   - betta: long flowing fins, long-fin form with fins about 1.5 to 2 times the body length;
   - guppy: large fan tail on males;
   - angelfish: tall triangular body, trailing fins;
@@ -97,7 +98,8 @@ MultiMesh, one instance or one clump).
   in the shader.
 - **Rule:** no photographic textures: no texture derived from photos or scans.
 - **Rule:** colour customization works through shader parameters, never through duplicate models.
-  Fish colour variants are driven by the catalog field `colour_variants`.
+  Fish colour variants are driven by the catalog field `colour_variants`, as a variant tint over
+  the body region marked in the alpha channel of the fish mask.
 - **Rule:** patterns (stripes, spots, bands) use mask textures or vertex colours, never extra
   geometry.
 
@@ -113,14 +115,29 @@ without further questions.
   faces collapse onto cells there. No texture other than the palette atlas is sampled with UV1.
 - **Rule:** the body of a masked fish takes its base colour from the palette atlas through UV1.
   The mask regions then override that base colour only inside their region, using per-region
-  shader parameters. The base colour is never a shader parameter of its own.
-- **Rule:** fish mask texture channels (sampled with UV0): R = pattern region 1, G = pattern
-  region 2, B = eye region (a dark eye with a small highlight). The colour of each region is a
-  shader parameter.
+  shader parameters. The base colour is never a shader parameter of its own, but a variant tint
+  (`variant_tint_colour`, `variant_tint_strength`, `variant_tint_keep`) may modulate it inside the
+  alpha body region of the fish mask; no catalog field.
+- **Rule:** fish mask texture channels (one RGBA8 texture of at most 256 x 256 px per species,
+  sampled with UV0; ADR 0013 rule 4):
+  - R = pattern region 1, G = pattern region 2: coverage 0 to 255 with a soft edge of at most
+    2 texels, read with a linear, mipmapped sampler. Their colours are the shader parameters
+    `region_r_colour` and `region_g_colour`.
+  - B = eye bands, written hard: 0 no eye, 85 pupil, 170 iris ring, 255 painted highlight dot
+    (tolerance 20 levels). The shader reads B unfiltered (`texelFetch` at mip level 0, nearest
+    texel) and decodes `band = int(round(b * 3.0))`, so a filter never turns the edge between two
+    bands into a third.
+  - A = tintable body region, written hard: 0 not body, 255 body. Never on an eye texel and never
+    on a fin.
+  - The mask is linear data (no `source_color`). Import: lossless (`compress/mode=0`), mipmaps on,
+    `process/fix_alpha_border=false`, `process/premult_alpha=false`, `detect_3d/compress_to=0`,
+    `process/size_limit=0`, channels unchanged, so the imported mip level 0 equals the PNG.
 - **Rule:** the vertex colour alpha channel is the fin translucency mask (1 = translucent fin,
-  0 = opaque body). One transmission-strength shader parameter serves all species. Plants use the
-  same channel for thin leaves. It needs a custom shader that reads vertex colour alpha as a mask;
-  a `StandardMaterial3D` with vertex colour as albedo would treat the alpha as transparency.
+  0 = opaque body). The shader parameters `fin_opacity` (fin alpha), `transmission_strength` and
+  `transmission_color` (back-light through the fins) serve all species; each species material sets
+  its own values. Plants use the same channel for thin leaves. It needs a custom shader that reads
+  vertex colour alpha as a mask; a `StandardMaterial3D` with vertex colour as albedo would treat
+  the alpha as transparency.
 - **Rule:** 1 Blender unit = 1 m. The model front faces glTF +Z (Blender -Y, Godot
   `Vector3.MODEL_FRONT`); all generators use this one front axis.
 - **Rule:** fish are authored at unit body length (1 unit, so the standard length: snout tip to the
@@ -131,7 +148,27 @@ without further questions.
 
 ### Fish
 
-- **Rule:** the eye is its own mask region (see the B channel above).
+- **Rule:** the eye is its own mask region (see the B channel above): a pupil in `eye_colour`, an
+  iris ring in `eye_iris_colour` where the species has one (the angelfish: an orange-red ring around
+  a dark pupil; species without a ring set `eye_iris_colour` equal to `eye_colour`), a painted
+  highlight dot that is always visible (`eye_highlight_colour`, `eye_highlight_strength`, with a
+  small emission of the highlight colour), and a specular glint from the material on the whole eye
+  region that moves as the fish turns (`eye_glint_strength` lowers the roughness and raises the
+  specular there). The eye values are material parameters, never catalog fields; the variant tint
+  never touches the eye.
+- **Rule:** an angle-dependent stripe shimmer (`shimmer_strength`, `shimmer_colour_a` looked at
+  head on, `shimmer_colour_b` at a glancing angle, `shimmer_power` shaping the change) acts on mask
+  region R outside the eye. It is generic: any species may use it, the default strength is 0, and
+  the neon tetra must use it. The neon stripe stays blue-green (both colours hue 150 to 235 degrees)
+  and readable at the back of the largest tank.
+- **Rule:** a colour variant is a replace-style tint inside the alpha body region of the mask: the
+  per-fish `variant_tint_colour` (the catalog `colour_variants[variant]`) replaces the base colour
+  there, keeping the share `variant_tint_keep` (0.2 to 0.4) of the base luminance variation, so
+  shading, faded bars and the metal sheen remain. `variant_tint_strength` is 0 for variant 0 (the
+  untinted wild form) and 1 otherwise. The tint never touches the eye, the fins, the roughness,
+  the specular or the metallic value. Coverage per species is authored in the alpha channel: the
+  neon tetra body and red lower half without the stripe; the whole angelfish body (the bars vanish
+  under black and stay faint under gold); the whole corydoras body except the eye.
 - **Guideline:** fins and tail are translucent, the body is not. Translucency is strong on betta,
   guppy, angelfish, fancy goldfish, danio and rasbora tails, and weak or none on opaque fins. Back-lit
   fins are slightly lighter and more saturated.
@@ -181,6 +218,8 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 | Colour-grading LUT | **Rule**: optional | Colour correction through a lookup table | `Environment.adjustment_color_correction` (switched on through `Environment.adjustment_enabled`); no strength parameter | its area:render issue |
 | SSAO | **Rule**: optional | Environment ambient occlusion | `ssao_intensity` | its area:render issue |
 | Soft fresnel edge glow | **Rule**: optional, soft and subtle | Fresnel term in the material | `fresnel_strength` | its area:render issue |
+| Fish swim bend | **Rule**: required | Lateral vertex-shader wave from head to tail, idle at rest | `swim_amplitude`, `swim_frequency`, `swim_speed_scale`, `swim_phase`, `swim_speed` | #34 |
+| Fish stripe shimmer | **Rule**: required on the neon tetra, generic | View-angle blend between two colours on mask region R | `shimmer_strength`, `shimmer_colour_a`, `shimmer_colour_b`, `shimmer_power` | #34 |
 
 - **Rule:** names of built-in Godot properties are exact: `Environment` properties (for example
   `glow_intensity`, `glow_hdr_threshold`, `tonemap_exposure`, `tonemap_white`, `ssao_intensity`,
@@ -196,6 +235,12 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
 - **Rule:** fish swim through a vertex shader; no skeletal rigs in the MVP.
 - **Guideline:** the swim bend grows from an almost still head to the tail; roughly the rear 40
   percent of the body bends most.
+- **Rule:** the fish swim bend is lateral only and leaves the front 20 percent of the body still.
+  Per species material: `swim_amplitude` (0.06 to 0.12 body lengths at swim speed 1),
+  `swim_frequency` (0.5 to 2.5 Hz at swim speed 1) and `swim_speed_scale`; per fish (instance
+  parameters): `swim_phase` and `swim_speed`. At swim speed 1 the largest displacement is 0.06 to
+  0.15 body lengths; at swim speed 0 it is 0.005 to 0.03 body lengths, so a resting fish still
+  breathes; no vertex ever moves more than 0.15 body lengths.
 - **Guideline:** plant sway is a vertex shader: zero at the root, growing to the tip, about 0.2 to
   0.5 Hz because tank water is calm. Stem plants sway less than ribbon leaves.
 - **Guideline:** the caustic cycle is a few seconds. Caustics are softer and more spread than

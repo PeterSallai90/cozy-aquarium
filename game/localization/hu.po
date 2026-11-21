@@ -10,6 +10,24 @@ msgstr ""
 msgid "datetime.unknown"
 msgstr "Ismeretlen"
 
+msgid "fish.angelfish.description"
+msgstr "Kecses, lassan úszó hal hosszú, lebegő uszonyokkal és magas, vitorlaszerű testtel. Szívesen megpihen egy csendes sarokban, a növények között."
+
+msgid "fish.angelfish.name"
+msgstr "Vitorláshal"
+
+msgid "fish.bronze_corydoras.description"
+msgstr "Barátságos fenéklakó, amely kis csoportban csoszog a homok fölött. Rövid, igyekvő szaladások között csendben pihen."
+
+msgid "fish.bronze_corydoras.name"
+msgstr "Bronz páncélosharcsa"
+
+msgid "fish.neon_tetra.description"
+msgstr "Apró, csillogó hal, amely szoros rajban cikázik a vízben. Kékeszöld csíkja megvillan, ahogy változik a fény."
+
+msgid "fish.neon_tetra.name"
+msgstr "Neonhal"
+
 msgid "item.browser.close"
 msgstr "Bezárás"
 

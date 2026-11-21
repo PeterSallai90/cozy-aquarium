@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="FishSpecies" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://catalog/fish_species.gd" id="1_species"]
+[ext_resource type="PackedScene" path="res://assets/fish/scenes/angelfish.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_species")
+id = &"angelfish"
+name_key = "fish.angelfish.name"
+description_key = "fish.angelfish.description"
+scientific_name = "Pterophyllum scalare"
+scene = ExtResource("2_scene")
+colour_variants = Array[Color]([Color(0.81568627, 0.83921569, 0.83137255, 1), Color(0.14901961, 0.14901961, 0.16862745, 1), Color(0.90196078, 0.72156863, 0.36078431, 1)])
+adult_length_cm = 12.0
+preferred_zone = 2
+schooling = false
+swim_speed = 0.5
+temp_min_c = 24.0
+temp_max_c = 30.0
+ph_min = 6.0
+ph_max = 7.5
+min_group_size = 1
+min_tank_litres = 150
+bioload = 2.5
+temperament = 2
+diet = Array[StringName]([&"flakes", &"pellets", &"live", &"frozen"])
+light_preference = 2
+needs_hiding_places = true
+incompatible_with = Array[StringName]([&"neon_tetra"])

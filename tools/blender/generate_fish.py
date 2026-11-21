@@ -1,15 +1,23 @@
-"""Generate the pipeline-proof fish (#21) and its palette atlas, headless in Blender 5.2.
+"""Generate the pipeline-proof fish (#21) and the species fish (#34), headless in Blender 5.2.
 
 Usage (the arguments after ``--`` belong to this script):
 
     blender --background --python tools/blender/generate_fish.py -- --params <file> --out <path>
+    blender --background --python tools/blender/generate_fish.py -- --species <id> [--out <path>]
 
-- ``--params``: parameter JSON (default ``tools/blender/params/proof_fish.json``).
-- ``--out``: the ``.glb`` to write (default ``game/assets/fish/proof_fish.glb``). The palette atlas
-  is written next to it as ``proof_palette_atlas.png``.
+- ``--params``: parameter JSON (default ``tools/blender/params/proof_fish.json``, or
+  ``tools/blender/params/<id>.json`` with ``--species``).
+- ``--out``: the ``.glb`` to write (default ``game/assets/fish/proof_fish.glb``, or
+  ``game/assets/fish/<id>.glb`` with ``--species``). The proof palette atlas is written next to it
+  as ``proof_palette_atlas.png``.
+- ``--species <id>`` (#34; ids ``neon_tetra``, ``angelfish``, ``bronze_corydoras``) builds the
+  species from its parameter file (schema in ``fish_species.py``) and writes ``<id>.glb``, the
+  mask ``<id>_mask.png`` and the shared ``fish_palette_atlas.png`` into the folder of ``--out``,
+  swapped in as one set. The proof path never loads ``fish_species.py``, so its outputs stay
+  byte-identical.
 - Running without arguments regenerates the committed proof files. Defaults are resolved from the
   location of this script, so the working directory does not matter.
-- #40 extends this script with ``--all`` and ``--species <name>`` and keeps ``--params`` and
+- #40 extends this script with ``--all`` and the other species and keeps ``--params`` and
   ``--out``.
 
 Conventions (docs/art-style.md, "Generator conventions"):
@@ -640,11 +648,11 @@ def cell_uv(cell: tuple[int, int]) -> tuple[float, float]:
 # --- Blender ---
 
 
-def build_object(data: MeshData):  # noqa: ANN201 (bpy types)
+def build_object(data: MeshData, name: str = OBJECT_NAME):  # noqa: ANN201 (bpy types)
     import bmesh  # noqa: PLC0415 (only inside Blender)
     import bpy  # noqa: PLC0415
 
-    mesh = bpy.data.meshes.new(OBJECT_NAME)
+    mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
     uv0 = bm.loops.layers.uv.new("UV0")
     uv1 = bm.loops.layers.uv.new("UV1")
@@ -682,7 +690,7 @@ def build_object(data: MeshData):  # noqa: ANN201 (bpy types)
     mesh.materials.append(body)
     mesh.materials.append(fin)
 
-    obj = bpy.data.objects.new(OBJECT_NAME, mesh)
+    obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
     return obj
 
@@ -727,10 +735,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     script_args = argv[argv.index("--") + 1 :] if "--" in argv else []
     parser = argparse.ArgumentParser(
         prog="generate_fish.py",
-        description="Generate the proof fish .glb and its palette atlas (#21).",
+        description="Generate the proof fish (#21) or a species fish (#34) with its textures.",
     )
-    parser.add_argument("--params", type=Path, default=DEFAULT_PARAMS)
-    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--params", type=Path, default=None)
+    parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--species", default=None)
     return parser.parse_args(script_args)
 
 
@@ -803,10 +812,135 @@ def swap_in_pair(
             backup.unlink()
 
 
+def swap_in_set(moves: list[tuple[Path, Path]]) -> None:
+    """Move each temporary file onto its target, all or nothing (the species set of #34).
+
+    Every existing target is copied to a hidden backup first. When a rename fails, the targets
+    already replaced are restored from their backups (or removed on a first run), so the folder
+    holds the old set or the new set, never a mix. Backups are deleted afterwards unless a rollback
+    failed; then the error names the target whose backup is kept. A kill between two renames is
+    not covered (#115).
+    """
+    backups: list[Path | None] = []
+    for _, target in moves:
+        backup = target.with_name(f".{target.name}.bak")
+        if backup.exists():
+            raise GeneratorError(
+                f"a backup from an earlier failed run exists: {backup}; "
+                f"restore it to {target.name} or delete it, then run again"
+            )
+    keep: set[Path] = set()
+    try:
+        for _, target in moves:
+            backup = target.with_name(f".{target.name}.bak")
+            if target.is_file():
+                try:
+                    # copyfile, not copy2: a read-only target must not give a read-only backup.
+                    shutil.copyfile(target, backup)
+                except OSError as error:
+                    raise GeneratorError(f"could not back up {target}: {error}") from error
+                backups.append(backup)
+            else:
+                backups.append(None)
+        for index, (source, target) in enumerate(moves):
+            try:
+                os.replace(source, target)
+            except OSError as error:
+                problems: list[str] = []
+                for undo in reversed(range(index)):
+                    done_target = moves[undo][1]
+                    backup = backups[undo]
+                    try:
+                        if backup is None:
+                            done_target.unlink()
+                        else:
+                            os.replace(backup, done_target)
+                    except OSError as rollback_error:
+                        problems.append(f"{done_target}: {rollback_error}")
+                        if backup is not None:
+                            keep.add(backup)
+                if problems:
+                    raise GeneratorError(
+                        f"could not replace {target}: {error}; the rollback failed too "
+                        f"({'; '.join(problems)}); backups kept: {sorted(map(str, keep))}"
+                    ) from error
+                raise GeneratorError(
+                    f"could not replace {target}: {error}; the old set is unchanged"
+                ) from error
+    finally:
+        for backup in backups:
+            if backup is not None and backup not in keep and backup.is_file():
+                backup.unlink()
+
+
+def run_species(args: argparse.Namespace) -> None:
+    """``--species <id>``: geometry, mask and atlas from fish_species.py, written as one set."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    # fish_species imports this module by name; under Blender it runs as __main__, so register it
+    # first: one module object, one GeneratorError class for main() to catch.
+    sys.modules.setdefault("generate_fish", sys.modules[__name__])
+    import fish_species  # noqa: PLC0415 (species mode only; the proof path never loads it)
+
+    species = str(args.species)
+    if species not in fish_species.SPECIES_IDS:
+        raise GeneratorError(
+            f"unknown species id {species!r}; known: {', '.join(fish_species.SPECIES_IDS)}"
+        )
+    params_path = args.params or REPO_ROOT / "tools" / "blender" / "params" / f"{species}.json"
+    params = fish_species.load_species_params(params_path.resolve())
+    out: Path = (args.out or REPO_ROOT / "game" / "assets" / "fish" / f"{species}.glb").resolve()
+    if out.suffix.lower() != ".glb":
+        raise GeneratorError(f"--out must name a .glb file: {out}")
+    folder = out.parent
+    if not folder.is_dir():
+        raise GeneratorError(f"--out folder does not exist: {folder}")
+    built = fish_species.build_species(params)  # geometry errors surface before any write
+    mask_bytes = fish_species.mask_png(built)
+    atlas_bytes = fish_species.atlas_png()
+
+    import bpy  # noqa: PLC0415
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    obj = build_object(built.data, species)
+
+    mask_final = folder / f"{species}{fish_species.MASK_SUFFIX}"
+    atlas_final = folder / fish_species.ATLAS_NAME
+    tmp_glb = folder / f".{out.stem}.tmp.glb"
+    tmp_mask = folder / f".{mask_final.stem}.tmp.png"
+    tmp_atlas = folder / f".{atlas_final.stem}.tmp.png"
+    try:
+        try:
+            tmp_atlas.write_bytes(atlas_bytes)  # also the write probe for the folder
+            tmp_mask.write_bytes(mask_bytes)
+        except OSError as error:
+            raise GeneratorError(f"--out folder is not writable: {folder} ({error})") from error
+        try:
+            export_glb(obj, tmp_glb)
+        except RuntimeError as error:
+            raise GeneratorError(f"glTF export failed: {error}") from error
+        checks = ((tmp_glb, b"glTF"), (tmp_mask, b"\x89PNG"), (tmp_atlas, b"\x89PNG"))
+        for written, magic in checks:
+            if not written.is_file() or written.stat().st_size == 0:
+                raise GeneratorError(f"export wrote no file: {written}")
+            with written.open("rb") as handle:
+                if handle.read(4) != magic:
+                    raise GeneratorError(f"export wrote a broken file: {written}")
+        swap_in_set([(tmp_glb, out), (tmp_mask, mask_final), (tmp_atlas, atlas_final)])
+    finally:
+        _remove(tmp_glb)
+        _remove(tmp_mask)
+        _remove(tmp_atlas)
+    triangles = fish_species.triangle_count(built)
+    print(f"generate_fish: wrote {out} ({triangles} triangles), {mask_final} and {atlas_final}")
+
+
 def run(argv: list[str]) -> None:
     args = parse_args(argv)
-    params = load_params(args.params.resolve())
-    out: Path = args.out.resolve()
+    if args.species is not None:
+        run_species(args)
+        return
+    params = load_params((args.params or DEFAULT_PARAMS).resolve())
+    out: Path = (args.out or DEFAULT_OUT).resolve()
     if out.suffix.lower() != ".glb":
         raise GeneratorError(f"--out must name a .glb file: {out}")
     folder = out.parent
