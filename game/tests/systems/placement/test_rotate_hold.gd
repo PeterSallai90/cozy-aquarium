@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends GdUnitTestSuite
 ## #31 AC 10, 27 and 41 (owner: developer): RotateHold as a pure state machine, driven by fixed
 ## frame times. press(direction, start_deg, fine) turns by one step at once; tick(delta_s, fine)
@@ -275,3 +276,69 @@ func test_ac41_switching_keys_is_a_release_and_a_new_press() -> void:
 	assert_bool(hold.call("is_active")).is_true()
 	assert_int(hold.call("get_direction")).is_equal(-1)
 	_same_angle(_pending(hold), 0.0)
+
+
+# --- #33: get_repeat_count (AC 15 needs to tell a tap from a hold that repeated) ---
+
+
+func test_ac15_get_repeat_count_is_zero_after_the_press_and_counts_the_repeat_steps() -> void:
+	if not _have():
+		return
+	var hold: RefCounted = Api.new_hold()
+	(
+		assert_bool(hold.has_method("get_repeat_count"))
+		. override_failure_message("RotateHold.get_repeat_count() is missing (#33)")
+		. is_true()
+	)
+	if not hold.has_method("get_repeat_count"):
+		return
+	hold.call("press", 1, 0.0, false)
+	assert_int(hold.call("get_repeat_count")).is_equal(0)
+	_run(hold, Api.tuning("REPEAT_DELAY_S") * 0.5)
+	assert_int(hold.call("get_repeat_count")).is_equal(0)
+	_run(hold, _time_for(1))
+	assert_int(hold.call("get_repeat_count")).is_equal(1)
+	_run(hold, Api.tuning("REPEAT_INTERVAL_S") * 3.0)
+	assert_int(hold.call("get_repeat_count")).is_greater_equal(3)
+
+
+func test_ac15_get_repeat_count_counts_every_step_of_one_long_frame() -> void:
+	if not _have():
+		return
+	var hold: RefCounted = Api.new_hold()
+	if not hold.has_method("get_repeat_count"):
+		(
+			assert_bool(false)
+			. override_failure_message("RotateHold.get_repeat_count() is missing")
+			. is_true()
+		)
+		return
+	hold.call("press", 1, 0.0, false)
+	var delta: float = Api.tuning("REPEAT_DELAY_S") + Api.tuning("REPEAT_INTERVAL_S") * 2.5
+	hold.call("tick", delta, false)
+	assert_int(hold.call("get_repeat_count")).is_equal(3)
+
+
+func test_ac15_a_new_press_resets_the_repeat_count() -> void:
+	if not _have():
+		return
+	var hold: RefCounted = Api.new_hold()
+	if not hold.has_method("get_repeat_count"):
+		(
+			assert_bool(false)
+			. override_failure_message("RotateHold.get_repeat_count() is missing")
+			. is_true()
+		)
+		return
+	hold.call("press", 1, 0.0, false)
+	_run(hold, _time_for(4))
+	var counted: int = hold.call("get_repeat_count")
+	assert_int(counted).is_greater_equal(3)
+	hold.call("release")
+	# Counted since the press: still readable at the release.
+	assert_int(hold.call("get_repeat_count")).is_equal(counted)
+	hold.call("press", -1, 0.0, false)
+	assert_int(hold.call("get_repeat_count")).is_equal(0)
+	hold.call("cancel")
+	hold.call("press", 1, 0.0, true)
+	assert_int(hold.call("get_repeat_count")).is_equal(0)

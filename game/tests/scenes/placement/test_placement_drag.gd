@@ -13,6 +13,8 @@ extends GdUnitTestSuite
 ## over a panel; a press that starts on a panel starts nothing.
 ## Test decisions: the pointer leaves the press spot in one motion event to the target; the start
 ## spot of the same-spot case is the ground point of the item origin (the drag has no grab offset).
+## #33 update: the branch of the pair stands at x 0.2 (turned by 90 degrees it spans x 0.165 to
+## 0.235), so that the drop targets of these tests clear it with the footprint rule.
 
 const Rig := preload("res://tests/helpers/placement_rig.gd")
 const Session := preload("res://tests/helpers/placement_session.gd")
@@ -48,7 +50,7 @@ func _open(model: AquariumModel = null, elevation: float = Rig.TOP_ELEVATION_DEG
 func _pair() -> AquariumModel:
 	var model: AquariumModel = Rig.model()
 	Rig.add_item(model, FIRST, Rig.STONE, -0.15, 0.0)
-	Rig.add_item(model, SECOND, Rig.BRANCH, 0.15, 0.0, 90.0)
+	Rig.add_item(model, SECOND, Rig.BRANCH, 0.2, 0.0, 90.0)
 	return model
 
 

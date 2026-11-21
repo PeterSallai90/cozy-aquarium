@@ -158,7 +158,7 @@ func test_ac07_outside_the_tank_interior_there_is_no_ghost() -> void:
 	assert_bool(_s.ghost_shown()).is_true()
 	_s.move(Session.OUTSIDE)
 	assert_bool(_s.ghost_shown()).is_false()
-	_s.move(_s.screen_of(0.29, 0.0))
+	_s.move(_s.screen_of(0.24, 0.0))
 	assert_bool(_s.ghost_shown()).is_true()
 	_s.move(_s.screen_of(0.31, 0.0))
 	assert_bool(_s.ghost_shown()).is_false()

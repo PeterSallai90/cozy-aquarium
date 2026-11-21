@@ -9,8 +9,11 @@ extends RefCounted
 ##
 ## Contract of the technical plan (comment on #31, section 1), plus the test decisions where the
 ## plan is silent (also listed in the test file headers):
-## - PlacementRules.new(tank_catalog), allows(model, candidate, before) -> bool and
-##   static is_point_inside(interior_size_m, x, z) -> bool.
+## - PlacementRules.new(tank_catalog, item_source, substrate_catalog) (#33, ADR 0012 Amendment 2;
+##   the #31 form took the tank catalog only and is still used while the script has one argument),
+##   allows(model, candidate, before) -> bool, const TOLERANCE_M, static
+##   item_top(surface_m, footprint_cm, item_scale) -> float and static
+##   is_point_inside(interior_size_m, x, z) -> bool.
 ## - PlaceItemCommand.new(model, item, rules); TransformItemCommand.new(model, uid, position,
 ##   rotation_y, rules).
 ## - ItemCatalogSource.new(), get_catalog(), is_loaded(), get_load_count(), static
@@ -34,6 +37,7 @@ const HOLD := "res://systems/placement/rotate_hold.gd"
 const SYSTEM := "res://systems/placement/placement_system.gd"
 const VIEW := "res://scenes/tank/items/placed_items_view.gd"
 const HINT := "res://ui/placement/placement_hint.gd"
+const CUE := "res://systems/placement/refusal_cue.gd"
 const MISSING_NUMBER := -999.0
 const MISSING_TEXT := "<missing>"
 
@@ -84,11 +88,52 @@ static func call_on(object: Object, method: String, args: Array, fallback: Varia
 # --- model layer ---
 
 
-static func rules() -> RefCounted:
+## The rules with the shipped tank and substrate catalogs and, unless given, the shipped items.
+## With the #31 constructor (one argument) the old form is used, so the missing #33 behaviour
+## shows as failing assertions and not as engine errors.
+static func rules(source: RefCounted = null, substrates: SubstrateCatalog = null) -> RefCounted:
+	var used: RefCounted = source
+	if used == null:
+		used = source_from(ItemCatalog.load_dirs())
+	var used_substrates: SubstrateCatalog = substrates
+	if used_substrates == null:
+		used_substrates = SubstrateCatalog.load_dir()
+	return rules_with(TankCatalog.load_dir(), used, used_substrates)
+
+
+## The rules with exactly these three catalogs (null allowed, for the null cases of AC 9b).
+static func rules_with(
+	tanks: TankCatalog, source: RefCounted, substrates: SubstrateCatalog
+) -> RefCounted:
 	var script: GDScript = script_of(RULES)
 	if script == null:
 		return null
-	return script.new(TankCatalog.load_dir()) as RefCounted
+	if init_arg_count(script) >= 3:
+		return script.new(tanks, source, substrates) as RefCounted
+	return script.new(tanks) as RefCounted
+
+
+static func init_arg_count(script: Script) -> int:
+	for entry: Dictionary in script.get_script_method_list():
+		if entry["name"] == &"_init":
+			return (entry["args"] as Array).size()
+	return 0
+
+
+## allows(model, candidate, before) as a Variant: true, false or null while the rules are missing.
+static func allows(
+	used: RefCounted, model: AquariumModel, candidate: PlacedItem, before: PlacedItem
+) -> Variant:
+	return call_on(used, "allows", [model, candidate, before], null)
+
+
+static func item_top(surface_m: float, footprint_cm: Vector3, item_scale: float) -> float:
+	return float(call_static(RULES, "item_top", [surface_m, footprint_cm, item_scale], NAN))
+
+
+## PlacementRules.TOLERANCE_M, or MISSING_NUMBER.
+static func tolerance() -> float:
+	return float(constant(RULES, "TOLERANCE_M", MISSING_NUMBER))
 
 
 static func place_command(model: AquariumModel, item: PlacedItem, used: RefCounted) -> Command:
@@ -150,6 +195,19 @@ static func new_hold() -> RefCounted:
 	if script == null:
 		return null
 	return script.new() as RefCounted
+
+
+## A fresh RefusalCue (#33), or null while the script is missing.
+static func new_cue() -> RefCounted:
+	var script: GDScript = script_of(CUE)
+	if script == null:
+		return null
+	return script.new() as RefCounted
+
+
+## RefusalCue.strength_at(t_s, base), or MISSING_NUMBER.
+static func cue_strength_at(t_s: float, base: float) -> float:
+	return float(call_static(CUE, "strength_at", [t_s, base], MISSING_NUMBER))
 
 
 static func hint_key_labels() -> String:

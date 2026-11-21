@@ -5,6 +5,11 @@ extends GdUnitTestSuite
 ## check of every value and the rotation-only exception (plan section 1: a change that keeps the
 ## position skips the position check, so items of old saves outside the interior can be turned).
 ## Run on the medium tank and checked on the small and large tanks too.
+## #33 update (test decisions, nothing weakened): allows() now judges the whole footprint, not the
+## centre, so the spots of these tests keep the river_stone (11 x 8 cm) clear of the glass (the
+## flush and overlap rules are in test_placement_rules_bounds.gd and _overlap.gd). The
+## rotation-only case stays true because the item is already invalid (outside), the plan
+## rule of ADR 0012 Amendment 2; the valid-item case is in test_placement_rules_rotation.gd.
 
 const Api := preload("res://tests/helpers/placement_api.gd")
 const Factory := preload("res://tests/helpers/factory.gd")
@@ -117,7 +122,7 @@ func test_ac11_allows_follows_the_tank_of_the_model() -> void:
 	if not _have():
 		return
 	var rules: RefCounted = Api.rules()
-	var candidate: PlacedItem = _candidate(0.25, 0.0)
+	var candidate: PlacedItem = _candidate(0.24, 0.0)
 	assert_bool(rules.call("allows", _model(&"tank_medium_1"), candidate, null)).is_true()
 	assert_bool(rules.call("allows", _model(&"tank_small_1"), candidate, null)).is_false()
 
@@ -148,7 +153,7 @@ func test_ac30_allows_refuses_values_that_are_not_finite() -> void:
 	assert_bool(rules.call("allows", model, scaled, null)).is_false()
 
 
-func test_ac11_a_rotation_only_change_skips_the_position_check() -> void:
+func test_ac11_a_rotation_only_change_of_an_item_that_is_already_invalid_skips_the_check() -> void:
 	if not _have():
 		return
 	var rules: RefCounted = Api.rules()
