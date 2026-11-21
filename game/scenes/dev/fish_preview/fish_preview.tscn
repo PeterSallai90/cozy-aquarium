@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/dev/fish_preview/fish_preview.gd" id="1_script"]
+
+[node name="FishPreview" type="Node3D"]
+script = ExtResource("1_script")

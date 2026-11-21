@@ -2,7 +2,8 @@ class_name RoomCorner
 extends Node3D
 ## The cozy room corner: room, cabinet, lamp, the displayed tank and the build camera. It also
 ## hosts the placement system (ADR 0012), which draws and edits the placed items in the tank frame
-## and is told the tank and the substrate shown here.
+## and is told the tank and the substrate shown here, and the fish view (#34), which draws the fish
+## of the model in the tank frame.
 ## Reads the model, never writes it. When the model changes the tank (or is reset), the room swaps
 ## tank, cabinet and lamp for the ones of the new tank and frames the default view again.
 
@@ -42,6 +43,7 @@ var _item_source: ItemCatalogSource = null
 @onready var _camera: BuildCamera = $BuildCamera
 @onready var _walls: WallCutaway = $WallCutaway
 @onready var _placement: PlacementSystem = $Placement
+@onready var _fish: FishView = $Fish
 
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
@@ -84,6 +86,7 @@ func _ready() -> void:
 	_placement.setup(
 		_model, _history, _item_source, PlacementRules.new(_catalog, _item_source, _substrates)
 	)
+	_fish.setup(_model, _catalog, _substrates)
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
 	_model.substrate_changed.connect(_on_substrate_changed)
@@ -150,9 +153,12 @@ func _show_tank() -> void:
 		_displayed_tank_id = definition.id
 		_displayed_tank = definition
 		_placement.set_tank(definition, tank.global_transform)
+		_fish.global_transform = tank.global_transform
+		_fish.visible = _fish.has_tank()
 		_apply_substrate()
 	if tank == null:
 		_placement.set_tank(null, global_transform)
+		_fish.visible = false
 	var lamp: Node3D = _add_furniture(&"Lamp", definition, stand_z)
 	var mount: Node3D = null
 	if tank != null:
