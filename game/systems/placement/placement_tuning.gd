@@ -19,3 +19,9 @@ const FINE_REPEAT_INTERVAL_S: float = 0.05
 const SAME_SPOT_M: float = 0.0001
 ## A rotation within this many degrees of the start counts as the same angle.
 const SAME_ANGLE_DEG: float = 0.01
+## The refusal cue (#33): the selection glow rises from its base to the peak and falls back once
+## over this many seconds.
+const REFUSAL_CUE_DURATION_S: float = 0.30
+## The fresnel strength at the middle of the cue. Times the brightest glow channel it stays below
+## the bloom threshold of the room environment.
+const REFUSAL_CUE_PEAK_STRENGTH: float = 0.95

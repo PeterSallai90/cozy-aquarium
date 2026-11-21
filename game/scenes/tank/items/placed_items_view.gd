@@ -13,9 +13,15 @@ extends Node3D
 ## rule 11): every geometry instance of the node gets item_tint, alpha 1 for a stored colour of a
 ## colourable definition and alpha 0 (the original look) otherwise. Meshes and materials stay
 ## shared; it is set on create and on item_changed only, never for a pending rotation.
+##
+## The refusal cue (#33 AC 15, ADR 0012 Amendment 2): play_refusal_cue() lets the glow of the
+## selection mark rise and fall once (RefusalCue). While it runs the marked meshes carry one
+## runtime copy of the selection material whose fresnel_strength is set from step_cue(); the shared
+## material is never written and goes back when the cue ends or is cancelled.
 
 const TINT_PARAM: StringName = &"item_tint"
 const SELECTION_MATERIAL: Material = preload("res://scenes/tank/items/item_selection_material.tres")
+const STRENGTH_PARAM: StringName = &"fresnel_strength"
 
 var _model: AquariumModel = null
 var _source: ItemCatalogSource = null
@@ -31,6 +37,10 @@ var _created: int = 0
 var _selected_uid: String = ""
 var _marked_uid: String = ""
 var _feedback_visible: bool = true
+var _cue: RefusalCue = RefusalCue.new()
+var _cue_material: ShaderMaterial = null
+var _cue_uid: String = ""
+var _cue_plays: int = 0
 
 
 ## Connects to the model. The catalog is asked for only when an item has to be drawn.
@@ -46,6 +56,7 @@ func setup(model: AquariumModel, source: ItemCatalogSource) -> void:
 
 ## The tank the items stand in; null hides every item (no tank is shown).
 func set_tank(definition: TankDefinition) -> void:
+	_cancel_cue()
 	_tank = definition
 	visible = definition != null
 	_reposition_all()
@@ -107,6 +118,65 @@ func set_feedback_visible(shown: bool) -> void:
 	_apply_mark()
 
 
+## Plays the refusal cue on the marked item; a no-op for any other uid and while no mark is shown.
+## A cue that runs is restarted, never stacked.
+func play_refusal_cue(uid: String) -> void:
+	if uid == "" or uid != _marked_uid:
+		return
+	var node: Node3D = _nodes.get(uid)
+	if node == null:
+		return
+	if _cue_material == null:
+		_cue_material = (SELECTION_MATERIAL as ShaderMaterial).duplicate() as ShaderMaterial
+	_cue.start()
+	_cue_plays += 1
+	_cue_uid = uid
+	_cue_material.set_shader_parameter(STRENGTH_PARAM, _cue.get_strength(_base_strength()))
+	_set_overlay(node, _cue_material)
+
+
+## Advances the cue by one frame and writes its strength to the runtime copy.
+func step_cue(delta_s: float) -> void:
+	if not _cue.is_active():
+		return
+	_cue.step(delta_s)
+	if _cue.is_active():
+		_cue_material.set_shader_parameter(STRENGTH_PARAM, _cue.get_strength(_base_strength()))
+	else:
+		_cancel_cue()
+
+
+func is_refusal_cue_active() -> bool:
+	return _cue.is_active()
+
+
+## How many cues were played since setup.
+func get_refusal_cue_count() -> int:
+	return _cue_plays
+
+
+## The fresnel strength on the marked meshes now: the base without a cue, 0.0 with nothing marked.
+func get_mark_strength() -> float:
+	if _marked_uid == "":
+		return 0.0
+	return _cue.get_strength(_base_strength())
+
+
+func _base_strength() -> float:
+	return float((SELECTION_MATERIAL as ShaderMaterial).get_shader_parameter(STRENGTH_PARAM))
+
+
+## Ends a running cue and puts the shared selection material back on the marked item.
+func _cancel_cue() -> void:
+	_cue.cancel()
+	if _cue_uid == "":
+		return
+	var node: Node3D = _nodes.get(_cue_uid)
+	if node != null and _cue_uid == _marked_uid:
+		_set_overlay(node, SELECTION_MATERIAL)
+	_cue_uid = ""
+
+
 func _on_item_added(uid: String, _index: int) -> void:
 	_create(_model.get_item(uid))
 
@@ -129,6 +199,7 @@ func _on_model_reset() -> void:
 
 
 func _rebuild() -> void:
+	_cancel_cue()
 	for uid: String in _nodes.keys():
 		_drop(uid)
 	_pending.clear()
@@ -158,6 +229,8 @@ func _create(item: PlacedItem) -> void:
 
 
 func _drop(uid: String) -> void:
+	if uid == _cue_uid:
+		_cancel_cue()
 	var node: Node3D = _nodes.get(uid)
 	_nodes.erase(uid)
 	_bounds.erase(uid)
@@ -218,6 +291,7 @@ func _apply_mark() -> void:
 	var wanted: String = _selected_uid if _feedback_visible else ""
 	if wanted == _marked_uid and (wanted == "" or _nodes.has(wanted)):
 		return
+	_cancel_cue()
 	var old: Node3D = _nodes.get(_marked_uid)
 	if old != null:
 		_set_overlay(old, null)
