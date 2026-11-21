@@ -43,12 +43,16 @@ const FOV_DEG: float = 50.0
 const NEAR_M: float = 0.03
 ## Centre distance of the items in a row, metres (the amphora is 9 cm wide).
 const SPACING_M: float = 0.1
+## Rows of the tinted sets (a, b): centre distance in x and the zigzag in z, metres. Four amphoras
+## turned by TURN_DEG must fit the small tank (0.40 x 0.25 m) under the footprint rule (#33).
+const ROW_SPACING_M: float = 0.09
+const ROW_ZIGZAG_M: float = 0.04
 ## Turn of every item, degrees, so the amphora handles read in the front view.
 const TURN_DEG: float = 25.0
 ## "plain" set: tank-local spots by catalog order (category, then id), so a long piece of wood
 ## lies behind the others instead of through them; more items continue the row.
 const PLAIN_SPOTS: Array[Vector3] = [
-	Vector3(-0.13, 0.0, 0.04), Vector3(0.05, 0.0, -0.07), Vector3(-0.01, 0.0, 0.06)
+	Vector3(-0.13, 0.0, 0.05), Vector3(0.05, 0.0, -0.03), Vector3(0.04, 0.0, 0.06)
 ]
 ## Parity job: the view is 0.6 m wide; items sit this far apart from the left.
 const PARITY_WIDTH_M: float = 0.6
@@ -227,6 +231,11 @@ func _entries(set_id: String, catalog: ItemCatalog) -> Array[Dictionary]:
 			list.append(original)
 			for index: int in range(0, mini(3, swatches.size())):
 				list.append({"id": subject.id, "tinted": true, "colour": swatches[index]})
+	if set_id != "plain":
+		for index: int in list.size():
+			var row_x: float = (index - (list.size() - 1) / 2.0) * ROW_SPACING_M
+			var zigzag: float = ROW_ZIGZAG_M if index % 2 == 0 else -ROW_ZIGZAG_M
+			list[index]["at"] = Vector3(row_x, 0.0, zigzag)
 	return list
 
 
