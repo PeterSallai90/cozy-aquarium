@@ -223,8 +223,9 @@ visible cue for a refused rotation of the selected item (Q6, 1b with 2b), which 
     rotation included, gets rule 13 only. Nothing calls the rules on load, `model_reset`, a tank
     swap, a substrate change or an undo or redo of `ChangeTankCommand` (Amendment 1); items are
     never moved, clipped or removed by them.
-15. **The refused rotation of the selected item (owner Q6: 1b with 2b).** The placement system asks
-    the same `allows` with the item's model position (so rule 14 applies) at two moments:
+15. **Refused rotations and refused drops (owner Q6: 1b with 2b; owner decision on refused
+    moves).** The placement system asks the same `allows` at three moments; for a and b it passes
+    the item's model position, so rule 14 applies:
     a. the press of a rotate key on the selected item: when the first step is refused, the drawn
        item keeps its model angle, the refusal cue plays once, and the hold still runs, so a long
        hold shows the pending angles of its repeats from the first repeat on;
@@ -237,24 +238,43 @@ visible cue for a refused rotation of the selected item (Q6, 1b with 2b), which 
     spot" is unchanged for the ghost and the drag preview. This supersedes #31 AC 41 case (e)
     ("no validity rule applies at the release") for a hold that ends on a refused angle; its other
     parts (selection kept, cancel cases, one undo step, no command when the final angle equals the
-    start) stay. A cancelled hold, a valid rotation, the ghost and an unselected item get no cue.
-16. **The refusal cue is a script-driven parameter, not a new look resource.** `RefusalCue`
+    start) stay. A cancelled hold, a valid rotation and the ghost get no cue.
+    c. the release of a drag (owner decision after the first preview, #33 AC 13): when the
+       release has a ground point, is not over a panel, is not at the same spot with the same
+       angle (that is a click, handled first, as in #31) and the candidate (position and the
+       previewed rotation) is refused, the move is cancelled as before and the cue plays once on
+       the dragged item, selected or not; it does not change the selection. Esc, a right click,
+       focus loss, a modal dialog, photo mode, `model_reset`, removal of the item and a release
+       with no ground point are plain cancellations with no cue. A click with a pick on an invalid
+       spot gets no cue.
+16. **The refusal cue is script-driven uniforms on a runtime material copy, not a new look
+    resource** (revised after the owner's first preview: a soft coral red pulse with a clear
+    strength peak, visible on red, pink and orange items). `RefusalCue`
     (`game/systems/placement/refusal_cue.gd`, pure, driven by `step(delta_s)` like `RotateHold`)
-    gives the strength over time; `PlacedItemsView` owns one, `PlacementSystem.step` steps it and
-    the view applies it. The strength is `base + (PEAK - base) x sin(PI x t / DURATION)` for
-    0 <= t < DURATION; at t >= DURATION the cue ends and the strength is `base` again. base is the
-    `fresnel_strength` of `item_selection_material.tres` (read, never written),
-    `PlacementTuning.REFUSAL_CUE_DURATION_S = 0.30` and
-    `PlacementTuning.REFUSAL_CUE_PEAK_STRENGTH = 0.95`; the cream `glow_colour` (brightest
-    channel 1.0) times 0.95 stays below the room's `glow_hdr_threshold` of 1.0, so the cue adds no
-    bloom. While the cue runs, the marked meshes carry one runtime copy of the selection material
-    (made once per view, never per frame or per item) whose `fresnel_strength` the view sets each
-    step; when the cue ends or is cancelled, the shared selection material goes back. A new
-    refusal restarts the cue at t = 0: one state, it never stacks and never exceeds the peak. The
-    cue is cancelled by a change of the selection, hidden feedback (photo mode, modal dialogs),
-    `model_reset`, `set_tank` and the removal of the item. `item_selection_glow.gdshader` and
-    `item_selection_material.tres` do not change. The owner judges the look on the pull request
-    preview.
+    gives one envelope `w = sin(PI x t / DURATION)` for 0 <= t < DURATION (0 otherwise, the cue
+    then ends). `PlacedItemsView` owns one cue, `PlacementSystem.step` steps it, and the view
+    writes three existing uniforms of the glow shader on one runtime copy of the selection
+    material (made once per view, never per frame or per item):
+    - `glow_colour` = the base colour lerped (sRGB values) towards
+      `PlacementTuning.REFUSAL_CUE_COLOUR` = (1.0, 0.45, 0.40) by w;
+    - `fresnel_strength` = base + (`REFUSAL_CUE_PEAK_STRENGTH` 0.95 - base) x w;
+    - `fresnel_power` = base + (`REFUSAL_CUE_PEAK_FRESNEL_POWER` 0.8 - base) x w.
+    The bases are read from `item_selection_material.tres` (cream (1.0, 0.86, 0.62), 0.7, 1.6) and
+    never written; `REFUSAL_CUE_DURATION_S` stays 0.30. Lowering the power widens the rim, so the
+    rim opacity at the reference facing 0.5 rises from 0.231 to 0.546 (factor 2.36): this is the
+    strength peak. The coral colour carries the hue change. The brightest channel of every colour
+    on the path is 1.0 and the strength never exceeds 0.95, so the existing bloom guard (brightest
+    channel x strength < `glow_hdr_threshold` 1.0) holds. The same curve plays on an unselected
+    dragged item (the copy is put on as `material_overlay` and removed at the end); on the marked
+    item the shared selection material goes back at the end. A new refusal restarts the cue at
+    t = 0 on its item (a cue on another item ends first): one state, never stacked. The cue is
+    cancelled by a change of the selection, hidden feedback (photo mode, modal dialogs),
+    `model_reset`, `set_tank` and the removal of its item. `item_selection_glow.gdshader` and
+    `item_selection_material.tres` do not change. Known limit: with an alpha blend under the
+    bloom threshold, no single cue colour changes both luminance and colour by a large amount on
+    every possible item colour; the tested fixtures and margins are in the #33 plan addendum, and
+    an additive brightness term would need a shader change (technical-artist) in a later issue.
+    The owner judges the look on the pull request preview.
 
 ### Consequences
 

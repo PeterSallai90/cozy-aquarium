@@ -188,7 +188,9 @@ numbers, so the numeric range is set in that effect's own area:render issue (to 
   shader parameters the names in the table are examples, and the effect's own area:render issue
   fixes the final names.
 - **Rule:** an optional effect may be added, but is not required. The soft fresnel edge glow, if
-  used, stays subtle.
+  used, stays subtle. Exception (owner decision on #33): the placement refusal cue pulses the same
+  glow wider, stronger and soft coral red for 0.30 s; it stays below the bloom threshold and never
+  changes the environment.
 - **Rule:** bubbles and floating particles appear only where they do in a real tank: bubbles from
   an air stone or the filter outflow, particles drifting in the water column.
 - **Rule:** fish swim through a vertex shader; no skeletal rigs in the MVP.
