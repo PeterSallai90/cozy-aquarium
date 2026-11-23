@@ -12,8 +12,20 @@ const SALTS: PackedStringArray = [
 	"fish.rest.y",
 	"fish.rest.yaw",
 	"fish.swim.phase",
-	"fish.name.default"
+	"fish.name.default",
+	"fish.trait.speed",
+	"fish.trait.boldness",
+	"fish.trait.sociability",
+	"fish.trait.idle_share",
+	"fish.trait.depth_preference",
 ]
+const TRAIT_CONSTANTS: Dictionary[String, String] = {
+	"SALT_TRAIT_SPEED": "fish.trait.speed",
+	"SALT_TRAIT_BOLDNESS": "fish.trait.boldness",
+	"SALT_TRAIT_SOCIABILITY": "fish.trait.sociability",
+	"SALT_TRAIT_IDLE_SHARE": "fish.trait.idle_share",
+	"SALT_TRAIT_DEPTH_PREFERENCE": "fish.trait.depth_preference",
+}
 const UIDS: PackedStringArray = ["f1000001", "0badf00d", "00000000", "ffffffff", "a1b2c3d4"]
 
 
@@ -95,3 +107,39 @@ func test_36_the_default_name_family_is_reserved_for_names() -> void:
 	for other: String in SALTS:
 		if other != "fish.name.default":
 			assert_bool(other.begins_with("fish.name.")).is_false()
+
+
+func test_35_the_five_trait_salts_are_constants_of_fish_hash_with_the_frozen_strings() -> void:
+	for constant_name: String in TRAIT_CONSTANTS:
+		(
+			assert_str(Api.constant(Api.HASH_PATH, constant_name, "<missing>"))
+			. override_failure_message("FishHash.%s" % constant_name)
+			. is_equal(TRAIT_CONSTANTS[constant_name])
+		)
+
+
+func test_35_the_trait_salts_do_not_collide_with_the_rest_swim_or_name_salts() -> void:
+	var others: PackedStringArray = [
+		"fish.rest.x",
+		"fish.rest.z",
+		"fish.rest.y",
+		"fish.rest.yaw",
+		"fish.swim.phase",
+		"fish.name.default",
+	]
+	for salt: String in TRAIT_CONSTANTS.values():
+		assert_bool(others.has(salt)).is_false()
+		assert_bool(salt.begins_with("fish.rest.") or salt.begins_with("fish.name.")).is_false()
+		assert_int(SALTS.count(salt)).is_equal(1)
+	assert_int(SALTS.size()).is_equal(11)
+
+
+func test_35_a_trait_salt_gives_a_different_value_than_every_other_salt_for_the_same_uid() -> void:
+	if not _have_hash():
+		return
+	for uid: String in UIDS:
+		for salt: String in TRAIT_CONSTANTS.values():
+			var own: float = Api.hash_unit(uid, salt)
+			for other: String in SALTS:
+				if other != salt:
+					assert_bool(is_equal_approx(Api.hash_unit(uid, other), own)).is_false()

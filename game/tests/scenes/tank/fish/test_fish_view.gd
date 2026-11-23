@@ -47,6 +47,13 @@ func _ready_rig(source: AquariumModel, catalog: RefCounted = null) -> FishRig.Ri
 	return rig
 
 
+## False (after a failed assertion) while FishView has no advance(delta) yet (#35).
+func _can_advance(rig: FishRig.Rig) -> bool:
+	var found: bool = rig.view.has_method("advance")
+	assert_bool(found).override_failure_message("FishView has no advance(delta)").is_true()
+	return found
+
+
 func _frame() -> void:
 	await get_tree().process_frame
 
@@ -149,7 +156,6 @@ func test_ac18_every_fish_geometry_has_the_four_instance_parameters_shadow_off_a
 		if node == null:
 			assert_bool(false).override_failure_message("no node for %s" % entry.uid).is_true()
 			continue
-		var species_speed: float = Api.field(entry.species_id, "swim_speed", 0.0)
 		var wanted_phase: float = TAU * Api.expected_unit(entry.uid, "fish.swim.phase")
 		var geometries: Array[GeometryInstance3D] = FishRig.geometry(node)
 		assert_int(geometries.size()).is_greater(0)
@@ -188,26 +194,26 @@ func test_ac18_every_fish_geometry_has_the_four_instance_parameters_shadow_off_a
 			)
 			(
 				assert_float(float(instance.get_instance_shader_parameter("swim_speed")))
-				. override_failure_message(label + " swim speed")
-				. is_equal_approx(minf(species_speed * FishRig.IDLE_FACTOR, 1.0), 1e-6)
+				. override_failure_message(label + " swim speed of a fish at rest (#35: 0)")
+				. is_equal(0.0)
 			)
 
 
-func test_ac21_the_idle_speed_factor_is_0_35_and_the_three_species_bend_at_different_rates(
-) -> void:
-	assert_float(Api.constant(Api.VIEW_PATH, "IDLE_SPEED_FACTOR", -1.0)).is_equal_approx(0.35, 1e-6)
+func test_35_the_idle_factor_of_34_is_gone_and_a_fish_at_rest_has_swim_speed_0() -> void:
+	(
+		assert_float(Api.constant(Api.VIEW_PATH, "IDLE_SPEED_FACTOR", -1.0))
+		. override_failure_message("IDLE_SPEED_FACTOR must be removed (#35)")
+		. is_equal(-1.0)
+	)
 	var rig: FishRig.Rig = _ready_rig(FishRig.trio())
 	if rig == null:
 		return
-	var seen: Dictionary = {}
 	for uid: String in ["f1000001", "f1000003", "f1000006"]:
 		var node: Node3D = FishRig.node_of(rig, uid)
 		if node == null:
 			assert_bool(false).override_failure_message("no node for %s" % uid).is_true()
 			return
-		seen[roundi(float(_params(node)[0]["speed"]) * 10000.0)] = true
-	assert_int(seen.size()).is_equal(3)
-	assert_bool(seen.has(4550) and seen.has(2800) and seen.has(1750)).is_true()
+		assert_float(float(_params(node)[0]["speed"])).is_equal(0.0)
 
 
 func test_ac18_the_swim_phase_differs_between_fish_and_uses_its_own_salt() -> void:
@@ -244,13 +250,43 @@ func test_ac18_the_phase_and_the_pose_are_never_written_to_the_save_file() -> vo
 	assert_int(int(parsed["format_version"])).is_equal(1)
 
 
-func test_the_view_has_no_per_frame_process() -> void:
+func test_35_the_view_processes_only_with_a_fish_and_a_tank_and_not_in_manual_stepping() -> void:
 	var rig: FishRig.Rig = _ready_rig(FishRig.trio())
 	if rig == null:
 		return
-	assert_bool(rig.view.has_method("_process")).is_false()
+	assert_bool(rig.view.has_method("_process")).is_true()
 	assert_bool(rig.view.has_method("_physics_process")).is_false()
-	assert_bool(rig.view.is_processing()).is_false()
+	assert_bool(rig.view.get("manual_stepping")).is_true()
+	var live: FishRig.Rig = FishRig.open(self, FishRig.trio(), null, false)
+	(
+		assert_bool(live.view.is_processing())
+		. override_failure_message("a view with fish and a tank must process")
+		. is_true()
+	)
+	var empty: FishRig.Rig = FishRig.open(self, FishRig.model(), null, false)
+	(
+		assert_bool(empty.view.is_processing())
+		. override_failure_message("a view with no fish must not process")
+		. is_false()
+	)
+	var no_tank_model: AquariumModel = FishRig.trio()
+	no_tank_model.apply_set_tank_id(&"no_such_tank")
+	var no_tank: FishRig.Rig = FishRig.open(self, no_tank_model, null, false)
+	(
+		assert_bool(no_tank.view.is_processing())
+		. override_failure_message("a view with no tank must not process")
+		. is_false()
+	)
+	live.model.apply_remove_fish("f1000001")
+	live.model.apply_remove_fish("f1000003")
+	live.model.apply_remove_fish("f1000006")
+	(
+		assert_bool(live.view.is_processing())
+		. override_failure_message("a view whose last fish was removed must stop processing")
+		. is_false()
+	)
+	empty.model.apply_insert_fish(FishRig.fish("f1000009", Api.NEON), 0)
+	assert_bool(empty.view.is_processing()).is_true()
 
 
 # --- lifecycle (AC 18) ---
@@ -471,11 +507,11 @@ func test_ac19_an_unknown_tank_hides_the_fish_without_a_warning() -> void:
 # --- AC 16: synchronous repositioning ---
 
 
-func test_ac16_a_corydoras_follows_a_substrate_change_its_undo_and_its_redo_at_once() -> void:
+func test_35_a_corydoras_is_lifted_out_of_a_raised_bed_by_the_recovery_and_not_at_once() -> void:
 	var rig: FishRig.Rig = _ready_rig(
 		FishRig.model(FishRig.MEDIUM, FishRig.SAND, [FishRig.fish("f1000006", Api.CORY)])
 	)
-	if rig == null:
+	if rig == null or not _can_advance(rig):
 		return
 	var node: Node3D = FishRig.node_of(rig, "f1000006")
 	assert_object(node).is_not_null()
@@ -488,46 +524,45 @@ func test_ac16_a_corydoras_follows_a_substrate_change_its_undo_and_its_redo_at_o
 		rig.model, rig.substrates, FishRig.PEBBLES, colour
 	)
 	assert_bool(command.do()).is_true()
-	var pebble_pose: Dictionary = FishRig.expected_pose(rig, "f1000006")
 	(
-		assert_bool(FishRig.at_pose(node, pebble_pose))
-		. override_failure_message("after do() the fish is not at the pebbles pose")
-		. is_true()
+		assert_vector(node.position)
+		. override_failure_message("a substrate change must not move the fish at once")
+		. is_equal(sand_pose["position"])
 	)
+	FishRig.advance(rig, 2.1)
 	var bed_top: float = 0.06 + Api.top_allowance(rig.substrates.get_definition(FishRig.PEBBLES))
-	assert_float(node.position.y).override_failure_message("the fish is inside the bed").is_greater(
-		bed_top
+	(
+		assert_float(node.position.y)
+		. override_failure_message("2 s after the change the fish is still inside the bed")
+		. is_greater(bed_top)
 	)
-	assert_float(node.position.y).is_greater(sand_pose["position"].y + 0.02)
 	assert_bool(command.undo()).is_true()
-	(
-		assert_bool(FishRig.at_pose(node, sand_pose))
-		. override_failure_message("after undo() the fish is not back at the sand pose")
-		. is_true()
-	)
+	FishRig.advance(rig, 2.1)
+	assert_float(node.position.y).override_failure_message("the fish left the water").is_less(0.33)
 	assert_bool(command.do()).is_true()
-	(
-		assert_bool(FishRig.at_pose(node, pebble_pose))
-		. override_failure_message("after redo the fish is not at the pebbles pose")
-		. is_true()
-	)
+	FishRig.advance(rig, 2.1)
+	assert_float(node.position.y).is_greater(bed_top)
 
 
-func test_ac16_heightmap_changed_moves_every_fish_to_the_rule_before_the_call_returns() -> void:
+func test_35_heightmap_changed_keeps_every_fish_in_place_and_inside_the_limits() -> void:
 	var rig: FishRig.Rig = _ready_rig(FishRig.trio())
-	if rig == null:
+	if rig == null or not _can_advance(rig):
 		return
-	var node: Node3D = FishRig.node_of(rig, "f1000006")
-	if node == null:
-		assert_bool(false).override_failure_message("no node").is_true()
-		return
-	node.position = Vector3(9.0, 9.0, 9.0)
+	var prior: Dictionary = {}
+	for uid: String in ["f1000001", "f1000003", "f1000006"]:
+		prior[uid] = FishRig.node_of(rig, uid).position
 	rig.model.apply_set_heightmap(PackedFloat32Array([0.03, 0.03, 0.03, 0.03]), Vector2i(2, 2))
-	(
-		assert_bool(FishRig.at_pose(node, FishRig.expected_pose(rig, "f1000006")))
-		. override_failure_message("heightmap_changed did not reposition the fish")
-		. is_true()
-	)
+	for uid: String in prior:
+		(
+			assert_vector(FishRig.node_of(rig, uid).position)
+			. override_failure_message("heightmap_changed moved %s at once" % uid)
+			. is_equal(prior[uid])
+		)
+	FishRig.advance(rig, 2.1)
+	for uid: String in prior:
+		var node: Node3D = FishRig.node_of(rig, uid)
+		assert_bool(node.position.is_finite()).is_true()
+		assert_bool(node.position.y > 0.03 and node.position.y < 0.33).is_true()
 
 
 func test_ac16_model_reset_moves_every_fish_to_the_rule() -> void:
@@ -607,35 +642,39 @@ func test_ac26_every_species_stands_at_its_derived_pose_inside_the_tank_in_every
 # --- AC 27: tank change ---
 
 
-func test_ac27_a_tank_change_that_leaves_the_fish_in_the_model_moves_every_fish_inside() -> void:
+func test_35_a_tank_change_that_leaves_the_fish_in_the_model_guides_every_fish_inside() -> void:
 	var rig: FishRig.Rig = _ready_rig(FishRig.trio(FishRig.LARGE, FishRig.SAND))
-	if rig == null:
+	if rig == null or not _can_advance(rig):
 		return
-	var large_poses: Dictionary = {}
+	var prior: Dictionary = {}
 	for uid: String in ["f1000001", "f1000003", "f1000006"]:
-		large_poses[uid] = FishRig.expected_pose(rig, uid)
+		prior[uid] = FishRig.node_of(rig, uid).position
 	rig.model.apply_set_tank_id(FishRig.SMALL)
 	var definition: TankDefinition = rig.tanks.get_definition(FishRig.SMALL)
-	for uid: String in ["f1000001", "f1000003", "f1000006"]:
+	for uid: String in prior:
+		(
+			assert_vector(FishRig.node_of(rig, uid).position)
+			. override_failure_message("%s jumped at once on the tank change (a pop)" % uid)
+			. is_equal(prior[uid])
+		)
+	var calls: int = FishRig.advance(rig, 2.0 + 1.0 / 60.0)
+	assert_int(calls).is_greater(0)
+	for uid: String in prior:
 		var node: Node3D = FishRig.node_of(rig, uid)
+		var extents: Object = rig.view.call("get_extents", uid)
+		var radius: float = float(extents.get("horizontal_radius_m"))
 		(
-			assert_bool(FishRig.at_pose(node, FishRig.expected_pose(rig, uid)))
-			. override_failure_message("%s was left at the old coordinates" % uid)
+			assert_bool(absf(node.position.x) <= definition.interior_size_m.x / 2.0 - radius + 1e-6)
+			. override_failure_message("%s is outside the new tank in x after 2 s" % uid)
 			. is_true()
 		)
-		if node == null:
-			continue
-		assert_bool(absf(node.position.x) < definition.interior_size_m.x / 2.0).is_true()
-		assert_bool(absf(node.position.z) < definition.interior_size_m.z / 2.0).is_true()
+		(
+			assert_bool(absf(node.position.z) <= definition.interior_size_m.z / 2.0 - radius + 1e-6)
+			. is_true()
+		)
 		assert_bool(node.position.y < definition.water_line_height_m).is_true()
+		assert_bool(node.position.y > 0.03).is_true()
 	assert_int(rig.model.get_fish_count()).is_equal(3)
-	rig.model.apply_set_tank_id(FishRig.LARGE)
-	for uid: String in ["f1000001", "f1000003", "f1000006"]:
-		(
-			assert_bool(FishRig.at_pose(FishRig.node_of(rig, uid), large_poses[uid]))
-			. override_failure_message("%s did not return exactly to its large-tank pose" % uid)
-			. is_true()
-		)
 
 
 func test_ac27_change_tank_command_do_undo_redo_keeps_nodes_and_model_in_step() -> void:
@@ -832,7 +871,7 @@ func test_ac29_a_species_change_recreates_the_node_with_the_new_species_scene() 
 	await _frame()
 	var node_after: Node3D = FishRig.node_of(rig, "f1000001")
 	assert_object(node_after).is_not_null()
-	if after != null:
+	if node_after != null:
 		assert_int(node_after.get_instance_id()).is_not_equal(id_before)
 		var scene: PackedScene = Api.field(Api.CORY, "scene", null) as PackedScene
 		assert_str(node_after.get_child(0).scene_file_path).is_equal(scene.resource_path)
@@ -901,7 +940,7 @@ func test_164_refreshed_comes_after_the_pose_nodes_are_final() -> void:
 				node != null and FishRig.at_pose(node, FishRig.expected_pose(rig, "f1000006"))
 			)
 	)
-	rig.model.apply_set_tank_id(FishRig.LARGE)
+	rig.model.reset_from(FishRig.trio())
 	assert_array(seen).is_equal([true])
 
 

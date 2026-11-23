@@ -455,7 +455,18 @@ func _bend_scan(id: StringName, speed: float) -> Dictionary:
 				var time: float = (
 					float(step) / TIME_SAMPLES / maxf(0.001, Twin.frequency(freq, speed, scale))
 				)
-				best = maxf(best, absf(Twin.bend_x(point.z, time, 0.0, speed, amp, freq, scale)))
+				best = maxf(
+					best,
+					absf(
+						Twin.bend_x(
+							point.z,
+							TAU * Twin.frequency(freq, speed, scale) * time,
+							speed,
+							amp,
+							scale
+						)
+					)
+				)
 			(
 				assert_bool(best <= Twin.peak(point.z, speed, amp, scale) + EPS)
 				. override_failure_message("a vertex moves more than a * w(s)")
@@ -543,7 +554,7 @@ func test_ac21_no_vertex_moves_more_than_0_15_body_lengths_at_any_speed() -> voi
 
 func test_ac21_the_twin_bend_matches_the_plan_at_hand_computed_points() -> void:
 	# s = 0.5 - z: the snout (s 0) does not move, the tail base (s 1) has w = smoothstep(0.2, 1.2, 1).
-	assert_float(Twin.bend_x(0.5, 0.3, 1.0, 1.0, 0.1, 1.5, 1.0)).is_equal_approx(0.0, EPS)
+	assert_float(Twin.bend_x(0.5, 1.0, 1.0, 0.1, 1.0)).is_equal_approx(0.0, EPS)
 	var w: float = Twin.smoothstep_glsl(0.2, 1.2, 1.0)
 	assert_float(w).is_equal_approx(0.896, 0.001)
 	assert_float(Twin.peak(-0.5, 1.0, 0.1, 1.0)).is_equal_approx(0.1 * w, EPS)
@@ -849,3 +860,130 @@ func test_ac23_the_dot_adds_a_small_emission_of_the_highlight_colour() -> void:
 	var material: Dictionary = _eye_material()
 	var result: Dictionary = Twin.eye_look(3, Color(0.4, 0.5, 0.6), material)
 	assert_float((result["emission"] as Color).r).is_equal_approx(1.0 * 0.9 * 0.3, EPS)
+
+
+# --- #35: the tail phase is advanced on the CPU (ADR 0013 Amendment 1, BA decision Q14) ---
+
+
+## The text of `float fish_bend_x(...) { ... }` in the include (comments removed), or "".
+func _bend_function() -> String:
+	var source: String = _code(INCLUDE)
+	var start: int = source.find("float fish_bend_x(")
+	if start < 0:
+		return ""
+	var rest: String = source.substr(start)
+	var close: RegExMatch = RegEx.create_from_string("\\n\\}").search(rest)
+	return rest if close == null else rest.substr(0, close.get_end())
+
+
+func test_35_the_include_bend_takes_the_phase_and_has_no_time_or_frequency_parameter() -> void:
+	if not _have(INCLUDE):
+		return
+	var found: bool = _matches(
+		_code(INCLUDE),
+		(
+			"float\\s+fish_bend_x\\(\\s*float\\s+vertex_z,\\s*float\\s+swim_phase,\\s*"
+			+ "float\\s+swim_speed,\\s*float\\s+swim_amplitude,\\s*float\\s+swim_speed_scale\\s*\\)"
+		)
+	)
+	(
+		assert_bool(found)
+		. override_failure_message(
+			"fish_bend_x must be (vertex_z, swim_phase, swim_speed, swim_amplitude, swim_speed_scale)"
+		)
+		. is_true()
+	)
+	var body: String = _bend_function()
+	(
+		assert_bool(_matches(body, "\\bTIME\\b"))
+		. override_failure_message("fish_bend_x reads TIME")
+		. is_false()
+	)
+	(
+		assert_bool(_matches(body, "sin\\(\\s*swim_phase\\s*-\\s*SWIM_WAVE_K"))
+		. override_failure_message("the wave is not sin(swim_phase - SWIM_WAVE_K * s)")
+		. is_true()
+	)
+
+
+func test_35_no_shader_code_reads_time_so_the_tail_can_freeze_and_never_jumps() -> void:
+	if not _have(SHADER) or not _have(INCLUDE):
+		return
+	(
+		assert_bool(_matches(_all_code(), "\\bTIME\\b"))
+		. override_failure_message("fish.gdshader or the include still reads TIME")
+		. is_false()
+	)
+
+
+func test_35_the_vertex_call_passes_no_time_and_no_frequency() -> void:
+	if not _have(SHADER):
+		return
+	var body: String = _function_body(_code(SHADER), "vertex")
+	assert_bool(body.contains("fish_bend_x(")).is_true()
+	(
+		assert_bool(body.contains("swim_frequency"))
+		. override_failure_message("vertex() still passes swim_frequency")
+		. is_false()
+	)
+	assert_bool(body.contains("swim_phase") and body.contains("swim_speed_scale")).is_true()
+
+
+func test_35_swim_frequency_stays_a_material_uniform_that_the_view_reads() -> void:
+	if not _have(SHADER):
+		return
+	var found: bool = _matches(
+		_code(SHADER),
+		"uniform\\s+float\\s+swim_frequency\\s*:\\s*hint_range\\(0\\.0,\\s*2\\.5\\)\\s*=\\s*1\\.5\\s*;"
+	)
+	(
+		assert_bool(found)
+		. override_failure_message("swim_frequency must keep its range and default")
+		. is_true()
+	)
+	for id: StringName in Api.IDS:
+		var material: ShaderMaterial = _material(id)
+		if material != null:
+			assert_float(_float_of(material, "swim_frequency")).is_between(0.5, 2.5)
+
+
+func test_35_the_cpu_phase_at_constant_speed_gives_exactly_the_34_wave() -> void:
+	var zs: Array[float] = [-0.7, -0.5, -0.3, 0.0, 0.2, 0.45, 0.5]
+	var speeds: Array[float] = [0.0, 0.3, 0.7, 1.0, 1.5]
+	var phases: Array[float] = [0.0, 1.3, 5.0]
+	for id: StringName in Api.IDS:
+		var material: ShaderMaterial = _material(id)
+		if material == null:
+			return
+		var amp: float = _float_of(material, "swim_amplitude")
+		var freq: float = _float_of(material, "swim_frequency")
+		var scale: float = _float_of(material, "swim_speed_scale")
+		for speed: float in speeds:
+			for phase0: float in phases:
+				for step: int in 30:
+					var time: float = step * 0.37
+					var cpu_phase: float = phase0 + TAU * Twin.frequency(freq, speed, scale) * time
+					for z: float in zs:
+						var old: float = Twin.legacy_bend_x(
+							z, time, phase0, speed, amp, freq, scale
+						)
+						var now: float = Twin.bend_x(z, cpu_phase, speed, amp, scale)
+						if absf(old - now) > EPS:
+							(
+								assert_float(now)
+								. override_failure_message(
+									(
+										"%s speed %.1f phase %.1f t %.2f z %.2f"
+										% [id, speed, phase0, time, z]
+									)
+								)
+								. is_equal_approx(old, EPS)
+							)
+							return
+
+
+func test_35_the_twin_bend_with_a_frozen_phase_is_a_still_pose() -> void:
+	for z: float in [-0.5, -0.2, 0.0, 0.3]:
+		var first: float = Twin.bend_x(z, 2.0, 0.7, 0.1, 1.0)
+		var again: float = Twin.bend_x(z, 2.0, 0.7, 0.1, 1.0)
+		assert_float(again).is_equal(first)

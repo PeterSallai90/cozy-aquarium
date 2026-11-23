@@ -102,6 +102,16 @@ static func expected_anchor(lr: LabelRig, uid: String) -> Vector3:
 	return position + Vector3.UP * (above + GAP_M)
 
 
+## The expected label position of a fish that has moved (#35): the position of its pose node plus UP
+## * (scaled above_m + GAP_M), the scaled above_m from the rig's own measure of the species model.
+static func node_anchor(lr: LabelRig, uid: String) -> Vector3:
+	var entry: FishInstance = lr.rig.model.get_fish(uid)
+	var node: Node3D = FishRig.node_of(lr.rig, uid)
+	var adult: float = float(Api.field(entry.species_id, "adult_length_cm", 0.0))
+	var above: float = float(FishRig.extents_of(entry.species_id, adult).get("above_m"))
+	return node.position + Vector3.UP * (above + GAP_M)
+
+
 ## The text the panel row shows for a fish.
 static func shown_text(entry: FishInstance, translator: Object) -> String:
 	return FishNameText.display(FishNameText.one_line(FishNameText.shown_name(entry, translator)))

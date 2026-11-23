@@ -98,6 +98,28 @@ func _check_anchors(lr: LabelRig.LabelRig, uids: Array[String], context: String)
 		)
 
 
+## Like _check_anchors, for fish that no longer stand at the resting pose (#35): the anchor is the
+## position of the pose node plus UP * (above_m + gap).
+func _check_node_anchors(lr: LabelRig.LabelRig, uids: Array[String], context: String) -> void:
+	for uid: String in uids:
+		var label: Label3D = LabelRig.label_of(lr, uid)
+		(
+			assert_object(label)
+			. override_failure_message("%s: no label for %s" % [context, uid])
+			. is_not_null()
+		)
+		if label == null or FishRig.node_of(lr.rig, uid) == null:
+			continue
+		var want: Vector3 = LabelRig.node_anchor(lr, uid)
+		(
+			assert_vector(label.position)
+			. override_failure_message(
+				"%s: label of %s at %s, expected %s" % [context, uid, label.position, want]
+			)
+			. is_equal_approx(want, Vector3.ONE * 1e-6)
+		)
+
+
 # --- off by default, on by the setting ---
 
 
@@ -420,7 +442,7 @@ func test_the_labels_follow_a_species_change() -> void:
 	changed.species_id = Api.ANGEL
 	assert_bool(lr.rig.model.apply_replace_fish(changed)).is_true()
 	assert_int(LabelRig.all_labels(lr).size()).is_equal(3)
-	_check_anchors(lr, TRIO, "after species change")
+	_check_node_anchors(lr, TRIO, "after species change")
 
 
 func test_the_labels_follow_a_tank_change_with_undo_redo() -> void:
@@ -445,7 +467,7 @@ func test_the_labels_follow_a_direct_tank_id_change() -> void:
 		return
 	lr.rig.model.apply_set_tank_id(FishRig.MEDIUM)
 	assert_int(LabelRig.all_labels(lr).size()).is_equal(3)
-	_check_anchors(lr, TRIO, "after tank id change")
+	_check_node_anchors(lr, TRIO, "after tank id change")
 
 
 func test_the_labels_follow_a_substrate_change() -> void:
@@ -457,9 +479,9 @@ func test_the_labels_follow_a_substrate_change() -> void:
 		lr.rig.model, lr.rig.substrates, FishRig.PEBBLES, colour
 	)
 	assert_bool(command.do()).is_true()
-	_check_anchors(lr, TRIO, "after substrate change")
+	_check_node_anchors(lr, TRIO, "after substrate change")
 	assert_bool(command.undo()).is_true()
-	_check_anchors(lr, TRIO, "after substrate undo")
+	_check_node_anchors(lr, TRIO, "after substrate undo")
 
 
 func test_the_labels_follow_a_heightmap_change() -> void:
@@ -467,7 +489,7 @@ func test_the_labels_follow_a_heightmap_change() -> void:
 	if lr == null:
 		return
 	lr.rig.model.apply_set_heightmap(PackedFloat32Array([0.03, 0.03, 0.03, 0.03]), Vector2i(2, 2))
-	_check_anchors(lr, TRIO, "after heightmap change")
+	_check_node_anchors(lr, TRIO, "after heightmap change")
 
 
 # --- skipped fish, no tank ---
@@ -549,3 +571,150 @@ func test_the_label_view_listens_to_no_model_signal() -> void:
 				. override_failure_message("the label view listens to %s" % model_signal.get_name())
 				. is_not_same(lr.labels)
 			)
+
+
+# --- #35: the labels follow the moving fish in the same frame (BA decision on labels, ADR 0015 rule
+# 10)
+
+
+## False (after a failed assertion) while FishView has no advance(delta) yet (#35).
+func _can_step(lr: LabelRig.LabelRig) -> bool:
+	var found: bool = lr.rig.view.has_method("advance")
+	assert_bool(found).override_failure_message("FishView has no advance(delta)").is_true()
+	return found
+
+
+func _poses_moved_targets(lr: LabelRig.LabelRig) -> int:
+	var count: int = 0
+	if not lr.rig.view.has_signal("poses_moved"):
+		return -1
+	for connection: Dictionary in lr.rig.view.get_signal_connection_list("poses_moved"):
+		var target: Callable = connection["callable"]
+		if target.get_object() == lr.labels:
+			count += 1
+	return count
+
+
+func test_35_a_label_anchor_equals_the_pose_position_plus_above_plus_the_gap_on_the_same_frame(
+) -> void:
+	var lr: LabelRig.LabelRig = _open(FishRig.trio())
+	if lr == null or not _can_step(lr):
+		return
+	_check_anchors(lr, TRIO, "at rest")
+	var travelled: float = 0.0
+	var start: Vector3 = FishRig.node_of(lr.rig, "f1000001").position
+	for step: int in 20 * 60:
+		lr.rig.view.call("advance", 1.0 / 60.0)
+		travelled = maxf(travelled, FishRig.node_of(lr.rig, "f1000001").position.distance_to(start))
+		for uid: String in TRIO:
+			var label: Label3D = LabelRig.label_of(lr, uid)
+			var want: Vector3 = LabelRig.node_anchor(lr, uid)
+			if not label.position.is_equal_approx(want):
+				(
+					assert_vector(label.position)
+					. override_failure_message(
+						(
+							"step %d: label of %s lags: %s, expected %s"
+							% [step, uid, label.position, want]
+						)
+					)
+					. is_equal_approx(want, Vector3.ONE * 1e-6)
+				)
+				return
+	assert_float(travelled).override_failure_message("the fish never moved").is_greater(0.01)
+
+
+func test_35_label_work_never_creates_frees_or_retexts_a_label() -> void:
+	var lr: LabelRig.LabelRig = _open(FishRig.trio())
+	if lr == null or not _can_step(lr):
+		return
+	var ids: Dictionary = {}
+	var texts: Dictionary = {}
+	for uid: String in TRIO:
+		var label: Label3D = LabelRig.label_of(lr, uid)
+		ids[uid] = label.get_instance_id()
+		texts[uid] = label.text
+	for _step: int in 600:
+		lr.rig.view.call("advance", 1.0 / 60.0)
+	assert_int(LabelRig.all_labels(lr).size()).is_equal(3)
+	assert_int(lr.labels.get_child_count()).is_equal(3)
+	for uid: String in TRIO:
+		var label: Label3D = LabelRig.label_of(lr, uid)
+		assert_int(label.get_instance_id()).is_equal(ids[uid])
+		assert_str(label.text).is_equal(texts[uid])
+
+
+func test_35_the_label_view_listens_to_poses_moved_only_while_labels_are_shown() -> void:
+	var lr: LabelRig.LabelRig = _open(FishRig.trio(), false)
+	if lr == null or not _can_step(lr):
+		return
+	(
+		assert_int(_poses_moved_targets(lr))
+		. override_failure_message("hidden labels must not listen to poses_moved")
+		. is_equal(0)
+	)
+	LabelRig.set_names(lr, true)
+	assert_int(_poses_moved_targets(lr)).is_equal(1)
+	lr.rig.model.apply_insert_fish(FishRig.fish("f1000010", Api.NEON), 3)
+	lr.rig.model.apply_set_tank_id(FishRig.LARGE)
+	LabelRig.set_names(lr, true)
+	(
+		assert_int(_poses_moved_targets(lr))
+		. override_failure_message("the connection must not be duplicated")
+		. is_equal(1)
+	)
+	LabelRig.set_names(lr, false)
+	(
+		assert_int(_poses_moved_targets(lr))
+		. override_failure_message("turning the names off must disconnect poses_moved")
+		. is_equal(0)
+	)
+	for _step: int in 60:
+		lr.rig.view.call("advance", 1.0 / 60.0)
+	assert_int(LabelRig.all_labels(lr).size()).is_equal(0)
+	LabelRig.set_names(lr, true)
+	assert_int(_poses_moved_targets(lr)).is_equal(1)
+	_check_node_anchors(lr, TRIO, "after the names came back")
+
+
+func test_35_a_label_view_that_starts_with_the_setting_on_follows_from_the_first_frame() -> void:
+	var lr: LabelRig.LabelRig = _open(FishRig.trio(), true)
+	if lr == null or not _can_step(lr):
+		return
+	assert_int(_poses_moved_targets(lr)).is_equal(1)
+	lr.rig.view.call("advance", 1.0 / 60.0)
+	_check_node_anchors(lr, TRIO, "first frame")
+
+
+func test_35_the_labels_of_sixty_moving_fish_all_follow() -> void:
+	var lr: LabelRig.LabelRig = _open(LabelRig.crowd(60))
+	if lr == null or not _can_step(lr):
+		return
+	for _step: int in 120:
+		lr.rig.view.call("advance", 1.0 / 60.0)
+	var uids: Array[String] = []
+	for entry: FishInstance in lr.rig.model.get_fish_list():
+		uids.append(entry.uid)
+	_check_node_anchors(lr, uids, "sixty fish")
+
+
+func test_35_the_label_view_never_steps_the_view_and_never_writes_a_pose_node() -> void:
+	var source: String = FileAccess.get_file_as_string("res://scenes/tank/fish/fish_label_view.gd")
+	assert_str(source).override_failure_message("fish_label_view.gd was not read").is_not_empty()
+	var code: String = ""
+	for line: String in source.split("\n"):
+		var hash_at: int = line.find("#")
+		code += (line if hash_at < 0 else line.substr(0, hash_at)) + "\n"
+	for forbidden: String in [
+		"advance(",
+		"set_process(",
+		"get_fish_node(uid).position =",
+		"get_fish_node(uid).basis =",
+		"get_fish_node(uid).transform =",
+		".manual_stepping",
+	]:
+		(
+			assert_bool(code.contains(forbidden))
+			. override_failure_message("the label view contains %s" % forbidden)
+			. is_false()
+		)

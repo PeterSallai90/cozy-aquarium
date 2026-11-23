@@ -69,8 +69,21 @@ static func frequency(swim_frequency: float, swim_speed: float, speed_scale: flo
 	return swim_frequency * mix_f(SWIM_REST_FREQUENCY, 1.0, speed_of(swim_speed, speed_scale))
 
 
-## The lateral displacement (VERTEX.x offset) of a vertex at model-space z.
+## The lateral displacement (VERTEX.x offset) of a vertex at model-space z (ADR 0013 Amendment 1,
+## #35): `swim_phase` is the current tail phase in radians, advanced on the CPU, so the shader
+## reads no TIME. Matches `fish_bend_x(vertex_z, swim_phase, swim_speed, swim_amplitude,
+## swim_speed_scale)` of the include.
 static func bend_x(
+	vertex_z: float, swim_phase: float, swim_speed: float, swim_amplitude: float, speed_scale: float
+) -> float:
+	var a: float = amplitude(swim_amplitude, swim_speed, speed_scale)
+	var wave: float = sin(swim_phase - SWIM_WAVE_K * s_of(vertex_z))
+	return a * weight(vertex_z) * wave
+
+
+## The #34 form of the bend (TIME driven), kept as the reference of "no visible change" (#35): at a
+## constant speed bend_x(z, phase0 + TAU * f * t, ...) equals legacy_bend_x(z, t, phase0, ...).
+static func legacy_bend_x(
 	vertex_z: float,
 	time: float,
 	swim_phase: float,

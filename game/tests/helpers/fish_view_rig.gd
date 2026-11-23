@@ -14,7 +14,6 @@ const PEBBLES: StringName = &"pebbles_river"
 const SMALL: StringName = &"tank_small_1"
 const MEDIUM: StringName = &"tank_medium_1"
 const LARGE: StringName = &"tank_large_1"
-const IDLE_FACTOR := 0.35
 
 ## species id: [horizontal radius, extent below, extent above] of the unscaled model.
 static var _unscaled: Dictionary = {}
@@ -61,8 +60,13 @@ static func trio(tank: StringName = MEDIUM, substrate: StringName = SAND) -> Aqu
 
 
 ## Creates the host and the view, adds them to the suite and calls setup(). The view is null when
-## the FishView script is missing. `catalog` null lets the view load the shipped catalog.
-static func open(suite: GdUnitTestSuite, source: AquariumModel, catalog: RefCounted = null) -> Rig:
+## the FishView script is missing. `catalog` null lets the view load the shipped catalog. With
+## `manual` (the default since #35) the view does not process by itself (`manual_stepping`), so a
+## test that waits real frames still sees the fish at the pose it compares; tests that want motion
+## call advance() of this rig, or pass manual = false.
+static func open(
+	suite: GdUnitTestSuite, source: AquariumModel, catalog: RefCounted = null, manual: bool = true
+) -> Rig:
 	var rig: Rig = Rig.new()
 	rig.model = source
 	rig.tanks = TankCatalog.load_dir()
@@ -75,9 +79,18 @@ static func open(suite: GdUnitTestSuite, source: AquariumModel, catalog: RefCoun
 	if script == null:
 		return rig
 	rig.view = script.new() as Node3D
+	rig.view.set("manual_stepping", manual)
 	rig.host.add_child(rig.view)
 	rig.view.call("setup", source, rig.tanks, rig.substrates, catalog)
 	return rig
+
+
+## Calls FishView.advance(step) for `seconds` of simulated time; returns the number of calls.
+static func advance(rig: Rig, seconds: float, step: float = 1.0 / 60.0) -> int:
+	var calls: int = roundi(seconds / step)
+	for _index: int in calls:
+		rig.view.call("advance", step)
+	return calls
 
 
 static func node_of(rig: Rig, uid: String) -> Node3D:
