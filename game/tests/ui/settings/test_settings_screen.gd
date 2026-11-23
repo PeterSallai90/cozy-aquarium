@@ -115,7 +115,7 @@ func _focus_owner(screen: Control) -> Control:
 # --- AC 1: the shell ---------------------------------------------------------------------
 
 
-func test_the_screen_shows_the_title_one_section_and_a_close_button() -> void:
+func test_the_screen_shows_the_title_the_shipped_sections_and_a_close_button() -> void:
 	var screen: Control = await _open()
 	if screen == null:
 		return
@@ -126,9 +126,10 @@ func test_the_screen_shows_the_title_one_section_and_a_close_button() -> void:
 	assert_str(SettingsRig.shown(title)).is_equal("Settings")
 	var sections: TabContainer = SettingsRig.part(screen, "Sections") as TabContainer
 	assert_object(sections).is_not_null()
-	assert_int(sections.get_tab_count()).is_equal(1)
+	assert_int(sections.get_tab_count()).is_equal(2)
 	assert_str(sections.get_tab_title(0)).is_equal(screen.tr("settings.section.language"))
 	assert_str(sections.get_tab_title(0)).is_equal("Language")
+	assert_str(sections.get_tab_title(1)).is_equal("Fish")
 	var close: Button = SettingsRig.part(screen, "Close") as Button
 	assert_object(close).is_not_null()
 	assert_str(close.text).is_equal("settings.close")
@@ -155,7 +156,7 @@ func test_the_screen_runs_on_its_own_with_the_live_services() -> void:
 	assert_bool(screen.visible).is_true()
 	assert_object(SettingsRig.part(screen, "Title")).is_not_null()
 	assert_object(SettingsRig.part(screen, "Close")).is_not_null()
-	assert_int((SettingsRig.part(screen, "Sections") as TabContainer).get_tab_count()).is_equal(1)
+	assert_int((SettingsRig.part(screen, "Sections") as TabContainer).get_tab_count()).is_equal(2)
 
 
 # --- AC 2: Esc and Close -----------------------------------------------------------------
@@ -301,7 +302,7 @@ func test_open_puts_focus_on_a_control_of_the_screen() -> void:
 # --- AC 4: the extension contract --------------------------------------------------------
 
 
-func test_a_section_added_after_ready_appears_next_to_language() -> void:
+func test_a_section_added_after_ready_appears_after_the_shipped_sections() -> void:
 	var screen: Control = await _open()
 	var fixture: Control = SettingsRig.make_fixture()
 	assert_object(fixture).override_failure_message("fixture section is missing").is_not_null()
@@ -310,9 +311,10 @@ func test_a_section_added_after_ready_appears_next_to_language() -> void:
 	screen.add_section(fixture)
 	await get_tree().process_frame
 	var sections: TabContainer = SettingsRig.part(screen, "Sections") as TabContainer
-	assert_int(sections.get_tab_count()).is_equal(2)
+	assert_int(sections.get_tab_count()).is_equal(3)
 	assert_str(sections.get_tab_title(0)).is_equal("Language")
-	assert_str(sections.get_tab_title(1)).is_equal(SettingsRig.FIXTURE_TITLE)
+	assert_str(sections.get_tab_title(1)).is_equal("Fish")
+	assert_str(sections.get_tab_title(2)).is_equal(SettingsRig.FIXTURE_TITLE)
 	assert_bool(screen.is_ancestor_of(fixture)).is_true()
 	assert_object(fixture.get("localization")).is_same(_loc)
 	assert_object(fixture.get("settings")).is_same(_settings)
@@ -361,9 +363,10 @@ func test_a_section_added_before_ready_appears_after_the_listed_ones() -> void:
 	add_child(auto_free(screen))
 	await get_tree().process_frame
 	var sections: TabContainer = SettingsRig.part(screen, "Sections") as TabContainer
-	assert_int(sections.get_tab_count()).is_equal(2)
+	assert_int(sections.get_tab_count()).is_equal(3)
 	assert_str(sections.get_tab_title(0)).is_equal("Language")
-	assert_str(sections.get_tab_title(1)).is_equal(SettingsRig.FIXTURE_TITLE)
+	assert_str(sections.get_tab_title(1)).is_equal("Fish")
+	assert_str(sections.get_tab_title(2)).is_equal(SettingsRig.FIXTURE_TITLE)
 
 
 func test_a_section_list_resource_decides_the_sections() -> void:
