@@ -239,7 +239,13 @@ msgstr ""
 msgid "settings.error.not_saved"
 msgstr ""
 
+msgid "settings.fish_names.label"
+msgstr ""
+
 msgid "settings.language.label"
+msgstr ""
+
+msgid "settings.section.fish"
 msgstr ""
 
 msgid "settings.section.language"

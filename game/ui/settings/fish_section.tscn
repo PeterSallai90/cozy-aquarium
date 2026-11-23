@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/settings/fish_section.gd" id="1_script"]
+
+[node name="FishSection" type="VBoxContainer"]
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "settings.fish_names.label"
+
+[node name="ShowNames" type="CheckButton" parent="Row"]
+layout_mode = 2

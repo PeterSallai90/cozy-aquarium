@@ -240,8 +240,14 @@ msgstr "Close"
 msgid "settings.error.not_saved"
 msgstr "Your settings could not be saved. They still work until you close the game."
 
+msgid "settings.fish_names.label"
+msgstr "Show fish names"
+
 msgid "settings.language.label"
 msgstr "Language"
+
+msgid "settings.section.fish"
+msgstr "Fish"
 
 msgid "settings.section.language"
 msgstr "Language"

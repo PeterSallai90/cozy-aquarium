@@ -7,6 +7,7 @@
 [ext_resource type="Environment" path="res://scenes/room/room_environment.tres" id="5_env"]
 [ext_resource type="PackedScene" path="res://systems/placement/placement.tscn" id="6_placement"]
 [ext_resource type="Script" path="res://scenes/tank/fish/fish_view.gd" id="7_fish"]
+[ext_resource type="Script" path="res://scenes/tank/fish/fish_label_view.gd" id="8_labels"]
 
 [node name="RoomCorner" type="Node3D"]
 script = ExtResource("1_script")
@@ -27,3 +28,6 @@ environment = ExtResource("5_env")
 
 [node name="Fish" type="Node3D" parent="."]
 script = ExtResource("7_fish")
+
+[node name="FishLabels" type="Node3D" parent="."]
+script = ExtResource("8_labels")

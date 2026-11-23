@@ -2,7 +2,8 @@
 
 [ext_resource type="Script" path="res://ui/settings/settings_section_list.gd" id="1_list"]
 [ext_resource type="PackedScene" path="res://ui/settings/language_section.tscn" id="2_language"]
+[ext_resource type="PackedScene" path="res://ui/settings/fish_section.tscn" id="3_fish"]
 
 [resource]
 script = ExtResource("1_list")
-sections = Array[PackedScene]([ExtResource("2_language")])
+sections = Array[PackedScene]([ExtResource("2_language"), ExtResource("3_fish")])

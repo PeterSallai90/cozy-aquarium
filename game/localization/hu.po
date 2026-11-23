@@ -240,8 +240,14 @@ msgstr "Bezárás"
 msgid "settings.error.not_saved"
 msgstr "A beállításokat nem sikerült elmenteni. A játék bezárásáig továbbra is érvényesek."
 
+msgid "settings.fish_names.label"
+msgstr "Halak nevének megjelenítése"
+
 msgid "settings.language.label"
 msgstr "Nyelv"
+
+msgid "settings.section.fish"
+msgstr "Halak"
 
 msgid "settings.section.language"
 msgstr "Nyelv"
