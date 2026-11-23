@@ -249,6 +249,9 @@ msgstr "Language"
 msgid "settings.section.fish"
 msgstr "Fish"
 
+msgid "settings.open_button"
+msgstr "Settings"
+
 msgid "settings.section.language"
 msgstr "Language"
 

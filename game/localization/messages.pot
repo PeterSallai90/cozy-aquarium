@@ -245,6 +245,9 @@ msgstr ""
 msgid "settings.language.label"
 msgstr ""
 
+msgid "settings.open_button"
+msgstr ""
+
 msgid "settings.section.fish"
 msgstr ""
 

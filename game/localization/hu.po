@@ -249,6 +249,9 @@ msgstr "Nyelv"
 msgid "settings.section.fish"
 msgstr "Halak"
 
+msgid "settings.open_button"
+msgstr "Beállítások"
+
 msgid "settings.section.language"
 msgstr "Nyelv"
 
