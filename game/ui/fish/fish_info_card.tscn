@@ -9,6 +9,7 @@ script = ExtResource("1_script")
 [node name="FishNameLabel" type="Label" parent="."]
 visible = false
 layout_mode = 2
+mouse_filter = 0
 auto_translate_mode = 2
 text_overrun_behavior = 3
 
