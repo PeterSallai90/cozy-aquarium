@@ -146,3 +146,35 @@ before the shader reads it (ADR 0012 Amendment 1, measured in `scenes/dev/item_t
   `needs:owner` and an update of this ADR.
 - #29 replaces `SubstrateSurface.height_at` and may refine `top_allowance`; fish code does not
   change.
+
+## Amendment 1 (#35, swimming fish: tail phase and per-frame update)
+
+- Status: Accepted (pull request for #35; gated by `needs:owner`). No row of the decisions table
+  changes. Rules 3, 5 and 8 are amended as below; rules 1, 2, 4, 6, 7 and 9 stay in force. The
+  design behind it is [ADR 0015](0015-fish-swimming-steering-model-tuning-inputs-and-per-frame-driver.md).
+- Date: 2026-11-23
+- Sources: #35 acceptance criteria and the BA decisions Q14 and Q15.
+
+### Decision
+
+10. **Rule 3, meaning of `swim_phase`.** The four instance parameters keep their names and types.
+    `swim_phase` is now the current tail phase in radians in [0, TAU), advanced by `FishView`
+    every frame (ADR 0015 rule 9) and starting at `TAU * FishHash.unit(uid, "fish.swim.phase")`;
+    `swim_speed` is `clamp(speed / species top speed, 0, 1)` from the swimming fish, which
+    replaces the #34 idle factor 0.35.
+11. **Rule 5, bend phase.** The bend becomes `VERTEX.x += a * w * sin(swim_phase - 4.0 * s)`; the
+    shader no longer reads `TIME`. `a` and `w` and all constants are unchanged. The frequency
+    term `f = swim_frequency * mix(0.4, 1.0, speed)` moves to the CPU, where it advances the
+    phase by `TAU * f * delta` per frame. At constant speed the phase is
+    `swim_phase0 + TAU * f * t`, so the wave, its amplitude, frequency and shape are exactly the
+    #34 look; a speed change bends the phase rate, never the phase, and a paused fish keeps its
+    tail pose. `swim_frequency` and `swim_speed_scale` stay species material parameters with the
+    same ranges; `FishView` reads them once per species from the material.
+12. **Rule 8, per-frame update.** `FishView` keeps its role, its model signals and its child
+    structure (one pose node per fish, the species scene as its only child), and gains
+    per-frame code: while it has at least one fish node and a tank it processes, steps the
+    steering model, writes the pose node transforms and the two swim instance parameters, and
+    emits `poses_moved` once per step. A tank, substrate or heightmap change no longer puts the
+    fish at their resting poses at once; it starts the recovery ease of ADR 0015 rule 6.
+    `model_reset` still rebuilds every fish at its derived resting pose. The read-only contract
+    for overlays gains `poses_moved`.
