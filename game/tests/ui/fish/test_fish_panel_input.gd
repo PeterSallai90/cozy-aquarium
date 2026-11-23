@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## #36 input pass-through (owner: developer, ADR 0008, pattern of test_item_browser_input.gd): the
 ## fish panel is not a world input blocker, it stops the mouse over its rectangle (click and wheel
 ## never reach the camera or placement), a press on it never starts an orbit or pan, and outside it
-## the world still orbits. Every interactive child stops the mouse, plain labels ignore it.
+## the world still orbits. Every interactive child stops the mouse, plain labels ignore it;
+## FishNameLabel is the one named exception and stops it too (its tooltip needs mouse events).
 ## Test decision: the real Main scene next to the HUD.
 
 const Fp := preload("res://tests/helpers/fish_panel_rig.gd")
@@ -85,6 +86,8 @@ func test_36_every_button_stops_the_mouse_and_labels_ignore_it() -> void:
 		return
 	for node: Node in Fp.panel_of(_controls).find_children("*", "Control", true, false):
 		if node is BaseButton:
+			assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+		elif node is Label and node.name == &"FishNameLabel":
 			assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 		elif node is Label:
 			assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)

@@ -92,6 +92,7 @@ func test_36_the_card_name_line_is_one_line_clipped_with_a_full_text_tooltip() -
 		var label: Label = Fp.label(_panel, "FishNameLabel")
 		assert_bool(Fp.shown(label).contains("\n")).is_false()
 		assert_int(label.text_overrun_behavior).is_equal(TextServer.OVERRUN_TRIM_ELLIPSIS)
+		assert_int(label.mouse_filter).is_not_equal(Control.MOUSE_FILTER_IGNORE)
 		assert_str(Fp.tooltip_of(label)).is_equal(_one_line(NAMES[index]))
 
 

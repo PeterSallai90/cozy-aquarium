@@ -58,6 +58,13 @@ func _open(species: RefCounted = null) -> bool:
 	return Fp.card(_panel) != null
 
 
+func _checked_catalog(fixtures: Array) -> RefCounted:
+	var catalog: RefCounted = Fp.catalog_of(fixtures)
+	if catalog != null:
+		assert_int((catalog.call("get_ids") as Array).size()).is_equal(fixtures.size())
+	return catalog
+
+
 func _text(node_name: String) -> String:
 	return Fp.shown(Fp.label(_panel, node_name))
 
@@ -116,7 +123,7 @@ func test_36_the_card_updates_without_reopening_when_the_language_changes() -> v
 
 func test_36_a_3_5_cm_species_reads_3_5_in_english_and_3_comma_5_in_hungarian() -> void:
 	var fixture: FishSpecies = Fp.species_fixture(&"tiny_test", 3.5, FishSpecies.Zone.TOP)
-	var catalog: RefCounted = Fp.catalog_of([fixture])
+	var catalog: RefCounted = _checked_catalog([fixture])
 	if catalog == null or not await _open(catalog):
 		return
 	assert_str(_length()).is_equal("3.5 cm")
@@ -130,7 +137,7 @@ func test_36_a_length_with_a_long_tail_rounds_to_one_decimal_and_whole_values_ha
 		Fp.species_fixture(&"aa_b", 3.96, FishSpecies.Zone.TOP),
 		Fp.species_fixture(&"aa_c", 12.0, FishSpecies.Zone.TOP),
 	]
-	var catalog: RefCounted = Fp.catalog_of(fixtures)
+	var catalog: RefCounted = _checked_catalog(fixtures)
 	if catalog == null or not await _open(catalog):
 		return
 	await Fp.select_species(self, _panel, &"aa_a")
@@ -142,21 +149,28 @@ func test_36_a_length_with_a_long_tail_rounds_to_one_decimal_and_whole_values_ha
 
 
 func test_36_a_length_that_is_not_positive_shows_the_unknown_number_text() -> void:
-	var fixtures: Array = [
-		Fp.species_fixture(&"aa_zero", 0.0, FishSpecies.Zone.TOP),
-		Fp.species_fixture(&"aa_negative", -2.0, FishSpecies.Zone.TOP),
-	]
-	var catalog: RefCounted = Fp.catalog_of(fixtures)
-	if catalog == null or not await _open(catalog):
+	var scene: PackedScene = load("res://ui/fish/fish_info_card.tscn") as PackedScene
+	assert_object(scene).override_failure_message("fish_info_card.tscn is missing").is_not_null()
+	if scene == null:
 		return
-	for id: StringName in [&"aa_zero", &"aa_negative"]:
-		await Fp.select_species(self, _panel, id)
-		assert_str(_length()).is_equal(tr("number.unknown"))
+	var info: Control = scene.instantiate() as Control
+	add_child(info)
+	auto_free(info)
+	await Fp.frames(self)
+	var value: Label = info.find_child("LengthValue", true, false) as Label
+	assert_object(value).is_not_null()
+	if value == null:
+		return
+	for length: float in [0.0, -2.0, INF, NAN]:
+		var fixture: FishSpecies = Fp.species_fixture(&"aa_len", length, FishSpecies.Zone.TOP)
+		info.call("show_species", fixture)
+		await Fp.frames(self)
+		assert_str(value.text).is_equal(tr("number.unknown"))
 
 
 func test_36_an_empty_scientific_name_hides_the_latin_line() -> void:
 	var fixture: FishSpecies = Fp.species_fixture(&"no_latin", 4.0, FishSpecies.Zone.TOP, "")
-	var catalog: RefCounted = Fp.catalog_of([fixture])
+	var catalog: RefCounted = _checked_catalog([fixture])
 	if catalog == null or not await _open(catalog):
 		return
 	assert_bool(Fp.visible_in_tree(Fp.label(_panel, "LatinLabel"))).is_false()
@@ -170,7 +184,7 @@ func test_36_an_unset_zone_hides_the_zone_row_and_the_other_zones_show_it() -> v
 		Fp.species_fixture(&"aa_mid", 4.0, FishSpecies.Zone.MIDDLE),
 		Fp.species_fixture(&"aa_bottom", 4.0, FishSpecies.Zone.BOTTOM),
 	]
-	var catalog: RefCounted = Fp.catalog_of(fixtures)
+	var catalog: RefCounted = _checked_catalog(fixtures)
 	if catalog == null or not await _open(catalog):
 		return
 	var row: Control = Fp.control(_panel, "ZoneRow")

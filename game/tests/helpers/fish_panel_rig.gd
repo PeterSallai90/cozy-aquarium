@@ -132,6 +132,8 @@ static func species_fixture(
 	species.adult_length_cm = length_cm
 	species.preferred_zone = zone as FishSpecies.Zone
 	species.colour_variants = [Color.ORANGE, Color.AQUA]
+	# FishCatalog drops a species without a scene, so borrow the shipped neon tetra's.
+	species.scene = (load("res://catalog/fish/neon_tetra.tres") as FishSpecies).scene
 	return species
 
 
@@ -297,6 +299,8 @@ static func click(suite: Node, button: Button) -> void:
 ## Selects a species the way a click on its toggle button would.
 static func select_species(suite: Node, root: Node, id: StringName) -> void:
 	var button: Button = species_button(root, id)
+	if button == null:
+		return
 	button.button_pressed = true
 	button.pressed.emit()
 	await frames(suite)
