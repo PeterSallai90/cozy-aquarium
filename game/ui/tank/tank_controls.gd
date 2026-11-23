@@ -1,18 +1,18 @@
 class_name TankControls
 extends Control
 ## The tank-control group of the HUD: the Change tank, Tank details, Substrate and Items buttons,
-## the choosers, the item browser, the details panel and the confirmation dialog. Closing a panel
-## puts the focus back on the button that opens it. It is also the panel group: only one panel is
-## open at a time
-## (open_panel, close_panels), and no panel opens while the dialog is open. It runs the
-## change-tank and the set-substrate Commands; the choosers and the dialog only report what the
-## player did.
+## the choosers, the item browser, the Fish button and panel, the details panel and the
+## confirmation dialog. Closing a panel puts the focus back on the button that opens it. It is
+## also the panel group: only one panel is open at a time (open_panel, close_panels), and no panel
+## opens while the dialog is open. It runs the change-tank and the set-substrate Commands; the
+## choosers and the dialog only report what the player did.
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
 var _substrates: SubstrateCatalog = null
 var _items: ItemCatalog = null
 var _item_source: ItemCatalogSource = null
+var _fish: FishCatalog = null
 var _items_by_keyboard: bool = false
 var _history: CommandHistory = null
 var _panels: Array[Control] = []
@@ -28,19 +28,23 @@ var _asked_card: Button = null
 @onready var _substrate_chooser: SubstrateChooser = $Group/SubstrateChooser
 @onready var _items_button: Button = $Group/Buttons/ItemsButton
 @onready var _browser: ItemBrowser = $Group/ItemBrowser
+@onready var _fish_button: Button = $Group/Buttons/FishButton
+@onready var _fish_panel: FishPanel = $Group/FishPanel
 @onready var _dialog: TankChangeDialog = $TankChangeDialog
 
 
 ## Before the node enters the tree. Without `substrates` the catalog directory is loaded. Without
 ## `items` the item browser loads the shipped item folders when it is first opened, through the
-## shared `item_source` when there is one (#31).
+## shared `item_source` when there is one (#31). Without `fish` the fish panel loads the shipped
+## fish folder when it is first opened.
 func setup(
 	model: AquariumModel,
 	catalog: TankCatalog,
 	history: CommandHistory,
 	substrates: SubstrateCatalog = null,
 	items: ItemCatalog = null,
-	item_source: ItemCatalogSource = null
+	item_source: ItemCatalogSource = null,
+	fish: FishCatalog = null
 ) -> void:
 	_model = model
 	_catalog = catalog
@@ -48,6 +52,7 @@ func setup(
 	_substrates = substrates
 	_items = items
 	_item_source = item_source
+	_fish = fish
 
 
 func _ready() -> void:
@@ -68,7 +73,10 @@ func _ready() -> void:
 	_panels.append(_browser)
 	_openers[_substrate_chooser] = _substrate_button
 	_openers[_browser] = _items_button
+	_panels.append(_fish_panel)
+	_openers[_fish_panel] = _fish_button
 	_browser.setup(_model, _items, _item_source)
+	_fish_panel.setup(_model, _history, _fish)
 	_substrate_chooser.setup(_model, _substrates)
 	_details.setup(_model, _catalog)
 	_open_button.pressed.connect(_on_open_pressed)
@@ -76,7 +84,10 @@ func _ready() -> void:
 	_substrate_button.pressed.connect(_on_substrate_pressed)
 	_items_button.gui_input.connect(_on_items_gui_input)
 	_items_button.pressed.connect(_on_items_pressed)
+	_fish_button.pressed.connect(_on_fish_pressed)
 	_browser.close_requested.connect(_cancel_or_close)
+	_fish_panel.close_requested.connect(_cancel_or_close)
+	EventBus.tank_displayed.connect(_on_tank_displayed)
 	_substrate_chooser.type_picked.connect(_on_substrate_type_picked)
 	_substrate_chooser.swatch_picked.connect(_on_swatch_picked)
 	_substrate_chooser.close_requested.connect(close_panels)
@@ -109,6 +120,9 @@ func open_panel(panel: Control, opener: Button = null) -> void:
 		_substrate_chooser.focus_current()
 	elif panel == _browser:
 		_browser.focus_start(_items_by_keyboard)
+	elif panel == _fish_panel:
+		EventBus.item_pick_clear_requested.emit()
+		_fish_panel.focus_start()
 
 
 ## Closes every panel and the dialog; the focus goes back to the button of the panel that was
@@ -195,6 +209,23 @@ func _on_items_pressed() -> void:
 		close_panels()
 	else:
 		open_panel(_browser)
+
+
+func _on_fish_pressed() -> void:
+	if _dialog.is_active():
+		return
+	if _fish_panel.visible:
+		close_panels()
+	else:
+		open_panel(_fish_panel)
+
+
+## No tank on show: the Fish button is off and the fish panel closed.
+func _on_tank_displayed(tank_id: StringName) -> void:
+	var has_tank: bool = tank_id != &""
+	_fish_button.disabled = not has_tank
+	if not has_tank and _fish_panel.visible:
+		close_panels()
 
 
 ## A card: the pick rule of the catalog gives the colour (the type in use keeps it).

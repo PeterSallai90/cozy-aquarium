@@ -22,11 +22,151 @@ msgstr "A friendly bottom dweller that shuffles along the sand in a small group.
 msgid "fish.bronze_corydoras.name"
 msgstr "Bronze corydoras"
 
+msgid "fish.browser.add"
+msgstr "Add to tank"
+
+msgid "fish.browser.close"
+msgstr "Close"
+
+msgid "fish.browser.count"
+msgid_plural "fish.browser.count.plural"
+msgstr[0] "%d fish"
+msgstr[1] "%d fish"
+
+msgid "fish.browser.empty_tank"
+msgstr "No fish yet. Pick a species and add one."
+
+msgid "fish.browser.in_tank_heading"
+msgstr "In your tank"
+
+msgid "fish.browser.open_button"
+msgstr "Fish"
+
+msgid "fish.browser.remove"
+msgstr "Remove"
+
+msgid "fish.browser.remove.tooltip"
+msgstr "Remove %s"
+
+msgid "fish.browser.species_heading"
+msgstr "Species"
+
+msgid "fish.browser.title"
+msgstr "Fish"
+
+msgid "fish.card.length"
+msgstr "Adult length"
+
+msgid "fish.card.unknown_species"
+msgstr "Unknown species"
+
+msgid "fish.card.zone"
+msgstr "Swims in"
+
+msgid "fish.default_name.01"
+msgstr "Bubbles"
+
+msgid "fish.default_name.02"
+msgstr "Pebble"
+
+msgid "fish.default_name.03"
+msgstr "Sunny"
+
+msgid "fish.default_name.04"
+msgstr "Pip"
+
+msgid "fish.default_name.05"
+msgstr "Coral"
+
+msgid "fish.default_name.06"
+msgstr "Biscuit"
+
+msgid "fish.default_name.07"
+msgstr "Splash"
+
+msgid "fish.default_name.08"
+msgstr "Maple"
+
+msgid "fish.default_name.09"
+msgstr "Ziggy"
+
+msgid "fish.default_name.10"
+msgstr "Pearl"
+
+msgid "fish.default_name.11"
+msgstr "Mochi"
+
+msgid "fish.default_name.12"
+msgstr "Ripple"
+
+msgid "fish.default_name.13"
+msgstr "Peanut"
+
+msgid "fish.default_name.14"
+msgstr "Dot"
+
+msgid "fish.default_name.15"
+msgstr "Fin"
+
+msgid "fish.default_name.16"
+msgstr "Marble"
+
+msgid "fish.default_name.17"
+msgstr "Willow"
+
+msgid "fish.default_name.18"
+msgstr "Sparkle"
+
+msgid "fish.default_name.19"
+msgstr "Noodle"
+
+msgid "fish.default_name.20"
+msgstr "Clover"
+
+msgid "fish.default_name.21"
+msgstr "Misty"
+
+msgid "fish.default_name.22"
+msgstr "Pepper"
+
+msgid "fish.default_name.23"
+msgstr "Daisy"
+
+msgid "fish.default_name.24"
+msgstr "Waffle"
+
+msgid "fish.default_name.25"
+msgstr "Drift"
+
+msgid "fish.default_name.26"
+msgstr "Tango"
+
+msgid "fish.default_name.27"
+msgstr "Pixel"
+
+msgid "fish.default_name.28"
+msgstr "Olive"
+
+msgid "fish.default_name.29"
+msgstr "Twinkle"
+
+msgid "fish.default_name.30"
+msgstr "Jelly"
+
 msgid "fish.neon_tetra.description"
 msgstr "A tiny, glowing tetra that darts about in a tight shoal. Its blue-green stripe flickers as the light moves."
 
 msgid "fish.neon_tetra.name"
 msgstr "Neon tetra"
+
+msgid "fish.zone.bottom"
+msgstr "Near the bottom"
+
+msgid "fish.zone.middle"
+msgstr "Middle water"
+
+msgid "fish.zone.top"
+msgstr "Upper water"
 
 msgid "item.browser.close"
 msgstr "Close"
@@ -220,12 +360,6 @@ msgstr "A small, quiet tank for a few tiny fish."
 msgid "tank.small_1.name"
 msgstr "Small tank"
 
-msgid "unit.cm"
-msgstr "%s cm"
-
-msgid "unit.litre"
-msgstr "%s L"
-
 msgid "ui.history.redo"
 msgstr "Redo"
 
@@ -249,3 +383,9 @@ msgstr "Delete"
 
 msgid "ui.item.delete.tooltip"
 msgstr "Delete the selected item (%s)"
+
+msgid "unit.cm"
+msgstr "%s cm"
+
+msgid "unit.litre"
+msgstr "%s L"

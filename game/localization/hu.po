@@ -22,11 +22,151 @@ msgstr "Barátságos fenéklakó, amely kis csoportban csoszog a homok fölött.
 msgid "fish.bronze_corydoras.name"
 msgstr "Bronz páncélosharcsa"
 
+msgid "fish.browser.add"
+msgstr "Hozzáadás a tartályhoz"
+
+msgid "fish.browser.close"
+msgstr "Bezárás"
+
+msgid "fish.browser.count"
+msgid_plural "fish.browser.count.plural"
+msgstr[0] "%d hal"
+msgstr[1] "%d hal"
+
+msgid "fish.browser.empty_tank"
+msgstr "Még nincs hal. Válassz egy fajt, és adj hozzá egyet."
+
+msgid "fish.browser.in_tank_heading"
+msgstr "A tartályodban"
+
+msgid "fish.browser.open_button"
+msgstr "Halak"
+
+msgid "fish.browser.remove"
+msgstr "Eltávolítás"
+
+msgid "fish.browser.remove.tooltip"
+msgstr "%s eltávolítása"
+
+msgid "fish.browser.species_heading"
+msgstr "Fajok"
+
+msgid "fish.browser.title"
+msgstr "Halak"
+
+msgid "fish.card.length"
+msgstr "Kifejlett hossz"
+
+msgid "fish.card.unknown_species"
+msgstr "Ismeretlen faj"
+
+msgid "fish.card.zone"
+msgstr "Itt úszik"
+
+msgid "fish.default_name.01"
+msgstr "Buborék"
+
+msgid "fish.default_name.02"
+msgstr "Kavics"
+
+msgid "fish.default_name.03"
+msgstr "Napocska"
+
+msgid "fish.default_name.04"
+msgstr "Csipet"
+
+msgid "fish.default_name.05"
+msgstr "Korall"
+
+msgid "fish.default_name.06"
+msgstr "Keksz"
+
+msgid "fish.default_name.07"
+msgstr "Csobbi"
+
+msgid "fish.default_name.08"
+msgstr "Juhar"
+
+msgid "fish.default_name.09"
+msgstr "Cikkcakk"
+
+msgid "fish.default_name.10"
+msgstr "Gyöngy"
+
+msgid "fish.default_name.11"
+msgstr "Mókus"
+
+msgid "fish.default_name.12"
+msgstr "Hullám"
+
+msgid "fish.default_name.13"
+msgstr "Mogyoró"
+
+msgid "fish.default_name.14"
+msgstr "Pötty"
+
+msgid "fish.default_name.15"
+msgstr "Uszonyka"
+
+msgid "fish.default_name.16"
+msgstr "Gombóc"
+
+msgid "fish.default_name.17"
+msgstr "Fűzike"
+
+msgid "fish.default_name.18"
+msgstr "Szikra"
+
+msgid "fish.default_name.19"
+msgstr "Tészta"
+
+msgid "fish.default_name.20"
+msgstr "Lóhere"
+
+msgid "fish.default_name.21"
+msgstr "Ködös"
+
+msgid "fish.default_name.22"
+msgstr "Borsika"
+
+msgid "fish.default_name.23"
+msgstr "Százszorszép"
+
+msgid "fish.default_name.24"
+msgstr "Gofri"
+
+msgid "fish.default_name.25"
+msgstr "Sodródó"
+
+msgid "fish.default_name.26"
+msgstr "Tangó"
+
+msgid "fish.default_name.27"
+msgstr "Pixel"
+
+msgid "fish.default_name.28"
+msgstr "Olívia"
+
+msgid "fish.default_name.29"
+msgstr "Csillám"
+
+msgid "fish.default_name.30"
+msgstr "Zselé"
+
 msgid "fish.neon_tetra.description"
 msgstr "Apró, csillogó hal, amely szoros rajban cikázik a vízben. Kékeszöld csíkja megvillan, ahogy változik a fény."
 
 msgid "fish.neon_tetra.name"
 msgstr "Neonhal"
+
+msgid "fish.zone.bottom"
+msgstr "A fenék közelében"
+
+msgid "fish.zone.middle"
+msgstr "Középső vízréteg"
+
+msgid "fish.zone.top"
+msgstr "Felső vízréteg"
 
 msgid "item.browser.close"
 msgstr "Bezárás"
@@ -220,12 +360,6 @@ msgstr "Kicsi, csendes akvárium néhány apró halnak."
 msgid "tank.small_1.name"
 msgstr "Kis akvárium"
 
-msgid "unit.cm"
-msgstr "%s cm"
-
-msgid "unit.litre"
-msgstr "%s l"
-
 msgid "ui.history.redo"
 msgstr "Újra"
 
@@ -249,3 +383,9 @@ msgstr "Törlés"
 
 msgid "ui.item.delete.tooltip"
 msgstr "A kijelölt elem törlése (%s)"
+
+msgid "unit.cm"
+msgstr "%s cm"
+
+msgid "unit.litre"
+msgstr "%s l"
