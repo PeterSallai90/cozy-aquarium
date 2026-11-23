@@ -1,0 +1,57 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/fish/fish_info_card.gd" id="1_script"]
+
+[node name="InfoCard" type="VBoxContainer"]
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="FishNameLabel" type="Label" parent="."]
+visible = false
+layout_mode = 2
+auto_translate_mode = 2
+mouse_filter = 0
+text_overrun_behavior = 3
+
+[node name="CommonNameLabel" type="Label" parent="."]
+layout_mode = 2
+auto_translate_mode = 2
+text_overrun_behavior = 3
+
+[node name="LatinLabel" type="Label" parent="."]
+layout_mode = 2
+auto_translate_mode = 2
+text_overrun_behavior = 3
+
+[node name="DescriptionLabel" type="Label" parent="."]
+layout_mode = 2
+auto_translate_mode = 2
+autowrap_mode = 3
+
+[node name="LengthRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="LengthCaption" type="Label" parent="LengthRow"]
+layout_mode = 2
+auto_translate_mode = 2
+
+[node name="LengthValue" type="Label" parent="LengthRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate_mode = 2
+horizontal_alignment = 2
+
+[node name="ZoneRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ZoneCaption" type="Label" parent="ZoneRow"]
+layout_mode = 2
+auto_translate_mode = 2
+
+[node name="ZoneValue" type="Label" parent="ZoneRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate_mode = 2
+horizontal_alignment = 2
