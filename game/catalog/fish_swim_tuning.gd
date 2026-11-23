@@ -43,11 +43,11 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var turn_slow_to_deg: float = 150.0
 ## The speed never fades below this share of its value while turning, so a fish swims a curve
 ## instead of turning on the spot.
-@export var turn_slow_floor: float = 0.5
+@export var turn_slow_floor: float = 0.75
 ## Arrival: the wanted speed near a target is this many 1/s times the distance.
 @export var arrive_gain_per_s: float = 1.5
 ## A fish brakes so that it stops at this share of the free distance ahead (glass, school-mates).
-@export var brake_safety: float = 0.85
+@export var brake_safety: float = 0.92
 ## A fish held back (slower than the stuck speed while it intends to move) for give_way_after_s
 ## creeps on, the share of its cruise speed growing to give_way_fraction over give_way_ramp_s, even
 ## with a fish ahead, so a ring of fish that block each other dissolves.
@@ -56,7 +56,7 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var give_way_fraction: float = 0.5
 ## A fish stops this many times the sum of the half lengths before a fish ahead, so it never stops
 ## on the personal-space limit itself.
-@export var clear_stop_factor: float = 1.15
+@export var clear_stop_factor: float = 1.1
 
 # --- idle and darts ---
 @export var idle_episode_min_s: float = 2.0
@@ -74,7 +74,7 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var target_reach_bl: float = 0.6
 @export var target_reach_turns: float = 1.0
 ## Height variation of a wander target in the band, as a fraction of the band height.
-@export var wander_height_jitter: float = 0.15
+@export var wander_height_jitter: float = 0.05
 ## Chance that a fish adopts the target of a school-mate in view when it picks a new one.
 @export var follow_target_chance: float = 1.0
 ## A school-mate is "far" beyond this many body lengths: the fish then catches up at top speed.
@@ -86,14 +86,14 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var social_vertical_scale: float = 0.5
 ## The summed spacing and separation pushes of all neighbours are capped at these lengths (before
 ## their weights), so a crowd can not push a fish into the glass and hold it there.
-@export var spacing_force_cap: float = 2.0
+@export var spacing_force_cap: float = 3.0
 @export var separation_force_cap: float = 1.5
 ## A fish steers away from a fish whose path will cross its own within this many seconds, if they
 ## would pass closer than this share of the sum of their half lengths; summed and capped like the
 ## other pushes.
 @export var avoid_horizon_s: float = 1.5
 @export var avoid_radius_factor: float = 1.3
-@export var avoid_weight: float = 1.5
+@export var avoid_weight: float = 3.0
 @export var avoid_force_cap: float = 1.0
 ## The last resort against overlap: a pair closer than contact_distance_factor times the sum of
 ## the half lengths is pushed apart. A nearly still fish may be pushed by up to
@@ -106,10 +106,13 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var contact_follow_fraction: float = 0.4
 @export var contact_reach_factor: float = 1.6
 @export var contact_reach_m: float = 0.02
+## The pull of a fish back to its own height in the band (depth preference), as a share of the
+## band height per metre of distance, capped at 1.
+@export var depth_restore_weight: float = 1.5
 @export var wander_weight: float = 1.0
 @export var cohesion_weight: float = 3.0
 @export var alignment_weight: float = 0.5
-@export var spacing_weight: float = 8.0
+@export var spacing_weight: float = 16.0
 @export var separation_weight: float = 3.0
 ## Personal space = this x the sum of the half lengths of two fish.
 @export var separation_factor: float = 1.25
@@ -159,7 +162,7 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 ## that its hop (below) needs no big turn.
 @export var arrival_turn_weight: float = 0.3
 ## An overridden fish that waits at its target hops to a point this many body lengths away.
-@export var detour_radius_bl: float = 0.5
+@export var detour_radius_bl: float = 0.4
 
 # --- pinned fish ---
 ## A pinned fish drifts at most this far (metres) around its anchor.

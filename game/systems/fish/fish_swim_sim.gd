@@ -211,9 +211,6 @@ func step(delta: float) -> void:
 		_substep(size)
 
 
-# --- one substep ---
-
-
 func _substep(h: float) -> void:
 	_blend = 1.0 - exp(-h / _tuning.steer_smooth_s)
 	_pitch_gain = h / _tuning.pitch_response_s
@@ -252,7 +249,6 @@ func _update(f: FishSwimMember, h: float) -> void:
 	else:
 		f.low_time = 0.0
 		f.blocked_time = maxf(f.blocked_time - 0.5 * h, 0.0)
-	# The wanted direction (forces summed) and the wanted speed.
 	var goal: Vector3 = pos
 	var base_speed: float = 0.0
 	var seek: bool = true
@@ -307,6 +303,13 @@ func _update(f: FishSwimMember, h: float) -> void:
 	elif push.length_squared() > 0.0025:
 		want = push
 		base_speed = maxf(base_speed, minf(p.cruise_speed_m_s, push.length() * p.cruise_speed_m_s))
+	# A fish keeps its own height in the band: the pull back to it grows with the distance.
+	if not overriding:
+		var band: float = maxf(f.vert.max_y - f.vert.min_y, p.body_length_m)
+		want.y += (
+			clampf((f.vert.preferred(p.depth_fraction) - pos.y) / band, -1.0, 1.0)
+			* (t.depth_restore_weight)
+		)
 	# Glass ahead (within a turning radius): nothing may pull the fish into it, and it steers away.
 	var avoid: float = p.avoid_m
 	var weight: float = t.wall_avoid_weight
@@ -336,7 +339,6 @@ func _update(f: FishSwimMember, h: float) -> void:
 		want.z *= clampf((half.y - pos.z) / zone, 0.0, 1.0)
 	elif want.z < 0.0:
 		want.z *= clampf((half.y + pos.z) / zone, 0.0, 1.0)
-	# Heading.
 	var flat_want: float = Vector2(want.x, want.z).length()
 	var wanted_speed: float = base_speed
 	var rate_wanted: float = 0.0
@@ -357,7 +359,6 @@ func _update(f: FishSwimMember, h: float) -> void:
 		atan2(maxf(room_high - pos.y, 0.0), reach_y)
 	)
 	_steer_pitch(f, p, pitch_want, h)
-	# The direction of travel, the braking limit, the speed.
 	var cos_pitch: float = cos(f.travel_pitch)
 	var dir_x: float = sin(f.yaw) * cos_pitch
 	var dir_z: float = cos(f.yaw) * cos_pitch
@@ -416,9 +417,6 @@ func _update_pinned(f: FishSwimMember, h: float) -> void:
 	f.bias = move_toward(f.bias, p.nose_down_bias, p.bias_step_per_s * h)
 	var cos_pitch: float = cos(f.travel_pitch)
 	_integrate(f, p, h, false, sin(f.yaw) * cos_pitch, cos(f.yaw) * cos_pitch)
-
-
-# --- modes ---
 
 
 func _advance_modes(f: FishSwimMember, h: float) -> void:
@@ -723,9 +721,6 @@ func _refresh_geometry(f: FishSwimMember) -> void:
 	f.brake = Vector2(maxf(hard_x - stop, 0.0), maxf(hard_z - stop, 0.0))
 
 
-# --- movement ---
-
-
 ## Moves the fish one step along (dir_x, travel pitch, dir_z), clamps it to the hard limits (and the
 ## band, unless ignored), stores it and writes the state; the velocity is the displacement.
 func _integrate(
@@ -736,7 +731,8 @@ func _integrate(
 		f,
 		p,
 		f.position + Vector3(dir_x * distance, sin(f.travel_pitch) * distance, dir_z * distance),
-		ignore_band
+		ignore_band,
+		_tuning.band_margin_m - _EDGE_EPSILON
 	)
 	var velocity: Vector3 = (next - f.position) / h
 	f.step_from = f.position
@@ -744,10 +740,10 @@ func _integrate(
 	_write_state(f, velocity)
 
 
-## A position kept inside the hard limits and (unless ignored) the band margin. A fish that is
-## already outside the band may not go further out.
+## A position kept inside the hard limits and (unless ignored) the band widened by `margin`. A
+## fish that is already outside the band may not go further out.
 func _clamp_position(
-	f: FishSwimMember, p: FishSwimParams, next: Vector3, ignore_band: bool
+	f: FishSwimMember, p: FishSwimParams, next: Vector3, ignore_band: bool, margin: float
 ) -> Vector3:
 	next.x = clampf(next.x, -f.hard.x, f.hard.x)
 	next.z = clampf(next.z, -f.hard.y, f.hard.y)
@@ -759,7 +755,6 @@ func _clamp_position(
 	var low: float = v.hard_low + _EDGE_EPSILON
 	var high: float = v.hard_high - _EDGE_EPSILON
 	if not ignore_band:
-		var margin: float = _tuning.band_margin_m - _EDGE_EPSILON
 		low = maxf(low, minf(maxf(low, v.min_y - margin), f.position.y))
 		high = minf(high, maxf(minf(high, v.max_y + margin), f.position.y))
 	next.y = clampf(next.y, low, high)
@@ -819,7 +814,7 @@ func _nudge(f: FishSwimMember, by: Vector3, h: float) -> void:
 	if by.length_squared() <= 0.0:
 		return
 	var next: Vector3 = _clamp_position(
-		f, f.params, f.position + by, f.mode == FishSwimState.Mode.OVERRIDE
+		f, f.params, f.position + by, f.mode == FishSwimState.Mode.OVERRIDE, 0.0
 	)
 	f.nudged += by.length()
 	f.position = next
@@ -893,9 +888,6 @@ func _recover(f: FishSwimMember, h: float) -> void:
 	_write_state(f, velocity)
 
 
-# --- neighbours ---
-
-
 func _refresh_neighbours() -> void:
 	_nb.rebuild(_fish, _keys, _tuning)
 	for fish: FishSwimMember in _fish:
@@ -933,9 +925,6 @@ func _mate_of(f: FishSwimMember) -> FishSwimMember:
 	if mate < 0 or mate >= _fish.size():
 		return null
 	return _fish[mate]
-
-
-# --- small helpers ---
 
 
 func _register_key(params: FishSwimParams) -> void:
