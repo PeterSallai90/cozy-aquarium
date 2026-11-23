@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="FishSwimTuning" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://catalog/fish_swim_tuning.gd" id="1_tuning"]
+[ext_resource type="Script" path="res://catalog/fish_group_style_tuning.gd" id="2_style"]
+
+[sub_resource type="Resource" id="Resource_unset"]
+script = ExtResource("2_style")
+
+[sub_resource type="Resource" id="Resource_solitary"]
+script = ExtResource("2_style")
+
+[sub_resource type="Resource" id="Resource_tight"]
+script = ExtResource("2_style")
+cohesion = 1.0
+alignment = 1.0
+spacing_bl = 1.5
+view_radius_bl = 6.0
+
+[sub_resource type="Resource" id="Resource_loose"]
+script = ExtResource("2_style")
+cohesion = 0.25
+alignment = 0.2
+spacing_bl = 2.8
+view_radius_bl = 10.0
+
+[sub_resource type="Resource" id="Resource_foraging"]
+script = ExtResource("2_style")
+cohesion = 0.6
+alignment = 0.2
+spacing_bl = 1.8
+view_radius_bl = 6.0
+
+[resource]
+script = ExtResource("1_tuning")
+cruise_speed_fraction = 0.47
+dart_speed_fraction = 0.9
+group_styles = Array[ExtResource("2_style")]([SubResource("Resource_unset"), SubResource("Resource_solitary"), SubResource("Resource_tight"), SubResource("Resource_loose"), SubResource("Resource_foraging")])
