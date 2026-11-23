@@ -13,8 +13,13 @@ const SaveFixtures := preload("res://tests/helpers/save_fixtures.gd")
 const SettingsRig := preload("res://tests/helpers/settings_rig.gd")
 
 
-func _room(model: AquariumModel) -> Node3D:
+## With `settings`, it is injected into FishLabels before the room enters the tree, so the first
+## sync never reads the live /root/Settings (user://settings.cfg).
+func _room(model: AquariumModel, settings: Node = null) -> Node3D:
 	var room: Node3D = RoomRig.instantiate(model, RoomRig.default_catalog())
+	var injected: Node = room.get_node_or_null("FishLabels")
+	if settings != null and injected != null:
+		injected.set("settings", settings)
 	add_child(room)
 	auto_free(room)
 	await get_tree().process_frame
@@ -90,7 +95,9 @@ func test_an_empty_model_draws_no_fish_and_logs_nothing() -> void:
 
 func test_164_the_room_has_a_fish_labels_child_in_the_tank_frame_without_labels_by_default(
 ) -> void:
-	var room: Node3D = await _room(FishRig.trio())
+	var dir: String = SaveFixtures.make_dir("room_fish_labels_default")
+	var settings: Node = auto_free(SettingsRig.make_settings(self, LabelRig.settings_path(dir)))
+	var room: Node3D = await _room(FishRig.trio(), settings)
 	var labels: Node3D = room.get_node_or_null("FishLabels") as Node3D
 	(
 		assert_object(labels)
@@ -109,15 +116,17 @@ func test_164_the_room_has_a_fish_labels_child_in_the_tank_frame_without_labels_
 		tank.global_position, Vector3.ONE * 0.0001
 	)
 	assert_int(labels.get_child_count()).is_equal(0)
+	SaveFixtures.remove_dir(dir)
+	SaveFixtures.remove_root_if_empty()
 
 
 func test_164_with_the_setting_on_a_label_stands_above_each_fish_in_the_room() -> void:
 	var dir: String = SaveFixtures.make_dir("room_fish_labels")
 	var model: AquariumModel = FishRig.trio()
-	var room: Node3D = await _room(model)
+	var settings: Node = auto_free(SettingsRig.make_settings(self, LabelRig.settings_path(dir)))
+	var room: Node3D = await _room(model, settings)
 	var labels: Node3D = room.get_node_or_null("FishLabels") as Node3D
 	var view: Node3D = _fish_view(room)
-	var settings: Node = auto_free(SettingsRig.make_settings(self, LabelRig.settings_path(dir)))
 	var key: SettingKey = LabelRig.key() as SettingKey
 	if labels == null or view == null or settings == null or key == null:
 		SaveFixtures.remove_dir(dir)
