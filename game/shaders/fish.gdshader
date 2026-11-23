@@ -1,6 +1,7 @@
-// The fish shader (#34, ADR 0013 rules 3 to 5). One shader for every species, one ShaderMaterial
-// per species (game/assets/fish/materials/<id>.tres) on both glTF surfaces (`body` and `fin`); the
-// four per-fish values are instance uniforms set by FishView, so 60 fish share three materials.
+// The fish shader (#34, ADR 0013 rules 3 to 5 with Amendment 1). One shader for every species, one
+// ShaderMaterial per species (game/assets/fish/materials/<id>.tres) on both glTF surfaces (`body`
+// and `fin`); the four per-fish values are instance uniforms set by FishView, so 60 fish share
+// three materials.
 //
 // Inputs of the model (docs/art-style.md, "Generator conventions"):
 // - UV2 (glTF TEXCOORD_1): palette atlas lookup, the base colour (never a parameter of its own);
@@ -54,9 +55,10 @@ uniform float metallic : hint_range(0.0, 1.0) = 0.0;
 group_uniforms swim;
 // Peak lateral tail offset at swim speed 1, in body lengths (allowed 0.06 to 0.12).
 uniform float swim_amplitude : hint_range(0.0, 0.15) = 0.10;
-// Tail beat in Hz at swim speed 1 (allowed 0.5 to 2.5).
+// Tail beat in Hz at swim speed 1 (allowed 0.5 to 2.5). Not read by vertex() since #35: read by
+// FishView to advance swim_phase (ADR 0013 Amendment 1).
 uniform float swim_frequency : hint_range(0.0, 2.5) = 1.5;
-// Scales the per-fish swim_speed (1.0 for all species in #34; reserved for #35 tuning).
+// Scales the per-fish swim_speed (1.0 for all species); FishView uses it for the phase rate too.
 uniform float swim_speed_scale : hint_range(0.0, 2.0) = 1.0;
 
 group_uniforms shimmer;
@@ -75,21 +77,16 @@ uniform float variant_tint_keep : hint_range(0.0, 1.0) = 0.3;
 group_uniforms;
 
 // Per fish (FishView): the catalog colour_variants[variant] (Godot passes it linear), strength 0
-// for variant 0 and 1 otherwise, the uid-derived phase and the idle bend speed.
+// for variant 0 and 1 otherwise; swim_phase is the current tail phase in radians [0, TAU), advanced
+// by FishView every frame from the uid-derived start phase; swim_speed is the clamped real speed,
+// clamp(speed / species top speed, 0, 1) (ADR 0013 Amendment 1).
 instance uniform vec4 variant_tint_colour = vec4(1.0, 1.0, 1.0, 1.0);
 instance uniform float variant_tint_strength = 0.0;
 instance uniform float swim_phase = 0.0;
 instance uniform float swim_speed = 0.0;
 
 void vertex() {
-	VERTEX.x += fish_bend_x(
-			VERTEX.z,
-			TIME,
-			swim_phase,
-			swim_speed,
-			swim_amplitude,
-			swim_frequency,
-			swim_speed_scale);
+	VERTEX.x += fish_bend_x(VERTEX.z, swim_phase, swim_speed, swim_amplitude, swim_speed_scale);
 }
 
 void fragment() {
