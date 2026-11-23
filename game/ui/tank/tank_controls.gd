@@ -2,12 +2,10 @@ class_name TankControls
 extends Control
 ## The tank-control group of the HUD: the Change tank, Tank details, Substrate and Items buttons,
 ## the choosers, the item browser, the Fish button and panel, the details panel and the
-## confirmation dialog. Closing a panel
-## puts the focus back on the button that opens it. It is also the panel group: only one panel is
-## open at a time
-## (open_panel, close_panels), and no panel opens while the dialog is open. It runs the
-## change-tank and the set-substrate Commands; the choosers and the dialog only report what the
-## player did.
+## confirmation dialog. Closing a panel puts the focus back on the button that opens it. It is
+## also the panel group: only one panel is open at a time (open_panel, close_panels), and no panel
+## opens while the dialog is open. It runs the change-tank and the set-substrate Commands; the
+## choosers and the dialog only report what the player did.
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null

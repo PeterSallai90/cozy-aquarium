@@ -48,6 +48,8 @@ func _ready() -> void:
 	visibility_changed.connect(_on_visibility_changed)
 	visibility_changed.connect(_queue_fit)
 	_rows_box.minimum_size_changed.connect(_queue_fit)
+	_card.minimum_size_changed.connect(_queue_fit)
+	_species_box.minimum_size_changed.connect(_queue_fit)
 	get_viewport().size_changed.connect(_queue_fit)
 
 
@@ -60,6 +62,9 @@ func setup(
 	uids: UidGenerator = null,
 	rng: RandomNumberGenerator = null
 ) -> void:
+	if model == null:
+		push_error("FishPanel.setup: model is null")
+		return
 	_model = model
 	_history = history
 	_species = species
@@ -253,6 +258,7 @@ func _update_card() -> void:
 		_card.show_fish(fish, _species.get_definition(fish.species_id))
 	else:
 		_card.show_species(_species.get_definition(_species_id))
+	_queue_fit()
 
 
 # --- player actions ---
@@ -353,7 +359,11 @@ func _on_model_reset() -> void:
 ## Scrolls the new row into view once the layout knows its place.
 func _scroll_to(uid: String) -> void:
 	await get_tree().process_frame
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
 	await get_tree().process_frame
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
 	var row: Control = _rows.get(uid) as Control
 	if row != null and is_instance_valid(row) and row.is_inside_tree():
 		_scroll.ensure_control_visible(row)
