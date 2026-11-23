@@ -21,10 +21,150 @@ msgstr ""
 msgid "fish.bronze_corydoras.name"
 msgstr ""
 
+msgid "fish.browser.add"
+msgstr ""
+
+msgid "fish.browser.close"
+msgstr ""
+
+msgid "fish.browser.count"
+msgid_plural "fish.browser.count.plural"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "fish.browser.empty_tank"
+msgstr ""
+
+msgid "fish.browser.in_tank_heading"
+msgstr ""
+
+msgid "fish.browser.open_button"
+msgstr ""
+
+msgid "fish.browser.remove"
+msgstr ""
+
+msgid "fish.browser.remove.tooltip"
+msgstr ""
+
+msgid "fish.browser.species_heading"
+msgstr ""
+
+msgid "fish.browser.title"
+msgstr ""
+
+msgid "fish.card.length"
+msgstr ""
+
+msgid "fish.card.unknown_species"
+msgstr ""
+
+msgid "fish.card.zone"
+msgstr ""
+
+msgid "fish.default_name.01"
+msgstr ""
+
+msgid "fish.default_name.02"
+msgstr ""
+
+msgid "fish.default_name.03"
+msgstr ""
+
+msgid "fish.default_name.04"
+msgstr ""
+
+msgid "fish.default_name.05"
+msgstr ""
+
+msgid "fish.default_name.06"
+msgstr ""
+
+msgid "fish.default_name.07"
+msgstr ""
+
+msgid "fish.default_name.08"
+msgstr ""
+
+msgid "fish.default_name.09"
+msgstr ""
+
+msgid "fish.default_name.10"
+msgstr ""
+
+msgid "fish.default_name.11"
+msgstr ""
+
+msgid "fish.default_name.12"
+msgstr ""
+
+msgid "fish.default_name.13"
+msgstr ""
+
+msgid "fish.default_name.14"
+msgstr ""
+
+msgid "fish.default_name.15"
+msgstr ""
+
+msgid "fish.default_name.16"
+msgstr ""
+
+msgid "fish.default_name.17"
+msgstr ""
+
+msgid "fish.default_name.18"
+msgstr ""
+
+msgid "fish.default_name.19"
+msgstr ""
+
+msgid "fish.default_name.20"
+msgstr ""
+
+msgid "fish.default_name.21"
+msgstr ""
+
+msgid "fish.default_name.22"
+msgstr ""
+
+msgid "fish.default_name.23"
+msgstr ""
+
+msgid "fish.default_name.24"
+msgstr ""
+
+msgid "fish.default_name.25"
+msgstr ""
+
+msgid "fish.default_name.26"
+msgstr ""
+
+msgid "fish.default_name.27"
+msgstr ""
+
+msgid "fish.default_name.28"
+msgstr ""
+
+msgid "fish.default_name.29"
+msgstr ""
+
+msgid "fish.default_name.30"
+msgstr ""
+
 msgid "fish.neon_tetra.description"
 msgstr ""
 
 msgid "fish.neon_tetra.name"
+msgstr ""
+
+msgid "fish.zone.bottom"
+msgstr ""
+
+msgid "fish.zone.middle"
+msgstr ""
+
+msgid "fish.zone.top"
 msgstr ""
 
 msgid "item.browser.close"

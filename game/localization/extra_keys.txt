@@ -1,2 +1,32 @@
 # Keys that exist only at run time and cannot be found in code, scenes or the catalog.
 # One per line: "key" or "key key.plural". Blank lines and # comments are ignored.
+fish.default_name.01
+fish.default_name.02
+fish.default_name.03
+fish.default_name.04
+fish.default_name.05
+fish.default_name.06
+fish.default_name.07
+fish.default_name.08
+fish.default_name.09
+fish.default_name.10
+fish.default_name.11
+fish.default_name.12
+fish.default_name.13
+fish.default_name.14
+fish.default_name.15
+fish.default_name.16
+fish.default_name.17
+fish.default_name.18
+fish.default_name.19
+fish.default_name.20
+fish.default_name.21
+fish.default_name.22
+fish.default_name.23
+fish.default_name.24
+fish.default_name.25
+fish.default_name.26
+fish.default_name.27
+fish.default_name.28
+fish.default_name.29
+fish.default_name.30
