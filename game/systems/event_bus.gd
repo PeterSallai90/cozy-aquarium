@@ -57,6 +57,20 @@ signal item_delete_requested
 @warning_ignore("unused_signal")
 signal item_colour_requested(has_colour: bool, colour: Color)
 
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Asks the fish to freeze (true) or swim on (false) (#35, ADR 0015 rule 7); #46 emits it. The fish
+## view forwards it to the steering simulation.
+@warning_ignore("unused_signal")
+signal fish_pause_requested(paused: bool)
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Asks a fish to seek a target in tank-local metres (#35); #37 emits it for feeding.
+@warning_ignore("unused_signal")
+signal fish_override_requested(uid: String, target: Vector3)
+# Relay signal: emitted from other scripts, so the analyser sees no emit in this one.
+## Releases a fish from its override (#35).
+@warning_ignore("unused_signal")
+signal fish_override_cleared(uid: String)
+
 var _history: CommandHistory = null
 
 
