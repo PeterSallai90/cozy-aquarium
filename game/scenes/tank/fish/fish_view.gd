@@ -13,6 +13,16 @@ extends Node3D
 ## Bad data never breaks the scene: an unknown species shows no fish (listed in get_skipped), a
 ## variant out of range shows variant 0, a column too small for a fish pins it to the middle; each
 ## gives exactly one push_warning per entry per build, prefixed "FishView:". The model is untouched.
+##
+## Read-only contract for presentation overlays (#164): `refreshed` is emitted once after every
+## handled model signal, when the pose nodes are final; has_tank(), get_fish_node() and
+## get_extents() answer from that state. Callers must not modify the view or its pose nodes and
+## must not keep pose-node references (pose nodes are freed on every rebuild). The view itself
+## knows no overlay.
+
+## Emitted once at the end of every handled model signal (and of setup), after the pose nodes are
+## in their final state, also when nothing visible changed (for example a nickname-only change).
+signal refreshed
 
 ## The resting fish bends at its species swim_speed times this factor, until #35 moves fish.
 const IDLE_SPEED_FACTOR: float = 0.35
@@ -71,6 +81,18 @@ func get_fish_node(uid: String) -> Node3D:
 	return _nodes.get(uid)
 
 
+## The scaled extents (adult length applied) of a drawn fish, or null when the fish has no node.
+## Read-only.
+func get_extents(uid: String) -> FishExtents:
+	var node: Node3D = _nodes.get(uid)
+	if node == null:
+		return null
+	var species: FishSpecies = _species_catalog().get_definition(node.get_meta(_META_SPECIES))
+	if species == null:
+		return null
+	return _scaled_extents(species)
+
+
 ## The entries that show no fish (uid to developer text), as a copy.
 func get_skipped() -> Dictionary[String, String]:
 	return _skipped.duplicate()
@@ -117,17 +139,25 @@ func _rebuild() -> void:
 	visible = has_tank()
 	for entry: FishInstance in _model.get_fish_list():
 		_add_fish(entry.uid)
+	refreshed.emit()
 
 
 func _on_fish_added(uid: String, _index: int) -> void:
 	_add_fish(uid)
+	refreshed.emit()
 
 
 func _on_fish_removed(uid: String, _index: int) -> void:
 	_remove_fish(uid)
+	refreshed.emit()
 
 
 func _on_fish_changed(uid: String, _index: int) -> void:
+	_update_fish(uid)
+	refreshed.emit()
+
+
+func _update_fish(uid: String) -> void:
 	var entry: FishInstance = _model.get_fish(uid)
 	var node: Node3D = _nodes.get(uid)
 	if entry == null:
@@ -149,14 +179,17 @@ func _on_fish_changed(uid: String, _index: int) -> void:
 func _on_tank_changed(_tank_id: StringName) -> void:
 	visible = has_tank()
 	_reposition_all()
+	refreshed.emit()
 
 
 func _on_substrate_changed(_substrate_id: StringName, _colour: Color) -> void:
 	_reposition_all()
+	refreshed.emit()
 
 
 func _on_heightmap_changed(_region: Rect2i) -> void:
 	_reposition_all()
+	refreshed.emit()
 
 
 func _add_fish(uid: String) -> void:

@@ -12,6 +12,8 @@ const EXPECTED: PackedStringArray = [
 	"res://ui/settings/settings_section.gd",
 	"res://ui/settings/settings_screen.gd",
 	"res://ui/settings/language_section.gd",
+	"res://systems/settings/fish_setting_keys.gd",
+	"res://ui/settings/fish_section.gd",
 ]
 const AUTOLOAD := "res://systems/settings/settings.gd"
 const SHELL_FILES: PackedStringArray = [
@@ -83,14 +85,17 @@ func test_the_shell_does_not_name_the_fixture_section() -> void:
 		)
 
 
-func test_the_shipped_section_list_holds_only_the_language_section() -> void:
+func test_the_shipped_section_list_holds_the_language_section_then_the_fish_section() -> void:
 	var list: Resource = load("res://ui/settings/settings_sections.tres") as Resource
 	assert_object(list).override_failure_message("settings_sections.tres is missing").is_not_null()
 	if list == null:
 		return
 	var sections: Array = list.get("sections")
-	assert_array(sections).has_size(1)
-	if sections.size() == 1:
+	assert_array(sections).has_size(2)
+	if sections.size() == 2:
 		assert_str((sections[0] as PackedScene).resource_path).is_equal(
 			"res://ui/settings/language_section.tscn"
+		)
+		assert_str((sections[1] as PackedScene).resource_path).is_equal(
+			"res://ui/settings/fish_section.tscn"
 		)

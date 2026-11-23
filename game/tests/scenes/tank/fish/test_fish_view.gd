@@ -837,3 +837,110 @@ func test_ac29_a_species_change_recreates_the_node_with_the_new_species_scene() 
 		var scene: PackedScene = Api.field(Api.CORY, "scene", null) as PackedScene
 		assert_str(node_after.get_child(0).scene_file_path).is_equal(scene.resource_path)
 	assert_int(rig.view.get_child_count()).is_equal(3)
+
+
+# --- #164 contract for presentation overlays (refreshed, get_extents, one-way dependency) ---
+
+
+func _count_refreshed(rig: FishRig.Rig) -> Array[int]:
+	var counter: Array[int] = [0]
+	(
+		assert_bool(rig.view.has_signal("refreshed"))
+		. override_failure_message("FishView has no refreshed signal")
+		. is_true()
+	)
+	if rig.view.has_signal("refreshed"):
+		rig.view.connect("refreshed", func() -> void: counter[0] += 1)
+	return counter
+
+
+func _expect_once(counter: Array[int], what: String) -> void:
+	assert_int(counter[0]).override_failure_message("%s: refreshed count" % what).is_equal(1)
+	counter[0] = 0
+
+
+func test_164_refreshed_is_emitted_once_per_handled_model_signal() -> void:
+	var rig: FishRig.Rig = _ready_rig(FishRig.trio())
+	if rig == null:
+		return
+	var counter: Array[int] = _count_refreshed(rig)
+	rig.model.apply_insert_fish(FishRig.fish("f1000010", Api.ANGEL), 3)
+	_expect_once(counter, "fish_added")
+	rig.model.apply_remove_fish("f1000010")
+	_expect_once(counter, "fish_removed")
+	var variant: FishInstance = rig.model.get_fish("f1000003").copy()
+	variant.variant = 1
+	rig.model.apply_replace_fish(variant)
+	_expect_once(counter, "fish_changed (variant)")
+	var new_variant: FishInstance = variant.copy()
+	new_variant.nickname = "Goldie"
+	rig.model.apply_replace_fish(new_variant)
+	_expect_once(counter, "fish_changed (nickname only)")
+	rig.model.apply_set_tank_id(FishRig.LARGE)
+	_expect_once(counter, "tank_changed")
+	var colour: Color = rig.substrates.get_definition(FishRig.PEBBLES).default_colour
+	rig.model.apply_set_substrate(FishRig.PEBBLES, colour)
+	_expect_once(counter, "substrate_changed")
+	rig.model.apply_set_heightmap(PackedFloat32Array([0.03, 0.03, 0.03, 0.03]), Vector2i(2, 2))
+	_expect_once(counter, "heightmap_changed")
+	rig.model.reset_from(FishRig.trio())
+	_expect_once(counter, "model_reset")
+
+
+func test_164_refreshed_comes_after_the_pose_nodes_are_final() -> void:
+	var rig: FishRig.Rig = _ready_rig(FishRig.trio())
+	if rig == null or not rig.view.has_signal("refreshed"):
+		assert_bool(false).override_failure_message("no view or no refreshed signal").is_true()
+		return
+	var seen: Array[bool] = []
+	rig.view.connect(
+		"refreshed",
+		func() -> void:
+			var node: Node3D = FishRig.node_of(rig, "f1000006")
+			seen.append(
+				node != null and FishRig.at_pose(node, FishRig.expected_pose(rig, "f1000006"))
+			)
+	)
+	rig.model.apply_set_tank_id(FishRig.LARGE)
+	assert_array(seen).is_equal([true])
+
+
+func test_164_get_extents_is_read_only_and_null_for_a_skipped_or_unknown_uid() -> void:
+	var source: AquariumModel = FishRig.trio()
+	source.apply_insert_fish(FishRig.fish("f1000099", &"no_such_fish"), 3)
+	var holder: Array = []
+	await EngineOutput.capture(func() -> void: holder.append(_ready_rig(source)))
+	var rig: FishRig.Rig = holder[0]
+	if rig == null:
+		return
+	(
+		assert_bool(rig.view.has_method("get_extents"))
+		. override_failure_message("FishView has no get_extents")
+		. is_true()
+	)
+	if not rig.view.has_method("get_extents"):
+		return
+	assert_object(rig.view.call("get_extents", "f1000099")).is_null()
+	assert_object(rig.view.call("get_extents", "nobody")).is_null()
+	var child_count_before: int = rig.view.get_child_count()
+	for entry: FishInstance in rig.model.get_fish_list():
+		if entry.uid == "f1000099":
+			continue
+		var measured: Object = rig.view.call("get_extents", entry.uid)
+		assert_object(measured).is_not_null()
+		var adult: float = float(Api.field(entry.species_id, "adult_length_cm", 0.0))
+		var want: Object = FishRig.extents_of(entry.species_id, adult)
+		assert_float(float(measured.get("above_m"))).is_equal_approx(
+			float(want.get("above_m")), 1e-4
+		)
+	assert_int(rig.view.get_child_count()).is_equal(child_count_before)
+
+
+func test_164_fish_view_does_not_know_the_label_view() -> void:
+	var source: String = FileAccess.get_file_as_string("res://scenes/tank/fish/fish_view.gd")
+	assert_str(source).override_failure_message("fish_view.gd was not read").is_not_empty()
+	(
+		assert_bool(source.contains("FishLabelView"))
+		. override_failure_message("fish_view.gd names FishLabelView")
+		. is_false()
+	)

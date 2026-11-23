@@ -1,11 +1,12 @@
 class_name TankControls
 extends Control
 ## The tank-control group of the HUD: the Change tank, Tank details, Substrate and Items buttons,
-## the choosers, the item browser, the Fish button and panel, the details panel and the
-## confirmation dialog. Closing a panel puts the focus back on the button that opens it. It is
-## also the panel group: only one panel is open at a time (open_panel, close_panels), and no panel
-## opens while the dialog is open. It runs the change-tank and the set-substrate Commands; the
-## choosers and the dialog only report what the player did.
+## the choosers, the item browser, the Fish button and panel, the Settings button and screen (a
+## placeholder until the main menu, #38), the details panel and the confirmation dialog. Closing a
+## panel puts the focus back on the button that opens it. It is also the panel group: only one
+## panel is open at a time (open_panel, close_panels), and no panel opens while the dialog is open.
+## It runs the change-tank and the set-substrate Commands; the choosers and the dialog only report
+## what the player did.
 
 var _model: AquariumModel = null
 var _catalog: TankCatalog = null
@@ -30,6 +31,8 @@ var _asked_card: Button = null
 @onready var _browser: ItemBrowser = $Group/ItemBrowser
 @onready var _fish_button: Button = $Group/Buttons/FishButton
 @onready var _fish_panel: FishPanel = $Group/FishPanel
+@onready var _settings_button: Button = $Group/Buttons/SettingsButton
+@onready var _settings_screen: Control = $SettingsScreen
 @onready var _dialog: TankChangeDialog = $TankChangeDialog
 
 
@@ -75,6 +78,8 @@ func _ready() -> void:
 	_openers[_browser] = _items_button
 	_panels.append(_fish_panel)
 	_openers[_fish_panel] = _fish_button
+	_panels.append(_settings_screen)
+	_openers[_settings_screen] = _settings_button
 	_browser.setup(_model, _items, _item_source)
 	_fish_panel.setup(_model, _history, _fish)
 	_substrate_chooser.setup(_model, _substrates)
@@ -85,6 +90,8 @@ func _ready() -> void:
 	_items_button.gui_input.connect(_on_items_gui_input)
 	_items_button.pressed.connect(_on_items_pressed)
 	_fish_button.pressed.connect(_on_fish_pressed)
+	_settings_button.pressed.connect(_on_settings_pressed)
+	_settings_screen.closed.connect(_on_settings_closed)
 	_browser.close_requested.connect(_cancel_or_close)
 	_fish_panel.close_requested.connect(_cancel_or_close)
 	EventBus.tank_displayed.connect(_on_tank_displayed)
@@ -123,6 +130,9 @@ func open_panel(panel: Control, opener: Button = null) -> void:
 	elif panel == _fish_panel:
 		EventBus.item_pick_clear_requested.emit()
 		_fish_panel.focus_start()
+	elif panel == _settings_screen:
+		EventBus.item_pick_clear_requested.emit()
+		_settings_screen.open()
 
 
 ## Closes every panel and the dialog; the focus goes back to the button of the panel that was
@@ -218,6 +228,20 @@ func _on_fish_pressed() -> void:
 		close_panels()
 	else:
 		open_panel(_fish_panel)
+
+
+func _on_settings_pressed() -> void:
+	if _dialog.is_active():
+		return
+	if _settings_screen.visible:
+		close_panels()
+	else:
+		open_panel(_settings_screen)
+
+
+## Close or Esc on the screen (it hid itself): the focus goes back to the Settings button.
+func _on_settings_closed() -> void:
+	_settings_button.grab_focus()
 
 
 ## No tank on show: the Fish button is off and the fish panel closed.

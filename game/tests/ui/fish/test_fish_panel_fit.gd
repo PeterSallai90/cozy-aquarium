@@ -1,8 +1,12 @@
 extends GdUnitTestSuite
-## #165 (owner: developer): in the default 1152 x 648 window the whole fish panel, the Close button
-## included, stays inside the viewport after a fish row is selected (the info card grows) with 10
-## fish, in English and in Hungarian, and also in Hungarian with an Angelfish selected. The panel
-## rects are read after the layout has settled.
+## #165 regression (owner: tester, tidied in #164 part b): in the default 1152 x 648 window the
+## whole fish panel, the Close button included, stays inside the viewport after a fish row is
+## selected (the info card grows) with 10 fish of one species. Three combinations, each of which
+## fails without the #165 fix:
+## - English with an angelfish selected;
+## - Hungarian with a bronze corydoras selected (the second-longest Hungarian description);
+## - Hungarian with an angelfish selected (the longest Hungarian description).
+## The panel rects are read after the layout has settled.
 
 const Fp := preload("res://tests/helpers/fish_panel_rig.gd")
 const Ui := preload("res://tests/helpers/tank_ui_rig.gd")
@@ -89,21 +93,20 @@ func _check_fit(label: String) -> void:
 	)
 
 
-func test_165_the_panel_and_close_button_fit_the_viewport_with_a_row_selected_in_english() -> void:
+func test_165_panel_and_close_fit_the_viewport_with_an_angelfish_selected_in_english() -> void:
 	if not await _open("en", &"angelfish"):
 		return
-	await _check_fit_after_select("en")
+	await _check_fit_after_select("en angelfish")
 
 
-func test_165_the_panel_and_close_button_fit_the_viewport_with_a_row_selected_in_hungarian(
+func test_165_panel_and_close_fit_the_viewport_with_a_bronze_corydoras_selected_in_hungarian(
 ) -> void:
-	if not await _open("hu", &"angelfish"):
+	if not await _open("hu", &"bronze_corydoras"):
 		return
-	await _check_fit_after_select("hu")
+	await _check_fit_after_select("hu bronze_corydoras")
 
 
-func test_165_the_panel_and_close_button_fit_the_viewport_with_an_angelfish_selected_in_hungarian(
-) -> void:
+func test_165_panel_and_close_fit_the_viewport_with_an_angelfish_selected_in_hungarian() -> void:
 	if not await _open("hu", &"angelfish"):
 		return
 	await _check_fit_after_select("hu angelfish")

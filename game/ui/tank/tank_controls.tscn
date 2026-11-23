@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://ui/tank/substrate_chooser.tscn" id="5_substrate"]
 [ext_resource type="PackedScene" path="res://ui/catalog/item_browser.tscn" id="6_items"]
 [ext_resource type="PackedScene" path="res://ui/fish/fish_panel.tscn" id="7_fish"]
+[ext_resource type="PackedScene" path="res://ui/settings/settings_screen.tscn" id="8_settings"]
 
 [node name="TankControls" type="Control"]
 layout_mode = 3
@@ -56,6 +57,11 @@ size_flags_horizontal = 0
 disabled = true
 text = "fish.browser.open_button"
 
+[node name="SettingsButton" type="Button" parent="Group/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "settings.open_button"
+
 [node name="TankChooser" parent="Group" instance=ExtResource("2_chooser")]
 layout_mode = 2
 size_flags_horizontal = 0
@@ -75,6 +81,10 @@ size_flags_horizontal = 0
 [node name="FishPanel" parent="Group" instance=ExtResource("7_fish")]
 layout_mode = 2
 size_flags_horizontal = 0
+
+[node name="SettingsScreen" parent="." instance=ExtResource("8_settings")]
+visible = false
+layout_mode = 1
 
 [node name="TankChangeDialog" parent="." instance=ExtResource("3_dialog")]
 layout_mode = 1

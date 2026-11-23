@@ -44,6 +44,7 @@ var _item_source: ItemCatalogSource = null
 @onready var _walls: WallCutaway = $WallCutaway
 @onready var _placement: PlacementSystem = $Placement
 @onready var _fish: FishView = $Fish
+@onready var _fish_labels: FishLabelView = $FishLabels
 
 
 ## Optional, before the node enters the tree. Without it the room uses a new model, the catalog
@@ -87,6 +88,7 @@ func _ready() -> void:
 		_model, _history, _item_source, PlacementRules.new(_catalog, _item_source, _substrates)
 	)
 	_fish.setup(_model, _catalog, _substrates)
+	_fish_labels.setup(_model, _fish)
 	_model.tank_changed.connect(_on_tank_changed)
 	_model.model_reset.connect(_show_tank)
 	_model.substrate_changed.connect(_on_substrate_changed)
@@ -154,6 +156,7 @@ func _show_tank() -> void:
 		_displayed_tank = definition
 		_placement.set_tank(definition, tank.global_transform)
 		_fish.global_transform = tank.global_transform
+		_fish_labels.global_transform = tank.global_transform
 		_fish.visible = _fish.has_tank()
 		_apply_substrate()
 	if tank == null:
