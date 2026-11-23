@@ -6,9 +6,9 @@ const SignalRecorder := preload("res://tests/helpers/signal_recorder.gd")
 const ErrorContains := preload("res://tests/helpers/error_contains.gd")
 const EventBusScript := preload("res://systems/event_bus.gd")
 const AddItemCommand := preload("res://tests/helpers/commands/add_item_command.gd")
-const AddFishCommand := preload("res://tests/helpers/commands/add_fish_command.gd")
+const FakeAddFish := preload("res://tests/helpers/commands/add_fish_command.gd")
 const RemoveItemCommand := preload("res://tests/helpers/commands/remove_item_command.gd")
-const RemoveFishCommand := preload("res://tests/helpers/commands/remove_fish_command.gd")
+const FakeRemoveFish := preload("res://tests/helpers/commands/remove_fish_command.gd")
 const ChangeItemCommand := preload("res://tests/helpers/commands/change_item_command.gd")
 const ChangeFishCommand := preload("res://tests/helpers/commands/change_fish_command.gd")
 const SetTankCommand := preload("res://tests/helpers/commands/set_tank_command.gd")
@@ -53,9 +53,9 @@ func _make(kind: String) -> Command:
 			changed.colour = Color(0.2, 0.4, 0.6)
 			result = ChangeItemCommand.new(_model, changed)
 		"add_fish":
-			result = AddFishCommand.new(_model, Factory.fish("f0000009", &"betta", 2, "Neo"))
+			result = FakeAddFish.new(_model, Factory.fish("f0000009", &"betta", 2, "Neo"))
 		"remove_fish":
-			result = RemoveFishCommand.new(_model, "f0000002")
+			result = FakeRemoveFish.new(_model, "f0000002")
 		"change_fish":
 			var renamed_fish: FishInstance = _model.get_fish("f0000002").copy()
 			renamed_fish.nickname = "熱帯魚"
@@ -146,7 +146,7 @@ func test_remove_middle_item_undo_restores_index() -> void:
 func test_remove_middle_fish_undo_restores_index() -> void:
 	var value_before: Dictionary = _snap()
 	var middle: FishInstance = _model.get_fish("f0000002")
-	assert_bool(_history.execute(RemoveFishCommand.new(_model, "f0000002"))).is_true()
+	assert_bool(_history.execute(FakeRemoveFish.new(_model, "f0000002"))).is_true()
 	assert_int(_model.get_fish_count()).is_equal(2)
 	assert_bool(_history.undo()).is_true()
 	assert_int(_model.get_fish_index("f0000002")).is_equal(1)
@@ -167,7 +167,7 @@ func test_add_undo_redo_keeps_same_instance_and_uid() -> void:
 	assert_bool(is_same(_model.get_item("a0000009"), item)).is_true()
 	assert_str(item.uid).is_equal("a0000009")
 	var fish: FishInstance = Factory.fish("f0000009", &"betta", 2, "Neo")
-	assert_bool(_history.execute(AddFishCommand.new(_model, fish))).is_true()
+	assert_bool(_history.execute(FakeAddFish.new(_model, fish))).is_true()
 	assert_bool(_history.undo()).is_true()
 	assert_bool(_history.redo()).is_true()
 	assert_bool(is_same(_model.get_fish("f0000009"), fish)).is_true()
@@ -182,7 +182,7 @@ func test_add_with_existing_uid_fails() -> void:
 	var clash_with_fish: PlacedItem = Factory.item("f0000001")
 	assert_bool(_history.execute(AddItemCommand.new(_model, clash_with_fish))).is_false()
 	var clash_with_item: FishInstance = Factory.fish("a0000001")
-	assert_bool(_history.execute(AddFishCommand.new(_model, clash_with_item))).is_false()
+	assert_bool(_history.execute(FakeAddFish.new(_model, clash_with_item))).is_false()
 	assert_dict(_snap()).is_equal(value_before)
 	assert_array(recorder.events).is_empty()
 	assert_int(_history.get_undo_count()).is_equal(0)
@@ -214,7 +214,7 @@ func test_hundred_commands_undo_all_redo_all() -> void:
 				command = AddItemCommand.new(_model, Factory.item(uid))
 				added_items.append(uid)
 			1:
-				command = AddFishCommand.new(_model, Factory.fish(uid, &"guppy", i, "n%d" % i))
+				command = FakeAddFish.new(_model, Factory.fish(uid, &"guppy", i, "n%d" % i))
 			2:
 				command = SetTankCommand.new(_model, StringName("tank_%d" % i))
 			3:

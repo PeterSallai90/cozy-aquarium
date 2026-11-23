@@ -7,7 +7,12 @@ extends GdUnitTestSuite
 const Api := preload("res://tests/helpers/fish_api.gd")
 
 const SALTS: PackedStringArray = [
-	"fish.rest.x", "fish.rest.z", "fish.rest.y", "fish.rest.yaw", "fish.swim.phase"
+	"fish.rest.x",
+	"fish.rest.z",
+	"fish.rest.y",
+	"fish.rest.yaw",
+	"fish.swim.phase",
+	"fish.name.default"
 ]
 const UIDS: PackedStringArray = ["f1000001", "0badf00d", "00000000", "ffffffff", "a1b2c3d4"]
 
@@ -65,3 +70,28 @@ func test_the_salt_is_part_of_the_hashed_text_not_a_suffix() -> void:
 		return
 	var swapped: float = Api.expected_unit("fish.rest.x", "f1000001")
 	assert_bool(is_equal_approx(Api.hash_unit("f1000001", "fish.rest.x"), swapped)).is_false()
+
+
+func test_36_the_default_name_salt_is_the_frozen_string() -> void:
+	if not _have_hash():
+		return
+	assert_str(Api.constant(Api.HASH_PATH, "SALT_DEFAULT_NAME", "<missing>")).is_equal(
+		"fish.name.default"
+	)
+
+
+func test_36_the_default_name_salt_differs_from_every_other_salt() -> void:
+	var salt: String = Api.constant(Api.HASH_PATH, "SALT_DEFAULT_NAME", "<missing>")
+	assert_str(salt).is_equal("fish.name.default")
+	var others: int = 0
+	for other: String in SALTS:
+		if other != salt:
+			others += 1
+	assert_int(others).is_equal(SALTS.size() - 1)
+	assert_int(SALTS.count(salt)).is_equal(1)
+
+
+func test_36_the_default_name_family_is_reserved_for_names() -> void:
+	for other: String in SALTS:
+		if other != "fish.name.default":
+			assert_bool(other.begins_with("fish.name.")).is_false()
