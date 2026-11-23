@@ -56,7 +56,7 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var give_way_fraction: float = 0.5
 ## A fish stops this many times the sum of the half lengths before a fish ahead, so it never stops
 ## on the personal-space limit itself.
-@export var clear_stop_factor: float = 1.0
+@export var clear_stop_factor: float = 1.15
 
 # --- idle and darts ---
 @export var idle_episode_min_s: float = 2.0
@@ -96,14 +96,14 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var avoid_weight: float = 1.5
 @export var avoid_force_cap: float = 1.0
 ## The last resort against overlap: a pair closer than contact_distance_factor times the sum of
-## the half lengths is pushed apart, by at most contact_drift_fraction of the top speed plus
-## contact_follow_fraction of the fish's own speed per fish. Pairs within contact_reach_factor times
-## that sum plus contact_reach_m at the last search are watched.
+## the half lengths is pushed apart. A nearly still fish may be pushed by up to
+## contact_still_fraction of its top speed (so a fish at rest is not driven faster than the speed
+## from which its heading must match its motion), a moving one by contact_follow_fraction of its
+## own speed. Pairs within contact_reach_factor times that sum plus contact_reach_m at the last
+## search are watched.
 @export var contact_distance_factor: float = 1.003
-@export var contact_drift_fraction: float = 0.25
-@export var contact_follow_fraction: float = 0.6
-## The drift part fades out as the fish speed grows to this share of its top speed.
-@export var contact_still_fraction: float = 0.1
+@export var contact_still_fraction: float = 0.095
+@export var contact_follow_fraction: float = 0.4
 @export var contact_reach_factor: float = 1.6
 @export var contact_reach_m: float = 0.02
 @export var wander_weight: float = 1.0

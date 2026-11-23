@@ -190,8 +190,9 @@ func begin_recovery(uid: String) -> void:
 	fish.rec_to = goal
 	fish.rec_len = length
 	fish.rec_dir = (goal - fish.position) / length
-	fish.rec_total = clampf(length / cap + ramp, 2.0 * ramp, _tuning.recovery_max_s)
-	fish.rec_speed = length / (fish.rec_total - ramp)
+	var plan: Vector2 = FishSwimRecovery.plan(length, cap, ramp, _tuning.recovery_max_s)
+	fish.rec_total = plan.x
+	fish.rec_speed = plan.y
 	fish.rec_time = 0.0
 	fish.speed = 0.0
 	fish.low_time = 0.0
@@ -370,7 +371,9 @@ func _update(f: FishSwimMember, h: float) -> void:
 	var give_way: float = clampf(
 		(f.blocked_time - t.give_way_after_s) / t.give_way_ramp_s, 0.0, 1.0
 	)
-	var clear_speed: float = maxf(_nb.clear[i], give_way * t.give_way_fraction * p.cruise_speed_m_s)
+	var clear_speed: float = _nb.clear[i]
+	if _nb.touching[i] == 0:
+		clear_speed = maxf(clear_speed, give_way * t.give_way_fraction * p.cruise_speed_m_s)
 	wanted_speed = minf(wanted_speed, minf(wall_speed, clear_speed))
 	var accel_step: float = p.accel_max * h
 	f.speed = maxf(f.speed + clampf(wanted_speed - f.speed, -accel_step, accel_step), 0.0)
@@ -736,6 +739,7 @@ func _integrate(
 		ignore_band
 	)
 	var velocity: Vector3 = (next - f.position) / h
+	f.step_from = f.position
 	f.position = next
 	_write_state(f, velocity)
 
@@ -790,23 +794,28 @@ func _resolve_contacts(h: float) -> void:
 			continue
 		var scale: float = 1.0 / (share_a + share_b)
 		var need: float = wanted - d
-		_nudge(a, away * minf(need * share_a * scale, _contact_room(a, h)))
-		_nudge(b, -away * minf(need * share_b * scale, _contact_room(b, h)))
+		_nudge(a, away * minf(need * share_a * scale, _contact_room(a, h)), h)
+		_nudge(b, -away * minf(need * share_b * scale, _contact_room(b, h)), h)
 
 
-## How far a contact may push a fish in one step: a slow drift while it is nearly still, plus a
-## share of its own motion (so velocity and heading stay within the head-first angle), and never
-## beyond the fastest speed a fish may have (the speed range of the personality).
+## How far a contact may push a fish in one step. A fish that is nearly still may drift up to
+## contact_still_fraction of its top speed in total (below the speed from which heading and motion
+## must agree); a moving fish gets a share of its own motion (so heading and motion stay within the
+## head-first angle). Never beyond the fastest speed a fish may have (the personality range), and
+## all pushes of one step together stay within the room.
 func _contact_room(f: FishSwimMember, h: float) -> float:
 	var t: FishSwimTuning = _tuning
 	var top: float = f.params.top_speed_m_s
-	var still: float = clampf(1.0 - f.speed / (t.contact_still_fraction * top), 0.0, 1.0)
-	var room: float = t.contact_drift_fraction * top * still + t.contact_follow_fraction * f.speed
+	var room: float = maxf(
+		t.contact_still_fraction * top - f.speed, t.contact_follow_fraction * f.speed
+	)
 	var fastest: float = FishPersonality.FACTOR_MIN + FishPersonality.FACTOR_SPAN
 	return maxf(minf(room, maxf(fastest * top * 0.99 - f.speed, 0.0)) * h - f.nudged, 0.0)
 
 
-func _nudge(f: FishSwimMember, by: Vector3) -> void:
+## Moves a fish by a contact push (not part of its swimming velocity), keeps it inside its limits
+## and lets its tail beat for the extra motion.
+func _nudge(f: FishSwimMember, by: Vector3, h: float) -> void:
 	if by.length_squared() <= 0.0:
 		return
 	var next: Vector3 = _clamp_position(
@@ -815,6 +824,8 @@ func _nudge(f: FishSwimMember, by: Vector3) -> void:
 	f.nudged += by.length()
 	f.position = next
 	f.state.position = next
+	var moved: float = next.distance_to(f.step_from) / h
+	f.state.shader_speed = clampf(moved / f.params.top_speed_m_s, 0.0, 1.0)
 
 
 func _write_state(f: FishSwimMember, velocity: Vector3) -> void:
@@ -827,7 +838,7 @@ func _write_state(f: FishSwimMember, velocity: Vector3) -> void:
 	s.yaw_rate = f.yaw_rate
 	s.travel_pitch = f.travel_pitch
 	s.pitch = clampf(f.travel_pitch - f.bias, -p.pitch_limit, p.pitch_limit)
-	s.shader_speed = clampf(f.speed / p.top_speed_m_s, 0.0, 1.0)
+	s.shader_speed = clampf(velocity.length() / p.top_speed_m_s, 0.0, 1.0)
 	s.mode = f.mode
 	s.recovering = f.recovering
 	s.pinned = f.vert.pinned
@@ -849,7 +860,15 @@ func _intends(f: FishSwimMember) -> bool:
 func _recover(f: FishSwimMember, h: float) -> void:
 	var p: FishSwimParams = f.params
 	f.rec_time = minf(f.rec_time + h, f.rec_total)
-	var next: Vector3 = f.rec_from + f.rec_dir * _recovery_distance(f)
+	var next: Vector3 = (
+		f.rec_from
+		+ (
+			f.rec_dir
+			* FishSwimRecovery.distance(
+				f.rec_len, f.rec_total, f.rec_speed, _tuning.recovery_ramp_s, f.rec_time
+			)
+		)
+	)
 	var velocity: Vector3 = (next - f.position) / h
 	var flat: float = Vector2(f.rec_dir.x, f.rec_dir.z).length()
 	var rate_wanted: float = 0.0
@@ -859,6 +878,7 @@ func _recover(f: FishSwimMember, h: float) -> void:
 	_apply_yaw_rate(f, p, rate_wanted, h)
 	_steer_pitch(f, p, atan2(f.rec_dir.y, flat), h)
 	f.bias = move_toward(f.bias, 0.0, p.bias_step_per_s * h)
+	f.step_from = f.position
 	f.position = next
 	f.speed = velocity.length()
 	if f.rec_time >= f.rec_total:
@@ -871,22 +891,6 @@ func _recover(f: FishSwimMember, h: float) -> void:
 		elif not f.has_override and f.mode != FishSwimState.Mode.DART:
 			_start_cruise(f)
 	_write_state(f, velocity)
-
-
-## The distance covered after rec_time: a smoothstep ramp up, a plateau, a smoothstep ramp down.
-func _recovery_distance(f: FishSwimMember) -> float:
-	var ramp: float = _tuning.recovery_ramp_s
-	var time: float = f.rec_time
-	if time >= f.rec_total:
-		return f.rec_len
-	if time < ramp:
-		var u: float = time / ramp
-		return f.rec_speed * ramp * (u * u * u - u * u * u * u * 0.5)
-	var left: float = f.rec_total - time
-	if left < ramp:
-		var w: float = left / ramp
-		return f.rec_len - f.rec_speed * ramp * (w * w * w - w * w * w * w * 0.5)
-	return f.rec_speed * ramp * 0.5 + f.rec_speed * (time - ramp)
 
 
 # --- neighbours ---

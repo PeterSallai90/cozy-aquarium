@@ -23,6 +23,8 @@ var near_sq: PackedFloat64Array = PackedFloat64Array()
 ## Speed limit from the fish ahead (INF when none): its own speed along the heading plus what the
 ## braking distance allows.
 var clear: PackedFloat64Array = PackedFloat64Array()
+## 1 when the fish ahead is already at the stopping distance or closer: the limit is then absolute.
+var touching: PackedByteArray = PackedByteArray()
 ## The pairs (by index) that are close enough to touch before the next search.
 var contact_a: PackedInt32Array = PackedInt32Array()
 var contact_b: PackedInt32Array = PackedInt32Array()
@@ -52,6 +54,8 @@ func rebuild(
 	for array: PackedInt32Array in [_key, _style, count, near]:
 		array.resize(n)
 	_pinned.resize(n)
+	touching.resize(n)
+	touching.fill(0)
 	sep.fill(Vector3.ZERO)
 	spc.fill(Vector3.ZERO)
 	avd.fill(Vector3.ZERO)
@@ -148,11 +152,15 @@ func rebuild(
 				var follow_i: float = maxf(_vel[j].dot(_fwd[i]), 0.0)
 				var room_i: float = maxf(ahead_i - hs * stop_factor, 0.0)
 				clear[i] = minf(clear[i], follow_i + sqrt(2.0 * _amax[i] * room_i) * safety)
+				if room_i <= 0.0:
+					touching[i] = 1
 			var ahead_j: float = off.dot(_fwd[j])
 			if ahead_j > 0.0 and d2 - ahead_j * ahead_j < hs * hs:
 				var follow_j: float = maxf(_vel[i].dot(_fwd[j]), 0.0)
 				var room_j: float = maxf(ahead_j - hs * stop_factor, 0.0)
 				clear[j] = minf(clear[j], follow_j + sqrt(2.0 * _amax[j] * room_j) * safety)
+				if room_j <= 0.0:
+					touching[j] = 1
 
 
 func _load(f: FishSwimMember, i: int, keys: Dictionary[StringName, int]) -> void:

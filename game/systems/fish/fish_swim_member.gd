@@ -34,6 +34,8 @@ var low_time: float = 0.0
 var blocked_time: float = 0.0
 ## How far contacts pushed the fish in the current substep (all pushes together are limited).
 var nudged: float = 0.0
+## Where the fish was at the start of the current substep.
+var step_from: Vector3 = Vector3.ZERO
 var ahead_low: float = 0.0
 var ahead_high: float = 0.0
 var vert: FishSwimLimits.Vertical = FishSwimLimits.Vertical.new()

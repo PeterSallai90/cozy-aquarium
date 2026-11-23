@@ -18,7 +18,8 @@ var yaw_rate: float = 0.0
 ## Pitch of the direction of travel, and of the body (travel pitch minus the nose-down bias).
 var travel_pitch: float = 0.0
 var pitch: float = 0.0
-## clamp(speed / species top speed, 0, 1): the swim_speed shader parameter.
+## clamp(distance moved per second / species top speed, 0, 1): the swim_speed shader parameter,
+## so the tail beats with the real motion (also while a touching fish pushes this one).
 var shader_speed: float = 0.0
 var mode: Mode = Mode.IDLE
 ## True while the recovery ease guides the fish back into its limits.
