@@ -78,14 +78,14 @@ func test_36_undo_puts_the_same_fish_back_at_the_old_index() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	assert_bool(_remove(model, B)).is_true()
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	assert_bool(_history.undo()).is_true()
 	assert_array(recorder.names()).is_equal(["fish_added"])
 	assert_array(recorder.args_of(0)).is_equal([B, 1])
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 	var fish: FishInstance = model.get_fish_at(1)
 	assert_str(fish.uid).is_equal(B)
 	assert_str(String(fish.species_id)).is_equal("angelfish")
@@ -122,14 +122,14 @@ func test_36_an_unknown_uid_makes_do_fail_without_a_trace() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	var result: Array = [true]
 	await EngineOutput.capture(func() -> void: result[0] = _remove(model, "f00000ff"))
 	assert_bool(result[0]).is_false()
 	assert_int(recorder.count()).is_equal(0)
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 	assert_bool(_history.can_undo()).is_false()
 
 
@@ -138,11 +138,11 @@ func test_36_an_item_uid_is_not_a_fish_and_is_refused() -> void:
 		return
 	var model: AquariumModel = _model()
 	model.apply_insert_item(Factory.item("a0000001"), 0)
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	var result: Array = [true]
 	await EngineOutput.capture(func() -> void: result[0] = _remove(model, "a0000001"))
 	assert_bool(result[0]).is_false()
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 	assert_bool(model.has_uid("a0000001")).is_true()
 
 
@@ -150,8 +150,8 @@ func test_36_an_empty_uid_is_refused() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	var result: Array = [true]
 	await EngineOutput.capture(func() -> void: result[0] = _remove(model, ""))
 	assert_bool(result[0]).is_false()
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)

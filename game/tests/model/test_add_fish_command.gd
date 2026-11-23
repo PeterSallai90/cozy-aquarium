@@ -78,14 +78,14 @@ func test_36_undo_removes_the_fish_and_restores_the_model() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	assert_bool(_add(model, Factory.fish(A))).is_true()
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	assert_bool(_history.undo()).is_true()
 	assert_array(recorder.names()).is_equal(["fish_removed"])
 	assert_array(recorder.args_of(0)).is_equal([A, 1])
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 
 
 func test_36_redo_puts_the_same_fish_back_at_the_same_index() -> void:
@@ -111,7 +111,7 @@ func test_36_a_used_fish_uid_makes_do_fail_without_a_trace() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	var recorder: Recorder = Recorder.new()
 	recorder.watch(model)
 	var result: Array = [false]
@@ -120,7 +120,7 @@ func test_36_a_used_fish_uid_makes_do_fail_without_a_trace() -> void:
 	)
 	assert_bool(result[0]).is_false()
 	assert_int(recorder.count()).is_equal(0)
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 	assert_bool(_history.can_undo()).is_false()
 	assert_int(_history.get_undo_count()).is_equal(0)
 
@@ -130,13 +130,13 @@ func test_36_a_uid_used_by_an_item_makes_do_fail() -> void:
 		return
 	var model: AquariumModel = _model()
 	model.apply_insert_item(Factory.item("a0000001"), 0)
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	var result: Array = [false]
 	await EngineOutput.capture(
 		func() -> void: result[0] = _add(model, Factory.fish("a0000001", &"neon_tetra"))
 	)
 	assert_bool(result[0]).is_false()
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 	assert_bool(_history.can_undo()).is_false()
 
 
@@ -144,7 +144,7 @@ func test_36_a_null_fish_an_empty_uid_and_a_null_model_make_do_fail() -> void:
 	if not _have():
 		return
 	var model: AquariumModel = _model()
-	var before: Dictionary = _state(model)
+	var state_before: Dictionary = _state(model)
 	var results: Array[bool] = [true, true, true]
 	await EngineOutput.capture(
 		func() -> void:
@@ -153,7 +153,7 @@ func test_36_a_null_fish_an_empty_uid_and_a_null_model_make_do_fail() -> void:
 			results[2] = _add(null, Factory.fish(A))
 	)
 	assert_array(results).is_equal([false, false, false])
-	assert_dict(_state(model)).is_equal(before)
+	assert_dict(_state(model)).is_equal(state_before)
 	assert_bool(_history.can_undo()).is_false()
 
 
