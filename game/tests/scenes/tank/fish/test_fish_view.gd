@@ -872,9 +872,9 @@ func test_164_refreshed_is_emitted_once_per_handled_model_signal() -> void:
 	variant.variant = 1
 	rig.model.apply_replace_fish(variant)
 	_expect_once(counter, "fish_changed (variant)")
-	var renamed: FishInstance = variant.copy()
-	renamed.nickname = "Goldie"
-	rig.model.apply_replace_fish(renamed)
+	var new_variant: FishInstance = variant.copy()
+	new_variant.nickname = "Goldie"
+	rig.model.apply_replace_fish(new_variant)
 	_expect_once(counter, "fish_changed (nickname only)")
 	rig.model.apply_set_tank_id(FishRig.LARGE)
 	_expect_once(counter, "tank_changed")
@@ -922,7 +922,7 @@ func test_164_get_extents_is_read_only_and_null_for_a_skipped_or_unknown_uid() -
 		return
 	assert_object(rig.view.call("get_extents", "f1000099")).is_null()
 	assert_object(rig.view.call("get_extents", "nobody")).is_null()
-	var before: int = rig.view.get_child_count()
+	var child_count_before: int = rig.view.get_child_count()
 	for entry: FishInstance in rig.model.get_fish_list():
 		if entry.uid == "f1000099":
 			continue
@@ -933,7 +933,7 @@ func test_164_get_extents_is_read_only_and_null_for_a_skipped_or_unknown_uid() -
 		assert_float(float(measured.get("above_m"))).is_equal_approx(
 			float(want.get("above_m")), 1e-4
 		)
-	assert_int(rig.view.get_child_count()).is_equal(before)
+	assert_int(rig.view.get_child_count()).is_equal(child_count_before)
 
 
 func test_164_fish_view_does_not_know_the_label_view() -> void:

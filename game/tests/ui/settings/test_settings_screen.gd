@@ -414,11 +414,16 @@ func test_opening_and_closing_without_a_change_creates_no_file() -> void:
 func test_an_unparsable_file_gives_defaults_and_is_not_touched_by_opening() -> void:
 	var text: String = "this is [not valid\n=="
 	SaveFixtures.write_text(_path(), text)
-	var screen: Control = await _open("en_US", null, {PARSE_ERROR: 1})
+	# Two readers parse the damaged file: Localization start ([general] language) and
+	# FishSection._ready ([fish] show_names).
+	var screen: Control = await _open("en_US", null, {PARSE_ERROR: 2})
 	if screen == null:
 		return
 	var option: OptionButton = SettingsRig.part(screen, "LanguageOption") as OptionButton
 	assert_str(option.get_item_metadata(option.selected)).is_equal("en")
+	var toggle: CheckButton = SettingsRig.part(screen, "ShowNames") as CheckButton
+	assert_object(toggle).override_failure_message("no ShowNames CheckButton").is_not_null()
+	assert_bool(toggle.button_pressed).is_false()
 	var volume: Variant = await _logged(
 		func() -> Variant: return _settings.get_value(SettingsRig.volume_key()),
 		{},
@@ -433,7 +438,9 @@ func test_an_unparsable_file_gives_defaults_and_is_not_touched_by_opening() -> v
 func test_the_first_change_after_an_unparsable_file_keeps_a_backup() -> void:
 	var text: String = "this is [not valid\n=="
 	SaveFixtures.write_text(_path(), text)
-	var screen: Control = await _open("en_US", null, {PARSE_ERROR: 1})
+	# Two readers parse the damaged file: Localization start ([general] language) and
+	# FishSection._ready ([fish] show_names).
+	var screen: Control = await _open("en_US", null, {PARSE_ERROR: 2})
 	if screen == null:
 		return
 	var option: OptionButton = SettingsRig.part(screen, "LanguageOption") as OptionButton

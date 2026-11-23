@@ -160,10 +160,10 @@ func test_an_unrelated_setting_change_leaves_the_labels_alone() -> void:
 	var lr: LabelRig.LabelRig = _open(FishRig.trio())
 	if lr == null:
 		return
-	var before: Label3D = LabelRig.label_of(lr, "f1000001")
+	var first_label: Label3D = LabelRig.label_of(lr, "f1000001")
 	EventBus.setting_changed.emit("audio", "volume", 0.3)
 	EventBus.setting_changed.emit("fish", "other_key", true)
-	assert_object(LabelRig.label_of(lr, "f1000001")).is_same(before)
+	assert_object(LabelRig.label_of(lr, "f1000001")).is_same(first_label)
 	assert_int(LabelRig.all_labels(lr).size()).is_equal(3)
 
 
@@ -264,11 +264,11 @@ func test_the_text_is_the_panel_row_string_and_follows_fish_changed() -> void:
 		return
 	var entry: FishInstance = lr.rig.model.get_fish("f1000001")
 	assert_str(LabelRig.label_of(lr, "f1000001").text).is_equal(LabelRig.shown_text(entry, self))
-	var renamed: FishInstance = entry.copy()
-	renamed.nickname = "Sparky"
-	assert_bool(lr.rig.model.apply_replace_fish(renamed)).is_true()
+	var with_nickname: FishInstance = entry.copy()
+	with_nickname.nickname = "Sparky"
+	assert_bool(lr.rig.model.apply_replace_fish(with_nickname)).is_true()
 	assert_str(LabelRig.label_of(lr, "f1000001").text).is_equal("Sparky")
-	var cleared: FishInstance = renamed.copy()
+	var cleared: FishInstance = with_nickname.copy()
 	cleared.nickname = ""
 	assert_bool(lr.rig.model.apply_replace_fish(cleared)).is_true()
 	assert_str(LabelRig.label_of(lr, "f1000001").text).is_equal(LabelRig.shown_text(cleared, self))
@@ -394,7 +394,9 @@ func test_a_bottom_fish_label_is_above_the_fish_and_the_bed() -> void:
 	if label == null or node == null:
 		assert_bool(false).override_failure_message("no node or label").is_true()
 		return
-	var bed_top: float = 0.06 + Api.top_allowance(lr.rig.substrates.get_definition(FishRig.SAND))
+	var sand: SubstrateDefinition = lr.rig.substrates.get_definition(FishRig.SAND)
+	var bed_top: float = sand.fill_depth_m + Api.top_allowance(sand)
+	assert_float(label.position.y).is_greater(bed_top)
 	assert_float(label.position.y).is_greater(node.position.y)
 	assert_float(node.position.y).is_greater(bed_top)
 
