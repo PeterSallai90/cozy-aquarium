@@ -30,6 +30,10 @@ var flip_clock: float = 0.0
 var want: Vector3 = Vector3.ZERO
 var smooth_mode: FishSwimState.Mode = FishSwimState.Mode.IDLE
 var low_time: float = 0.0
+## Patience: grows while the fish is held back, shrinks half as fast while it moves.
+var blocked_time: float = 0.0
+## How far contacts pushed the fish in the current substep (all pushes together are limited).
+var nudged: float = 0.0
 var ahead_low: float = 0.0
 var ahead_high: float = 0.0
 var vert: FishSwimLimits.Vertical = FishSwimLimits.Vertical.new()
@@ -48,3 +52,5 @@ var rec_time: float = 0.0
 ## The glass limits of the origin: hard (the clamp) and soft (what the steering keeps), x and z.
 var hard: Vector2 = Vector2.ZERO
 var soft: Vector2 = Vector2.ZERO
+## Where braking stops a fish: between soft and hard.
+var brake: Vector2 = Vector2.ZERO

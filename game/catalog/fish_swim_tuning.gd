@@ -39,12 +39,24 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var bias_ease_s: float = 0.4
 ## The speed fades with the heading error between these two angles (degrees): full speed below
 ## the first, standstill above the second, so a fish turns on the spot instead of orbiting.
-@export var turn_slow_from_deg: float = 35.0
-@export var turn_slow_to_deg: float = 95.0
+@export var turn_slow_from_deg: float = 60.0
+@export var turn_slow_to_deg: float = 150.0
+## The speed never fades below this share of its value while turning, so a fish swims a curve
+## instead of turning on the spot.
+@export var turn_slow_floor: float = 0.5
 ## Arrival: the wanted speed near a target is this many 1/s times the distance.
 @export var arrive_gain_per_s: float = 1.5
 ## A fish brakes so that it stops at this share of the free distance ahead (glass, school-mates).
 @export var brake_safety: float = 0.85
+## A fish held back (slower than the stuck speed while it intends to move) for give_way_after_s
+## creeps on, the share of its cruise speed growing to give_way_fraction over give_way_ramp_s, even
+## with a fish ahead, so a ring of fish that block each other dissolves.
+@export var give_way_after_s: float = 1.0
+@export var give_way_ramp_s: float = 1.5
+@export var give_way_fraction: float = 0.5
+## A fish stops this many times the sum of the half lengths before a fish ahead, so it never stops
+## on the personal-space limit itself.
+@export var clear_stop_factor: float = 1.0
 
 # --- idle and darts ---
 @export var idle_episode_min_s: float = 2.0
@@ -60,11 +72,11 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 # --- wandering ---
 ## A wander target counts as reached within max(this many body lengths, this many turn radii).
 @export var target_reach_bl: float = 0.6
-@export var target_reach_turns: float = 2.5
+@export var target_reach_turns: float = 1.0
 ## Height variation of a wander target in the band, as a fraction of the band height.
 @export var wander_height_jitter: float = 0.15
 ## Chance that a fish adopts the target of a school-mate in view when it picks a new one.
-@export var follow_target_chance: float = 0.7
+@export var follow_target_chance: float = 1.0
 ## A school-mate is "far" beyond this many body lengths: the fish then catches up at top speed.
 @export var catch_up_distance_bl: float = 6.0
 
@@ -72,10 +84,32 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 ## The vertical part of the school and separation forces is scaled by this, so fish keep their
 ## depth zone while they keep together.
 @export var social_vertical_scale: float = 0.5
+## The summed spacing and separation pushes of all neighbours are capped at these lengths (before
+## their weights), so a crowd can not push a fish into the glass and hold it there.
+@export var spacing_force_cap: float = 2.0
+@export var separation_force_cap: float = 1.5
+## A fish steers away from a fish whose path will cross its own within this many seconds, if they
+## would pass closer than this share of the sum of their half lengths; summed and capped like the
+## other pushes.
+@export var avoid_horizon_s: float = 1.5
+@export var avoid_radius_factor: float = 1.3
+@export var avoid_weight: float = 1.5
+@export var avoid_force_cap: float = 1.0
+## The last resort against overlap: a pair closer than contact_distance_factor times the sum of
+## the half lengths is pushed apart, by at most contact_drift_fraction of the top speed plus
+## contact_follow_fraction of the fish's own speed per fish. Pairs within contact_reach_factor times
+## that sum plus contact_reach_m at the last search are watched.
+@export var contact_distance_factor: float = 1.003
+@export var contact_drift_fraction: float = 0.25
+@export var contact_follow_fraction: float = 0.6
+## The drift part fades out as the fish speed grows to this share of its top speed.
+@export var contact_still_fraction: float = 0.1
+@export var contact_reach_factor: float = 1.6
+@export var contact_reach_m: float = 0.02
 @export var wander_weight: float = 1.0
-@export var cohesion_weight: float = 1.5
+@export var cohesion_weight: float = 3.0
 @export var alignment_weight: float = 0.5
-@export var spacing_weight: float = 1.5
+@export var spacing_weight: float = 8.0
 @export var separation_weight: float = 3.0
 ## Personal space = this x the sum of the half lengths of two fish.
 @export var separation_factor: float = 1.25
@@ -92,6 +126,21 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 @export var band_margin_m: float = 0.01
 ## The steering keeps this far inside the glass limits (the hard clamp has none).
 @export var wall_margin_m: float = 0.01
+## Braking stops a fish this far inside the glass limits (between the steering margin and the hard
+## clamp), so a fish that sits a hair outside the steering margin still swims along the glass.
+@export var brake_margin_m: float = 0.005
+## A fish may be this far past the braking limit before it must stop: a fish that sits flush at the
+## limit and swims along the glass is not blocked by the sign of a rounding error.
+@export var brake_slack_m: float = 0.001
+## A fish flush with the glass whose heading points into it by at most this share (the sine of the
+## angle, 0.25 is about 14 degrees) glides along the glass instead of stopping.
+@export var glass_glide_sin: float = 0.2
+## Within this many turning radii (at cruise speed) of the glass a fish steers away from it with
+## this weight; wander targets keep the same distance from the glass.
+@export var wall_avoid_turns: float = 1.0
+@export var wall_avoid_weight: float = 1.5
+## The wish that points into the glass fades out within this many braking distances plus the margin.
+@export var wall_slide_zone_factor: float = 1.5
 ## Seconds ahead in which the bed is looked at for the height of the band.
 @export var look_ahead_s: float = 0.5
 

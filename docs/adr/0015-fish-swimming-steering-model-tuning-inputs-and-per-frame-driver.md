@@ -102,6 +102,31 @@ scene tree; `FishCatalog.load_dir` loads every `.tres` in `res://catalog/fish`.
     position + UP * cached offset in the same call; it keeps per uid only a float offset
     (`above_m + GAP_M`), never an extents object or a pose node.
 
+## Implementation notes (#35)
+
+- **Personal space.** Two layers keep fish apart. The steering avoids and brakes: a push inside
+  1.25 times the sum of the half lengths, a push away from a fish whose path crosses within a
+  second and a half, and a speed limit set by a fish ahead (its own speed along the heading plus
+  the braking distance, stopping at the sum of the half lengths times `clear_stop_factor`). As
+  the last resort and the way out of a jam, `FishSwimSim` pushes a touching pair apart each
+  substep, by at most a slow drift plus a share of the fish's own motion, never beyond the fastest
+  speed a fish may have; a pinned fish never moves. The push is not part of
+  `FishSwimState.velocity` (the swimming motion), so head-first and the speed caps are about the
+  fish's own motion; the position moves, and the jump bound still holds.
+- **Stuck rule and patience.** A fish that intends to move and stays slower than 5 percent of its
+  top speed for 5 seconds picks a new target (an overridden fish hops one half body length
+  instead). A fish that is held back for a shorter while gains patience and creeps on through a
+  blocking fish, so a ring of fish that block each other dissolves.
+- **Glass.** The wish that points into the glass fades out near it, a fish steers away from the
+  glass a turning radius before it, brakes so that it stops before it, and glides along it when
+  its heading points only slightly into it; the hard clamp is the last resort and engages only
+  for the recovery ease and the push of a touching pair.
+- **Known limit (owner tuning).** The balanced-feel bounds are measured on 20 fish of one species
+  in the large tank. For 20 angelfish (12 cm, a personal space of one body length) the usable
+  water is about 80 x 18 x 20 cm, so they cannot keep their personal space and cruise at 35
+  percent of their top speed at the same time: with the personal space kept, their mean cruise
+  speed is about 19 percent. The tuning keeps the personal space (the 60-fish separation test).
+
 ## Alternatives considered
 
 - **Keep `TIME` in the shader and compensate `swim_phase` on the CPU.** Needs the shader's `TIME`
@@ -125,7 +150,8 @@ scene tree; `FishCatalog.load_dir` loads every `.tres` in `res://catalog/fish`.
 - Tests that compare a pose with `FishRestPose` after frames have passed set `manual_stepping`.
 - #40 fills `group_style` and the behaviour fields for 12 species. #168 adds item obstacles to
   `FishSwimLimits` and the stuck rule, and reuses `begin_recovery`. #49 measures the frame cost of
-  60 swimming fish with labels; the grid neighbour search of `FishSwimSim` is the lever.
+  60 swimming fish with labels; the neighbour search (`FishSwimNeighbours`, every pair with a cheap
+  distance test, repeated every `neighbour_period_s` and not every step) is the lever.
 - A change of the five salts, their order or the formula constants of rule 1 is a frozen-format
   change after the freeze. A change of the tuning resource or of the species behaviour values is
   owner tuning, not a format change.

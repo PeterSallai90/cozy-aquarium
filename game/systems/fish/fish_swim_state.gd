@@ -7,7 +7,8 @@ extends RefCounted
 enum Mode { IDLE = 0, CRUISE = 1, DART = 2, OVERRIDE = 3 }
 
 var position: Vector3 = Vector3.ZERO
-## Displacement of the last step divided by its length.
+## The swimming motion of the last step (displacement of the fish's own movement, glass clamp
+## included) divided by its length; a push from a touching fish (personal space) is not part of it.
 var velocity: Vector3 = Vector3.ZERO
 ## The speed along the heading (what the speed caps and ramps act on).
 var speed: float = 0.0

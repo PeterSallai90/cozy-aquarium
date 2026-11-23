@@ -31,28 +31,14 @@ var _paused: bool = false
 var _neighbour_clock: float = 0.0
 var _keys: Dictionary[StringName, int] = {}
 var _scratch: FishSwimLimits.Vertical = FishSwimLimits.Vertical.new()
-# Neighbour data of the last search, by fish index.
-var _pos: PackedVector3Array = PackedVector3Array()
-var _fwd: PackedVector3Array = PackedVector3Array()
-var _half: PackedFloat64Array = PackedFloat64Array()
-var _spacing: PackedFloat64Array = PackedFloat64Array()
-var _view_sq: PackedFloat64Array = PackedFloat64Array()
-var _key: PackedInt32Array = PackedInt32Array()
-var _style: PackedInt32Array = PackedInt32Array()
-var _pinned: PackedByteArray = PackedByteArray()
-var _sep: PackedVector3Array = PackedVector3Array()
-var _spc: PackedVector3Array = PackedVector3Array()
-var _coh: PackedVector3Array = PackedVector3Array()
-var _ali: PackedVector3Array = PackedVector3Array()
-var _count: PackedInt32Array = PackedInt32Array()
-var _near: PackedInt32Array = PackedInt32Array()
-var _near_sq: PackedFloat64Array = PackedFloat64Array()
-var _clear: PackedFloat64Array = PackedFloat64Array()
+## The neighbour search results of the last search, by fish index.
+var _nb: FishSwimNeighbours = FishSwimNeighbours.new()
 # Constants of the current substep and of the tuning.
 var _blend: float = 0.0
 var _pitch_gain: float = 0.0
 var _slow_from: float = 0.0
 var _slow_inv: float = 0.0
+var _slow_floor: float = 0.0
 
 
 func _init(tuning: FishSwimTuning, rng: RandomNumberGenerator) -> void:
@@ -60,6 +46,7 @@ func _init(tuning: FishSwimTuning, rng: RandomNumberGenerator) -> void:
 	_rng = rng
 	_slow_from = deg_to_rad(tuning.turn_slow_from_deg)
 	_slow_inv = 1.0 / (deg_to_rad(tuning.turn_slow_to_deg) - _slow_from)
+	_slow_floor = tuning.turn_slow_floor
 
 
 # --- public API ---
@@ -243,6 +230,8 @@ func _substep(h: float) -> void:
 			_update_pinned(fish, h)
 		else:
 			_update(fish, h)
+	if not _paused:
+		_resolve_contacts(h)
 
 
 func _update(f: FishSwimMember, h: float) -> void:
@@ -255,11 +244,13 @@ func _update(f: FishSwimMember, h: float) -> void:
 	var mode: FishSwimState.Mode = f.mode
 	if mode != FishSwimState.Mode.IDLE and f.speed < p.stuck_speed_m_s:
 		f.low_time += h
+		f.blocked_time += h
 		if f.low_time >= t.stuck_time_s:
 			_unstick(f)
 			mode = f.mode
 	else:
 		f.low_time = 0.0
+		f.blocked_time = maxf(f.blocked_time - 0.5 * h, 0.0)
 	# The wanted direction (forces summed) and the wanted speed.
 	var goal: Vector3 = pos
 	var base_speed: float = 0.0
@@ -282,9 +273,9 @@ func _update(f: FishSwimMember, h: float) -> void:
 		FishSwimState.Mode.CRUISE:
 			goal = f.target
 			base_speed = p.cruise_speed_m_s
-			if p.group_style >= _GROUPED_FROM and _near[i] >= 0:
-				if _near_sq[i] > p.catch_up_distance_m * p.catch_up_distance_m:
-					goal = _pos[_near[i]]
+			if p.group_style >= _GROUPED_FROM and _nb.near[i] >= 0:
+				if _nb.near_sq[i] > p.catch_up_distance_m * p.catch_up_distance_m:
+					goal = _nb.pos[_nb.near[i]]
 					base_speed = p.catch_up_speed_m_s
 					catching_up = true
 		_:
@@ -307,26 +298,52 @@ func _update(f: FishSwimMember, h: float) -> void:
 				want.z = inward.y
 		if mode == FishSwimState.Mode.CRUISE and not catching_up:
 			want += _school_force(f, i, pos)
-	var push: Vector3 = _sep[i] * t.separation_weight
+	var push: Vector3 = _nb.sep[i].limit_length(t.separation_force_cap) * t.separation_weight
+	push += _nb.avd[i].limit_length(t.avoid_force_cap) * t.avoid_weight
 	push.y *= t.social_vertical_scale
 	if seek:
 		want += push
 	elif push.length_squared() > 0.0025:
 		want = push
 		base_speed = maxf(base_speed, minf(p.cruise_speed_m_s, push.length() * p.cruise_speed_m_s))
+	# Glass ahead (within a turning radius): nothing may pull the fish into it, and it steers away.
+	var avoid: float = p.avoid_m
+	var weight: float = t.wall_avoid_weight
+	var near_x: float = pos.x - half.x + avoid
+	var near_z: float = pos.z - half.y + avoid
+	if near_x > 0.0:
+		want.x = minf(want.x, 0.0) - minf(near_x / avoid, 1.5) * weight
+	elif pos.x + half.x - avoid < 0.0:
+		want.x = maxf(want.x, 0.0) + minf((avoid - half.x - pos.x) / avoid, 1.5) * weight
+	if near_z > 0.0:
+		want.z = minf(want.z, 0.0) - minf(near_z / avoid, 1.5) * weight
+	elif pos.z + half.y - avoid < 0.0:
+		want.z = maxf(want.z, 0.0) + minf((avoid - half.y - pos.z) / avoid, 1.5) * weight
 	if mode != f.smooth_mode or mode == FishSwimState.Mode.DART:
 		f.smooth_mode = mode
 		f.want = want
 	else:
 		f.want = f.want.lerp(want, _blend)
 		want = f.want
+	# Near the glass the part of the wish that points into it fades out: the fish slides along it.
+	var zone: float = f.speed * f.speed * p.stop_zone_per_speed_sq + t.wall_margin_m
+	if want.x > 0.0:
+		want.x *= clampf((half.x - pos.x) / zone, 0.0, 1.0)
+	elif want.x < 0.0:
+		want.x *= clampf((half.x + pos.x) / zone, 0.0, 1.0)
+	if want.z > 0.0:
+		want.z *= clampf((half.y - pos.z) / zone, 0.0, 1.0)
+	elif want.z < 0.0:
+		want.z *= clampf((half.y + pos.z) / zone, 0.0, 1.0)
 	# Heading.
 	var flat_want: float = Vector2(want.x, want.z).length()
 	var wanted_speed: float = base_speed
 	var rate_wanted: float = 0.0
 	if flat_want > 1.0e-6:
 		var err: float = wrapf(atan2(want.x, want.z) - f.yaw, -PI, PI)
-		wanted_speed *= clampf(1.0 - (absf(err) - _slow_from) * _slow_inv, 0.0, 1.0)
+		wanted_speed *= maxf(
+			clampf(1.0 - (absf(err) - _slow_from) * _slow_inv, 0.0, 1.0), _slow_floor
+		)
 		rate_wanted = clampf(err / t.yaw_response_s, -p.turn_rate_max, p.turn_rate_max)
 	_apply_yaw_rate(f, p, rate_wanted, h)
 	var pitch_want: float = clampf(atan2(want.y, flat_want), -p.pitch_limit, p.pitch_limit)
@@ -343,8 +360,18 @@ func _update(f: FishSwimMember, h: float) -> void:
 	var cos_pitch: float = cos(f.travel_pitch)
 	var dir_x: float = sin(f.yaw) * cos_pitch
 	var dir_z: float = cos(f.yaw) * cos_pitch
-	var free: float = minf(_free_along(pos, dir_x, dir_z, half), _clear[i])
-	wanted_speed = minf(wanted_speed, sqrt(2.0 * p.accel_max * maxf(free, 0.0)) * t.brake_safety)
+	var glass: Vector3 = _glass_brake(pos, dir_x, dir_z, f.brake)
+	var free: float = glass.x
+	dir_x = glass.y
+	dir_z = glass.z
+	var wall_speed: float = sqrt(2.0 * p.accel_max * maxf(free, 0.0)) * t.brake_safety
+	# A fish that has been held back for a while creeps on at an increasing share of its cruise
+	# speed, so two fish that block each other (or a ring of them) never wait for ever.
+	var give_way: float = clampf(
+		(f.blocked_time - t.give_way_after_s) / t.give_way_ramp_s, 0.0, 1.0
+	)
+	var clear_speed: float = maxf(_nb.clear[i], give_way * t.give_way_fraction * p.cruise_speed_m_s)
+	wanted_speed = minf(wanted_speed, minf(wall_speed, clear_speed))
 	var accel_step: float = p.accel_max * h
 	f.speed = maxf(f.speed + clampf(wanted_speed - f.speed, -accel_step, accel_step), 0.0)
 	var biased: bool = mode == FishSwimState.Mode.IDLE or mode == FishSwimState.Mode.CRUISE
@@ -373,7 +400,9 @@ func _update_pinned(f: FishSwimMember, h: float) -> void:
 	var rate_wanted: float = 0.0
 	if gap > t.pinned_drift_m * 0.1:
 		var err: float = wrapf(atan2(off.x, off.y) - f.yaw, -PI, PI)
-		wanted_speed *= clampf(1.0 - (absf(err) - _slow_from) * _slow_inv, 0.0, 1.0)
+		wanted_speed *= maxf(
+			clampf(1.0 - (absf(err) - _slow_from) * _slow_inv, 0.0, 1.0), _slow_floor
+		)
 		rate_wanted = clampf(err / t.yaw_response_s, -p.turn_rate_max, p.turn_rate_max)
 	else:
 		wanted_speed = 0.0
@@ -415,8 +444,9 @@ func _advance_modes(f: FishSwimMember, h: float) -> void:
 			_start_cruise(f)
 	elif f.mode == FishSwimState.Mode.IDLE and p.group_style >= _GROUPED_FROM:
 		var far: float = _tuning.catch_up_distance_bl * p.body_length_m
-		if f.idx >= 0 and _near[f.idx] >= 0 and _near_sq[f.idx] > far * far:
-			_start_cruise(f)
+		if f.idx >= 0 and f.idx < _nb.near.size() and _nb.near[f.idx] >= 0:
+			if _nb.near_sq[f.idx] > far * far:
+				_start_cruise(f)
 	if f.dart_timer <= 0.0 and f.since_dart >= _tuning.min_dart_gap_s:
 		_try_dart(f)
 
@@ -441,6 +471,10 @@ func _try_dart(f: FishSwimMember) -> void:
 	var p: FishSwimParams = f.params
 	var t: FishSwimTuning = _tuning
 	if f.vert.pinned or f.mode == FishSwimState.Mode.DART:
+		return
+	if f.speed > p.dart_speed_m_s:
+		# Still faster than a dart may be (catching up): wait until the speed has come down.
+		f.dart_timer = t.dart_retry_s
 		return
 	var duration: float = _draw(p.dart_duration_min_s, p.dart_duration_max_s)
 	var need: float = (
@@ -504,7 +538,7 @@ func _pick_target(f: FishSwimMember) -> void:
 	if (
 		mate != null
 		and p.group_style >= _GROUPED_FROM
-		and _count[f.idx] > 0
+		and _nb.count[f.idx] > 0
 		and _rng.randf() < _tuning.follow_target_chance
 		and mate.mode == FishSwimState.Mode.CRUISE
 	):
@@ -521,9 +555,11 @@ func _random_goal(f: FishSwimMember, soft: Vector2) -> Vector3:
 	var best: Vector3 = f.position
 	var best_gap: float = -1.0
 	var wanted_gap: float = 3.0 * p.body_length_m
+	var span_x: float = maxf(soft.x - p.avoid_m, 0.0)
+	var span_z: float = maxf(soft.y - p.avoid_m, 0.0)
 	for _attempt: int in 3:
-		var x: float = _rng.randf_range(-soft.x, soft.x)
-		var z: float = _rng.randf_range(-soft.y, soft.y)
+		var x: float = _rng.randf_range(-span_x, span_x)
+		var z: float = _rng.randf_range(-span_z, span_z)
 		var candidate: Vector3 = _inside_goal(f, x, z, soft, 0.0, true)
 		var gap: float = _flat_distance(candidate, f.position)
 		if gap > best_gap:
@@ -567,16 +603,22 @@ func _school_force(f: FishSwimMember, i: int, pos: Vector3) -> Vector3:
 	var t: FishSwimTuning = _tuning
 	if p.group_style < _GROUPED_FROM:
 		return Vector3.ZERO
-	var force: Vector3 = _spc[i] * t.spacing_weight
-	var mates: int = _count[i]
+	var force: Vector3 = _nb.spc[i].limit_length(t.spacing_force_cap) * t.spacing_weight
+	var mates: int = _nb.count[i]
 	if mates > 0:
-		var off: Vector3 = _coh[i] / mates - pos
+		var off: Vector3 = _nb.coh[i] / mates - pos
 		var gap: float = off.length()
 		var inner: float = p.spacing_m * 0.5
 		var pull: float = clampf((gap - inner) / maxf(p.view_radius_m - inner, 1.0e-6), 0.0, 1.0)
+		# Cohesion fades while a school-mate is closer than the spacing, so a school never packs.
+		var lonely: float = clampf(
+			(sqrt(_nb.near_sq[i]) - p.body_length_m) / maxf(p.spacing_m - p.body_length_m, 1.0e-6),
+			0.0,
+			1.0
+		)
 		if gap > 1.0e-6:
-			force += off / gap * (p.cohesion * t.cohesion_weight * pull)
-		force += _ali[i] / mates * (p.alignment * t.alignment_weight)
+			force += off / gap * (p.cohesion * t.cohesion_weight * pull * lonely)
+		force += _nb.ali[i] / mates * (p.alignment * t.alignment_weight)
 	force.y *= t.social_vertical_scale
 	return force
 
@@ -593,7 +635,12 @@ func _apply_yaw_rate(f: FishSwimMember, p: FishSwimParams, wanted: float, h: flo
 	var limit: float = p.yaw_accel_max * h
 	var rate: float = f.yaw_rate + clampf(wanted - f.yaw_rate, -limit, limit)
 	f.yaw_rate = clampf(rate, -p.turn_rate_max, p.turn_rate_max)
-	f.yaw = wrapf(f.yaw + f.yaw_rate * h, -PI, PI)
+	# wrapf snaps a value within 1e-5 of PI to -PI, a jump the heading-rate cap must not see.
+	f.yaw += f.yaw_rate * h
+	if f.yaw > PI:
+		f.yaw -= TAU
+	elif f.yaw < -PI:
+		f.yaw += TAU
 	if absf(f.yaw_rate) > t.yaw_deadband_fraction * p.turn_rate_max:
 		var now_sign: int = 1 if f.yaw_rate > 0.0 else -1
 		if now_sign != f.last_sign:
@@ -609,17 +656,53 @@ func _steer_pitch(f: FishSwimMember, p: FishSwimParams, wanted: float, h: float)
 	f.travel_pitch = clampf(f.travel_pitch + change, -p.pitch_limit, p.pitch_limit)
 
 
-## The distance along a horizontal direction to the glass limits (`half` is the soft box).
-func _free_along(from: Vector3, dx: float, dz: float, half: Vector2) -> float:
+## The glass ahead of a fish: x is the distance to travel before it must stop (INF when nothing is
+## ahead), y and z the horizontal direction of travel. A fish flush with the glass whose heading
+## points only slightly into it glides along the glass: that part of its motion is dropped instead
+## of the fish being held still by the sign of a rounding error.
+func _glass_brake(from: Vector3, dx: float, dz: float, limit: Vector2) -> Vector3:
+	var slack: float = _tuning.brake_slack_m
+	var glide: float = _tuning.glass_glide_sin
 	var best: float = INF
 	if dx > 1.0e-6:
-		best = (half.x - from.x) / dx
+		var gap_x: float = limit.x - from.x
+		if gap_x <= 0.0 and dx <= glide:
+			dx = 0.0
+		else:
+			best = (gap_x + slack) / dx
 	elif dx < -1.0e-6:
-		best = (-half.x - from.x) / dx
+		var gap_x: float = limit.x + from.x
+		if gap_x <= 0.0 and dx >= -glide:
+			dx = 0.0
+		else:
+			best = (gap_x + slack) / -dx
 	if dz > 1.0e-6:
-		best = minf(best, (half.y - from.z) / dz)
+		var gap_z: float = limit.y - from.z
+		if gap_z <= 0.0 and dz <= glide:
+			dz = 0.0
+		else:
+			best = minf(best, (gap_z + slack) / dz)
 	elif dz < -1.0e-6:
-		best = minf(best, (-half.y - from.z) / dz)
+		var gap_z: float = limit.y + from.z
+		if gap_z <= 0.0 and dz >= -glide:
+			dz = 0.0
+		else:
+			best = minf(best, (gap_z + slack) / -dz)
+	return Vector3(best, dx, dz)
+
+
+## The distance along a horizontal direction to the glass limits (`half` is the soft box).
+func _free_along(from: Vector3, dx: float, dz: float, half: Vector2) -> float:
+	var slack: float = _tuning.brake_slack_m
+	var best: float = INF
+	if dx > 1.0e-6:
+		best = (half.x - from.x + slack) / dx
+	elif dx < -1.0e-6:
+		best = (-half.x - from.x - slack) / dx
+	if dz > 1.0e-6:
+		best = minf(best, (half.y - from.z + slack) / dz)
+	elif dz < -1.0e-6:
+		best = minf(best, (-half.y - from.z - slack) / dz)
 	return best
 
 
@@ -633,6 +716,8 @@ func _refresh_geometry(f: FishSwimMember) -> void:
 	var hard_z: float = FishSwimLimits.half_extent(_world.interior_size_m.z, radius)
 	f.hard = Vector2(maxf(hard_x - _EDGE_EPSILON, 0.0), maxf(hard_z - _EDGE_EPSILON, 0.0))
 	f.soft = Vector2(maxf(hard_x - margin, 0.0), maxf(hard_z - margin, 0.0))
+	var stop: float = _tuning.brake_margin_m
+	f.brake = Vector2(maxf(hard_x - stop, 0.0), maxf(hard_z - stop, 0.0))
 
 
 # --- movement ---
@@ -644,26 +729,92 @@ func _integrate(
 	f: FishSwimMember, p: FishSwimParams, h: float, ignore_band: bool, dir_x: float, dir_z: float
 ) -> void:
 	var distance: float = f.speed * h
-	var next: Vector3 = (
-		f.position + Vector3(dir_x * distance, sin(f.travel_pitch) * distance, dir_z * distance)
+	var next: Vector3 = _clamp_position(
+		f,
+		p,
+		f.position + Vector3(dir_x * distance, sin(f.travel_pitch) * distance, dir_z * distance),
+		ignore_band
 	)
+	var velocity: Vector3 = (next - f.position) / h
+	f.position = next
+	_write_state(f, velocity)
+
+
+## A position kept inside the hard limits and (unless ignored) the band margin. A fish that is
+## already outside the band may not go further out.
+func _clamp_position(
+	f: FishSwimMember, p: FishSwimParams, next: Vector3, ignore_band: bool
+) -> Vector3:
 	next.x = clampf(next.x, -f.hard.x, f.hard.x)
 	next.z = clampf(next.z, -f.hard.y, f.hard.y)
 	var v: FishSwimLimits.Vertical = f.vert
 	FishSwimLimits.vertical(_world, p, next.x, next.z, v)
 	if v.pinned:
 		next.y = v.hard_low
-	else:
-		var low: float = v.hard_low + _EDGE_EPSILON
-		var high: float = v.hard_high - _EDGE_EPSILON
-		if not ignore_band:
-			var margin: float = _tuning.band_margin_m - _EDGE_EPSILON
-			low = maxf(low, minf(maxf(low, v.min_y - margin), f.position.y))
-			high = minf(high, maxf(minf(high, v.max_y + margin), f.position.y))
-		next.y = clampf(next.y, low, high)
-	var velocity: Vector3 = (next - f.position) / h
+		return next
+	var low: float = v.hard_low + _EDGE_EPSILON
+	var high: float = v.hard_high - _EDGE_EPSILON
+	if not ignore_band:
+		var margin: float = _tuning.band_margin_m - _EDGE_EPSILON
+		low = maxf(low, minf(maxf(low, v.min_y - margin), f.position.y))
+		high = minf(high, maxf(minf(high, v.max_y + margin), f.position.y))
+	next.y = clampf(next.y, low, high)
+	return next
+
+
+## Pushes apart the pairs that are closer than the sum of their half lengths (the personal space
+## no fish may enter): the steering avoids them, this is the last resort and the way out of a
+## jam. A pinned fish never moves, a push is limited to a share of the fish's own motion plus a
+## slow drift, so it stays a nudge and never a jump.
+func _resolve_contacts(h: float) -> void:
+	var t: FishSwimTuning = _tuning
+	for fish: FishSwimMember in _fish:
+		fish.nudged = 0.0
+	for k: int in _nb.contact_a.size():
+		var a: FishSwimMember = _fish[_nb.contact_a[k]]
+		var b: FishSwimMember = _fish[_nb.contact_b[k]]
+		if a.recovering or b.recovering:
+			continue
+		var off: Vector3 = a.position - b.position
+		var wanted: float = (
+			(a.params.half_length_m + b.params.half_length_m) * t.contact_distance_factor
+		)
+		var d2: float = off.length_squared()
+		if d2 >= wanted * wanted:
+			continue
+		var d: float = sqrt(d2)
+		var away: Vector3 = off / d if d > 1.0e-9 else Vector3.RIGHT
+		var share_a: float = 0.0 if a.vert.pinned else 0.5
+		var share_b: float = 0.0 if b.vert.pinned else 0.5
+		if share_a == 0.0 and share_b == 0.0:
+			continue
+		var scale: float = 1.0 / (share_a + share_b)
+		var need: float = wanted - d
+		_nudge(a, away * minf(need * share_a * scale, _contact_room(a, h)))
+		_nudge(b, -away * minf(need * share_b * scale, _contact_room(b, h)))
+
+
+## How far a contact may push a fish in one step: a slow drift while it is nearly still, plus a
+## share of its own motion (so velocity and heading stay within the head-first angle), and never
+## beyond the fastest speed a fish may have (the speed range of the personality).
+func _contact_room(f: FishSwimMember, h: float) -> float:
+	var t: FishSwimTuning = _tuning
+	var top: float = f.params.top_speed_m_s
+	var still: float = clampf(1.0 - f.speed / (t.contact_still_fraction * top), 0.0, 1.0)
+	var room: float = t.contact_drift_fraction * top * still + t.contact_follow_fraction * f.speed
+	var fastest: float = FishPersonality.FACTOR_MIN + FishPersonality.FACTOR_SPAN
+	return maxf(minf(room, maxf(fastest * top * 0.99 - f.speed, 0.0)) * h - f.nudged, 0.0)
+
+
+func _nudge(f: FishSwimMember, by: Vector3) -> void:
+	if by.length_squared() <= 0.0:
+		return
+	var next: Vector3 = _clamp_position(
+		f, f.params, f.position + by, f.mode == FishSwimState.Mode.OVERRIDE
+	)
+	f.nudged += by.length()
 	f.position = next
-	_write_state(f, velocity)
+	f.state.position = next
 
 
 func _write_state(f: FishSwimMember, velocity: Vector3) -> void:
@@ -742,88 +893,9 @@ func _recovery_distance(f: FishSwimMember) -> float:
 
 
 func _refresh_neighbours() -> void:
-	var t: FishSwimTuning = _tuning
-	var n: int = _fish.size()
-	for array: PackedVector3Array in [_pos, _fwd, _sep, _spc, _coh, _ali]:
-		array.resize(n)
-	for array: PackedFloat64Array in [_half, _spacing, _view_sq, _near_sq, _clear]:
-		array.resize(n)
-	for array: PackedInt32Array in [_key, _style, _count, _near]:
-		array.resize(n)
-	_pinned.resize(n)
-	_sep.fill(Vector3.ZERO)
-	_spc.fill(Vector3.ZERO)
-	_coh.fill(Vector3.ZERO)
-	_ali.fill(Vector3.ZERO)
-	_count.fill(0)
-	_near.fill(-1)
-	_near_sq.fill(INF)
-	_clear.fill(INF)
-	for i: int in n:
-		var f: FishSwimMember = _fish[i]
-		var p: FishSwimParams = f.params
-		f.idx = i
-		_pos[i] = f.position
-		var cp: float = cos(f.travel_pitch)
-		_fwd[i] = Vector3(sin(f.yaw) * cp, sin(f.travel_pitch), cos(f.yaw) * cp)
-		_half[i] = p.half_length_m
-		_spacing[i] = p.spacing_m
-		_view_sq[i] = p.view_radius_m * p.view_radius_m
-		_key[i] = _keys[p.species_key]
-		_style[i] = p.group_style
-		_pinned[i] = 1 if f.vert.pinned else 0
-		_refresh_ahead(f, p)
-	var space_factor: float = t.separation_factor
-	var ramp: float = t.separation_ramp_fraction
-	for i: int in range(n - 1):
-		var at: Vector3 = _pos[i]
-		var grouped_style: bool = _style[i] >= _GROUPED_FROM
-		for j: int in range(i + 1, n):
-			var off: Vector3 = at - _pos[j]
-			var d2: float = off.length_squared()
-			var hs: float = _half[i] + _half[j]
-			var grouped: bool = grouped_style and _key[i] == _key[j]
-			if grouped:
-				if d2 < _near_sq[i]:
-					_near_sq[i] = d2
-					_near[i] = j
-				if d2 < _near_sq[j]:
-					_near_sq[j] = d2
-					_near[j] = i
-				if d2 < _view_sq[i]:
-					_coh[i] += _pos[j]
-					_coh[j] += at
-					_ali[i] += _fwd[j]
-					_ali[j] += _fwd[i]
-					_count[i] += 1
-					_count[j] += 1
-			var space: float = space_factor * hs
-			var spacing: float = _spacing[i] if grouped else 0.0
-			var reach: float = maxf(maxf(space, spacing), 3.0 * hs)
-			if d2 >= reach * reach:
-				continue
-			var d: float = sqrt(d2)
-			var away: Vector3 = off / d if d > 1.0e-9 else Vector3.RIGHT
-			var yields_i: bool = _pinned[i] == 0
-			var yields_j: bool = _pinned[j] == 0
-			if d < space:
-				var push: Vector3 = away * minf((space - d) / (hs * ramp), t.separation_max)
-				if yields_i:
-					_sep[i] += push
-				if yields_j:
-					_sep[j] -= push
-			if d < spacing:
-				var soft: Vector3 = away * ((spacing - d) / spacing)
-				if yields_i:
-					_spc[i] += soft
-				if yields_j:
-					_spc[j] -= soft
-			var ahead_i: float = -off.dot(_fwd[i])
-			if ahead_i > 0.0 and d2 - ahead_i * ahead_i < hs * hs:
-				_clear[i] = minf(_clear[i], maxf(ahead_i - hs, 0.0))
-			var ahead_j: float = off.dot(_fwd[j])
-			if ahead_j > 0.0 and d2 - ahead_j * ahead_j < hs * hs:
-				_clear[j] = minf(_clear[j], maxf(ahead_j - hs, 0.0))
+	_nb.rebuild(_fish, _keys, _tuning)
+	for fish: FishSwimMember in _fish:
+		_refresh_ahead(fish, fish.params)
 
 
 ## The band a fish looks at: the tighter of the band here and the band look_ahead_s ahead.
@@ -851,9 +923,9 @@ func _refresh_ahead(f: FishSwimMember, p: FishSwimParams) -> void:
 
 func _mate_of(f: FishSwimMember) -> FishSwimMember:
 	var i: int = f.idx
-	if i < 0 or i >= _near.size() or i >= _fish.size() or _fish[i] != f:
+	if i < 0 or i >= _nb.near.size() or i >= _fish.size() or _fish[i] != f:
 		return null
-	var mate: int = _near[i]
+	var mate: int = _nb.near[i]
 	if mate < 0 or mate >= _fish.size():
 		return null
 	return _fish[mate]
@@ -907,7 +979,7 @@ func _must_recover(f: FishSwimMember) -> bool:
 		return true
 	var p: FishSwimParams = f.params
 	var cp: float = cos(f.travel_pitch)
-	var free: float = _free_along(f.position, sin(f.yaw) * cp, cos(f.yaw) * cp, f.soft)
+	var free: float = _free_along(f.position, sin(f.yaw) * cp, cos(f.yaw) * cp, f.brake)
 	return f.speed * f.speed > 2.0 * p.accel_max * maxf(free, 0.0)
 
 

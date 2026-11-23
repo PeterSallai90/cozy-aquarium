@@ -42,6 +42,10 @@ var catch_up_distance_m: float = 0.0
 var target_reach_m: float = 0.0
 var pitch_rate_max: float = 0.0
 var bias_step_per_s: float = 0.0
+## Distance to the glass within which the fish steers away: turning radii at cruise speed.
+var avoid_m: float = 0.0
+## Braking distance = speed squared times this (1 / 2 a), scaled for the wall slide zone.
+var stop_zone_per_speed_sq: float = 0.0
 
 
 static func create(
@@ -95,6 +99,10 @@ static func create(
 		tuning.target_reach_bl * result.body_length_m,
 		tuning.target_reach_turns * result.cruise_speed_m_s / maxf(result.turn_rate_max, 0.1)
 	)
+	result.avoid_m = (
+		tuning.wall_avoid_turns * result.cruise_speed_m_s / maxf(result.turn_rate_max, 0.1)
+	)
 	result.pitch_rate_max = result.turn_rate_max * tuning.pitch_rate_fraction
 	result.bias_step_per_s = result.nose_down_bias / tuning.bias_ease_s
+	result.stop_zone_per_speed_sq = tuning.wall_slide_zone_factor / (2.0 * result.accel_max)
 	return result
