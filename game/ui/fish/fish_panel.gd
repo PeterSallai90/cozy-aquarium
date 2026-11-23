@@ -156,7 +156,7 @@ func _select_first_species() -> void:
 
 func _make_row(fish: FishInstance) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "Row_%s" % fish.uid
+	row.name = "Row_" + fish.uid
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	var name_button: Button = Button.new()
 	name_button.name = "NameButton"
@@ -220,10 +220,10 @@ func _apply_texts() -> void:
 
 
 func _apply_row(row: Control, fish: FishInstance) -> void:
-	var full: String = FishNameText.one_line(FishNameText.shown_name(fish, self))
+	var shown_line: String = FishNameText.one_line(FishNameText.shown_name(fish, self))
 	var name_button: Button = row.get_node("NameButton") as Button
-	name_button.text = FishNameText.display(full)
-	name_button.tooltip_text = full
+	name_button.text = FishNameText.display(shown_line)
+	name_button.tooltip_text = shown_line
 	var definition: FishSpecies = _species.get_definition(fish.species_id)
 	var species_label: Label = row.get_node("SpeciesLabel") as Label
 	species_label.text = (
@@ -231,7 +231,7 @@ func _apply_row(row: Control, fish: FishInstance) -> void:
 	)
 	var remove: Button = row.get_node("RemoveButton") as Button
 	remove.text = tr("fish.browser.remove")
-	remove.tooltip_text = tr("fish.browser.remove.tooltip") % full
+	remove.tooltip_text = tr("fish.browser.remove.tooltip") % shown_line
 
 
 ## Count, empty label, Add state and the card.
