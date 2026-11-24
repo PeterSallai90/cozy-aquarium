@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## (100 x 40 cm), starting from the ADR 0013 resting poses of random uids, after a settling time of
 ## 30 simulated seconds and sampled every second until 120 s, 8 neon tetras stay within 3 body
 ## lengths (adult_length_cm) of their nearest school-mate on average and their heading changes over
-## time; 4 angelfish keep at least 2 body lengths and at least 0.75 more than the tetras; 6 bronze
+## time; 4 angelfish keep at least 2 body lengths and at least 1.3 x the tetra distance (tuning, BA
+## decision on #35, issue comment 7134412134); 6 bronze
 ## corydoras stay in the bottom band, move as a small group and pause often; groups form only within
 ## a species and different species keep a personal-space distance and never chase or flee each
 ## other; a single fish swims on its own without oscillating and a second fish of its species
@@ -25,7 +26,9 @@ const SETTLE_S := 30
 const END_S := 120
 const NEAR_BL := 3.0
 const ANGEL_MIN_BL := 2.0
-const ANGEL_GAP_BL := 0.75
+## (tuning) angelfish spread at least this factor wider than tetras, BA decision on #35
+## (issue comment 7134412134).
+const ANGEL_RATIO := 1.3
 const SECOND_FISH_S := 30.0
 const CHASE_LIMIT := 0.4
 const CHASE_RANGE_BL := 4.0
@@ -157,7 +160,7 @@ func test_35_four_angelfish_keep_at_least_2_body_lengths_and_more_than_the_tetra
 				% [angels["mean_bl"], tetras["mean_bl"]]
 			)
 		)
-		. is_greater_equal(tetras["mean_bl"] + ANGEL_GAP_BL)
+		. is_greater_equal(ANGEL_RATIO * tetras["mean_bl"])
 	)
 	assert_int((angels["smooth"] as Rig.Smooth).total()).is_equal(0)
 	assert_int((angels["limits"] as Rig.Limits).total()).is_equal(0)
