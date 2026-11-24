@@ -121,11 +121,19 @@ scene tree; `FishCatalog.load_dir` loads every `.tres` in `res://catalog/fish`.
   glass a turning radius before it, brakes so that it stops before it, and glides along it when
   its heading points only slightly into it; the hard clamp is the last resort and engages only
   for the recovery ease and the push of a touching pair.
-- **Known limit (owner tuning).** The balanced-feel bounds are measured on 20 fish of one species
-  in the large tank. For 20 angelfish (12 cm, a personal space of one body length) the usable
-  water is about 80 x 18 x 20 cm, so they cannot keep their personal space and cruise at 35
-  percent of their top speed at the same time: with the personal space kept, their mean cruise
-  speed is about 19 percent. The tuning keeps the personal space (the 60-fish separation test).
+- **Known limit (owner tuning).** 20 angelfish (12 cm, a personal space of one body length) in
+  the usable water of the large tank (about 80 x 18 x 20 cm) cannot keep their personal space and
+  cruise at 35 percent of their top speed at the same time. The owner decided for realistic
+  stocking
+  ([owner decision](https://github.com/PeterSallai90/cozy-aquarium/issues/35#issuecomment-7131489351)):
+  the angelfish feel tests (1/60, 1/144, global bounds, speed order, depth-preference correlation)
+  use 5 angelfish per run and 4 seeded runs, pooled into 20 per-fish values; if 5 fish cannot reach
+  a mean cruise of at least 0.35, they use 4 fish per run and 5 runs. Every bound stays as decided;
+  the mixed test (4 angelfish) and the 60-fish separation test are unchanged, and the tuning keeps
+  the personal space. The angelfish versus tetra spacing is a ratio
+  ([BA decision](https://github.com/PeterSallai90/cozy-aquarium/issues/35#issuecomment-7134412134)):
+  the angelfish mean nearest-neighbour distance is at least 2 body lengths and at least 1.3 x the
+  tetra mean nearest-neighbour distance (a tuning value the owner judges at pull request review).
 
 ## Alternatives considered
 
