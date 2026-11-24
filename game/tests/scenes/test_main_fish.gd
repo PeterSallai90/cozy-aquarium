@@ -11,6 +11,7 @@ const Session := preload("res://tests/helpers/placement_session.gd")
 const Ui := preload("res://tests/helpers/tank_ui_rig.gd")
 const Browser := preload("res://tests/helpers/item_browser_rig.gd")
 const Fp := preload("res://tests/helpers/fish_panel_rig.gd")
+const Api := preload("res://tests/helpers/fish_api.gd")
 
 const MAIN_SCENE := "res://scenes/main.tscn"
 
@@ -93,3 +94,49 @@ func test_36_adding_a_fish_in_the_main_scene_goes_through_the_session_history() 
 	assert_bool(_s.history.can_undo()).is_true()
 	assert_bool(_s.history.undo()).is_true()
 	assert_int(_s.model.get_fish_count()).is_equal(0)
+
+
+func _fish_view() -> Node3D:
+	for node: Node in _main.find_children("*", "Node3D", true, false):
+		var script: Script = node.get_script() as Script
+		if script != null and script.resource_path == Api.VIEW_PATH:
+			return node as Node3D
+	return null
+
+
+func test_35_the_fish_keep_swimming_while_the_fish_panel_is_open() -> void:
+	if not await _open_main():
+		return
+	await Fp.press_open(self, _controls)
+	assert_bool(Fp.is_open(_controls)).is_true()
+	await Fp.click(self, Fp.add_button(_controls))
+	assert_int(_s.model.get_fish_count()).is_equal(1)
+	var view: Node3D = _fish_view()
+	assert_object(view).override_failure_message("no FishView in Main").is_not_null()
+	if view == null:
+		return
+	var uid: String = _s.model.get_fish_at(0).uid
+	var node: Node3D = view.call("get_fish_node", uid) as Node3D
+	assert_object(node).is_not_null()
+	if node == null:
+		return
+	var start: Vector3 = node.position
+	var instances: Array[GeometryInstance3D] = []
+	for found: Node in node.find_children("*", "GeometryInstance3D", true, false):
+		instances.append(found as GeometryInstance3D)
+	var phase: float = float(instances[0].get_instance_shader_parameter("swim_phase"))
+	await get_tree().create_timer(3.0).timeout
+	(
+		assert_bool(Fp.is_open(_controls))
+		. override_failure_message("the panel closed by itself")
+		. is_true()
+	)
+	(
+		assert_float(node.position.distance_to(start))
+		. override_failure_message("the fish stands still behind the open panel")
+		. is_greater(0.002)
+	)
+	assert_float(float(instances[0].get_instance_shader_parameter("swim_phase"))).is_not_equal(
+		phase
+	)
+	assert_bool(get_tree().paused).override_failure_message("a menu paused the tree").is_false()

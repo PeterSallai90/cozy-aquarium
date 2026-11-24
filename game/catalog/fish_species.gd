@@ -8,6 +8,9 @@ extends Resource
 enum Zone { UNSET = 0, TOP = 1, MIDDLE = 2, BOTTOM = 3 }
 enum Temperament { UNSET = 0, PEACEFUL = 1, SEMI_AGGRESSIVE = 2, AGGRESSIVE = 3 }
 enum Light { UNSET = 0, LOW = 1, MODERATE = 2, HIGH = 3 }
+## How a species keeps together (#35, ADR 0015). Append-only. `schooling` is true exactly for
+## TIGHT_SCHOOL and FORAGING_GROUP; UNSET is never valid on a catalog species.
+enum GroupStyle { UNSET = 0, SOLITARY = 1, TIGHT_SCHOOL = 2, LOOSE_GROUP = 3, FORAGING_GROUP = 4 }
 
 # --- Mode 1: identity and presentation ---
 ## Frozen once a save can contain it, for example "neon_tetra".
@@ -30,6 +33,22 @@ enum Light { UNSET = 0, LOW = 1, MODERATE = 2, HIGH = 3 }
 @export var schooling: bool = false
 ## Relative, 1.0 = a medium mid-water fish.
 @export var swim_speed: float = 0.0
+
+# --- Mode 1: behaviour (#35, ADR 0015); inputs of the steering model, never dropped or renamed ---
+## All default to 0 or UNSET, so a forgotten value fails the catalog test.
+@export var group_style: GroupStyle = GroupStyle.UNSET
+## Share of the time a fish hovers (0 to 1, before its personality factor).
+@export var idle_share: float = 0.0
+## Seconds between two darts (before the boldness of the fish), and how long a dart lasts.
+@export var dart_interval_min_s: float = 0.0
+@export var dart_interval_max_s: float = 0.0
+@export var dart_duration_min_s: float = 0.0
+@export var dart_duration_max_s: float = 0.0
+## Turn rate cap in degrees per second and pitch limit in degrees.
+@export var turn_rate_max_deg_s: float = 0.0
+@export var pitch_limit_deg: float = 0.0
+## Mean nose-down body pitch while cruising or hovering, in degrees (0 is a legal value).
+@export var nose_down_bias_deg: float = 0.0
 
 # --- Mode 2: simulation (stored now, used later) ---
 @export var temp_min_c: float = 0.0
