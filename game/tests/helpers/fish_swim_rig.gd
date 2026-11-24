@@ -529,11 +529,14 @@ static func open(
 	tank_id: StringName,
 	entries: Array,
 	surface: Callable = Callable(),
-	with_tuning: Resource = null
+	with_tuning: Resource = null,
+	sim_seed: int = SIM_SEED
 ) -> Setup:
 	var tank: TankDefinition = tank_of(tank_id)
 	var used: Callable = surface if surface.is_valid() else flat_surface(tank_id)
-	return open_box(tank.interior_size_m, tank.water_line_height_m, entries, used, with_tuning)
+	return open_box(
+		tank.interior_size_m, tank.water_line_height_m, entries, used, with_tuning, sim_seed
+	)
 
 
 ## The same for any box: interior size, water line and a surface Callable (x, z) -> metres.
@@ -542,7 +545,8 @@ static func open_box(
 	water_line: float,
 	entries: Array,
 	surface: Callable,
-	with_tuning: Resource = null
+	with_tuning: Resource = null,
+	sim_seed: int = SIM_SEED
 ) -> Setup:
 	var setup: Setup = Setup.new()
 	setup.interior = interior
@@ -550,7 +554,7 @@ static func open_box(
 	setup.surface = surface
 	setup.allowance = sand_allowance()
 	setup.world = Api.make_world(interior, water_line, surface, setup.allowance)
-	setup.sim = Api.make_sim(SIM_SEED, with_tuning)
+	setup.sim = Api.make_sim(sim_seed, with_tuning)
 	if setup.world == null or setup.sim == null or FishApi.shipped() == null:
 		return null
 	setup.sim.call("set_world", setup.world)
@@ -634,9 +638,12 @@ static func nearest_same_species(setup: Setup, obs: Observer) -> PackedFloat64Ar
 	return result
 
 
+## The mean of a non-empty array; an empty one is a broken run, so it fails loudly with NAN (every
+## bound check on NAN fails) instead of passing as 0.0.
 static func mean(values: PackedFloat64Array) -> float:
 	if values.is_empty():
-		return 0.0
+		push_error("FishSwimRig.mean: no data, the run produced an empty array")
+		return NAN
 	var sum: float = 0.0
 	for value: float in values:
 		sum += value

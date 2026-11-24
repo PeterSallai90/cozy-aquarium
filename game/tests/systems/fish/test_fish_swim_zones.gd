@@ -34,12 +34,13 @@ func _no_violations(id: StringName) -> void:
 	var run: Dictionary = _run(id)
 	if not run.get("ok", false):
 		return
-	var limits: Rig.Limits = run["limits"]
-	(
-		assert_int(limits.total())
-		. override_failure_message("%s left its zone or the tank: %s" % [id, limits.report()])
-		. is_equal(0)
-	)
+	for part: Dictionary in run.get("parts", [run]):
+		var limits: Rig.Limits = part["limits"]
+		(
+			assert_int(limits.total())
+			. override_failure_message("%s left its zone or the tank: %s" % [id, limits.report()])
+			. is_equal(0)
+		)
 
 
 func test_35_neon_tetras_stay_in_the_middle_band_and_the_tank_for_10_minutes() -> void:
@@ -59,6 +60,8 @@ func test_35_the_tetras_and_the_corydoras_really_use_their_own_zones() -> void:
 	var cory: Dictionary = _run(FishApi.CORY)
 	if not neon.get("ok", false) or not cory.get("ok", false):
 		return
+	assert_int((neon["mean_height"] as PackedFloat64Array).size()).is_greater(0)
+	assert_int((cory["mean_height"] as PackedFloat64Array).size()).is_greater(0)
 	var neon_height: float = Rig.mean(neon["mean_height"])
 	var cory_height: float = Rig.mean(cory["mean_height"])
 	assert_float(neon_height).is_greater(cory_height + 0.05)

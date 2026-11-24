@@ -64,6 +64,15 @@ func _check_feel(id: StringName, run: Dictionary) -> void:
 	var durations: PackedFloat64Array = run["dart_duration"]
 	var darts: PackedInt32Array = run["darts"]
 	var slack: float = float(run["step"])
+	var sizes: Array[int] = [cruise.size(), idle.size(), intervals.size(), durations.size()]
+	sizes.append(darts.size())
+	for size: int in sizes:
+		(
+			assert_int(size)
+			. override_failure_message("%s: %d values for %d fish" % [id, size, count])
+			. is_equal(count)
+		)
+	assert_int(count).is_greater(0)
 	if count > 1:
 		_in(Rig.mean(cruise), CRUISE_MEAN.x, CRUISE_MEAN.y, "%s mean cruise fraction" % id)
 		_in(Rig.mean(idle), bounds[0], bounds[1], "%s mean idle share" % id)
@@ -107,13 +116,14 @@ func _check_feel(id: StringName, run: Dictionary) -> void:
 		. override_failure_message("%s: state.darts_started does not count the dart states" % id)
 		. is_true()
 	)
-	var smooth: Rig.Smooth = run["smooth"]
-	for kind: String in ["dart_cap", "speed_cap"]:
-		(
-			assert_int(smooth.violations.get(kind, 0))
-			. override_failure_message("%s breaks %s: %s" % [id, kind, smooth.report()])
-			. is_equal(0)
-		)
+	for part: Dictionary in run.get("parts", [run]):
+		var smooth: Rig.Smooth = part["smooth"]
+		for kind: String in ["dart_cap", "speed_cap"]:
+			(
+				assert_int(smooth.violations.get(kind, 0))
+				. override_failure_message("%s breaks %s: %s" % [id, kind, smooth.report()])
+				. is_equal(0)
+			)
 
 
 func test_35_neon_tetras_have_the_balanced_feel_at_1_60() -> void:
@@ -165,7 +175,10 @@ func test_35_the_global_balanced_bounds_hold_for_every_species() -> void:
 		if total_darts > 0:
 			var interval: float = float(run["seconds"]) * float(run["count"]) / total_darts
 			_in(interval, GLOBAL_INTERVAL.x, GLOBAL_INTERVAL.y, "%s dart interval" % id)
-		for duration: float in run["dart_duration"] as PackedFloat64Array:
+		var all_durations: PackedFloat64Array = run["dart_duration"]
+		assert_int(all_durations.size()).is_equal(int(run["count"]))
+		assert_int(all_durations.size()).is_greater(0)
+		for duration: float in all_durations:
 			_in(duration, 0.0, GLOBAL_DURATION.y * WIDEN_HIGH + 0.02, "%s dart duration" % id)
 
 

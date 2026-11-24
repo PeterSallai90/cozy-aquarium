@@ -58,13 +58,14 @@ func _smooth_run(id: StringName, step: float) -> void:
 	)
 	if not run.get("ok", false):
 		return
-	var smooth: Rig.Smooth = run["smooth"]
-	(
-		assert_int(smooth.total())
-		. override_failure_message("%s at 1/%d: %s" % [id, roundi(1.0 / step), smooth.report()])
-		. is_equal(0)
-	)
-	assert_int(smooth.steps).is_equal(roundi(Runs.TOTAL_S / step))
+	for part: Dictionary in run.get("parts", [run]):
+		var smooth: Rig.Smooth = part["smooth"]
+		(
+			assert_int(smooth.total())
+			. override_failure_message("%s at 1/%d: %s" % [id, roundi(1.0 / step), smooth.report()])
+			. is_equal(0)
+		)
+		assert_int(smooth.steps).is_equal(roundi(Runs.TOTAL_S / step))
 
 
 func test_35_neon_tetras_keep_every_cap_for_10_minutes_at_1_60() -> void:
@@ -101,8 +102,10 @@ func test_35_the_fish_really_reach_speed_so_the_caps_are_exercised() -> void:
 				. is_true()
 			)
 			return
-		var smooth: Rig.Smooth = run["smooth"]
-		assert_float(smooth.max_speed_ratio).override_failure_message(str(id)).is_greater(0.8)
+		var best: float = 0.0
+		for part: Dictionary in run.get("parts", [run]):
+			best = maxf(best, (part["smooth"] as Rig.Smooth).max_speed_ratio)
+		assert_float(best).override_failure_message(str(id)).is_greater(0.8)
 
 
 # --- frame-rate independence ---

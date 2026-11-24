@@ -17,26 +17,90 @@ const Rig := preload("res://tests/helpers/fish_swim_rig.gd")
 const COUNT: int = 20
 const SETTLE_S: float = 30.0
 const TOTAL_S: float = 600.0
+## The angelfish runs (owner decision on #35 and the BA seed rule): ANGEL_RUNS runs of ANGEL_FISH
+## fish, pooled into one set of per-fish values. Run i uses uid seed 12345 + i and steering seed
+## 777 + i. Fallback if 5 fish cannot reach the mean cruise: 5 runs of 4 fish.
+const ANGEL_RUNS: int = 4
+const ANGEL_FISH: int = 5
+const PER_FISH: Array[String] = [
+	"cruise_fraction",
+	"cruise_pitch",
+	"idle_share",
+	"dart_interval",
+	"dart_duration",
+	"mean_height",
+	"depth_fraction",
+	"darts",
+]
 
 static var _cache: Dictionary = {}
 
 
 ## The metrics of the run of `id` at `step` seconds; {"ok": false} while a class is missing.
+## Angelfish are pooled over ANGEL_RUNS runs; the other species are one run of COUNT fish.
 static func feel(id: StringName, step: float) -> Dictionary:
-	return custom("%s@%d" % [id, roundi(1.0 / step)], id, Rig.crowd(id, COUNT), step)
+	return _pool(parts(id, step))
+
+
+## The cached runs behind feel(): one for tetras and corydoras, ANGEL_RUNS for angelfish. Checks of
+## per-run objects (smooth, limits) go through every part.
+static func parts(id: StringName, step: float) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var tag: String = "%s@%d" % [id, roundi(1.0 / step)]
+	if id != &"angelfish":
+		result.append(custom(tag, id, Rig.crowd(id, COUNT), step))
+		return result
+	for run: int in ANGEL_RUNS:
+		var entries: Array = Rig.crowd(id, ANGEL_FISH, Rig.UID_SEED + run)
+		result.append(custom("%s#%d" % [tag, run], id, entries, step, Rig.SIM_SEED + run))
+	return result
+
+
+static func _pool(runs: Array[Dictionary]) -> Dictionary:
+	for run: Dictionary in runs:
+		if not run.get("ok", false):
+			return {"ok": false}
+	if runs.size() == 1:
+		return runs[0]
+	var pooled: Dictionary = runs[0].duplicate()
+	pooled["count"] = 0
+	pooled["min_gap"] = INF
+	pooled["darts_match"] = true
+	pooled["parts"] = runs
+	for key: String in PER_FISH:
+		if key == "darts":
+			pooled[key] = PackedInt32Array()
+		else:
+			pooled[key] = PackedFloat64Array()
+	for run: Dictionary in runs:
+		pooled["count"] = int(pooled["count"]) + int(run["count"])
+		pooled["min_gap"] = minf(float(pooled["min_gap"]), float(run["min_gap"]))
+		pooled["darts_match"] = bool(pooled["darts_match"]) and bool(run["darts_match"])
+		for key: String in PER_FISH:
+			if key == "darts":
+				var darts: PackedInt32Array = pooled[key]
+				darts.append_array(run[key] as PackedInt32Array)
+				pooled[key] = darts
+			else:
+				var values: PackedFloat64Array = pooled[key]
+				values.append_array(run[key] as PackedFloat64Array)
+				pooled[key] = values
+	return pooled
 
 
 ## The same run for any entries (see FishSwimRig.entry), cached under `key`: the extreme
 ## personalities use one fish with a hand-made personality.
-static func custom(key: String, id: StringName, entries: Array, step: float) -> Dictionary:
+static func custom(
+	key: String, id: StringName, entries: Array, step: float, sim_seed: int = Rig.SIM_SEED
+) -> Dictionary:
 	if not _cache.has(key):
-		_cache[key] = _run(id, entries, step)
+		_cache[key] = _run(id, entries, step, sim_seed)
 	return _cache[key]
 
 
-static func _run(id: StringName, entries: Array, step: float) -> Dictionary:
+static func _run(id: StringName, entries: Array, step: float, sim_seed: int) -> Dictionary:
 	var started: int = Time.get_ticks_msec()
-	var setup: Rig.Setup = Rig.open(Rig.LARGE, entries)
+	var setup: Rig.Setup = Rig.open(Rig.LARGE, entries, Callable(), null, sim_seed)
 	if setup == null:
 		return {"ok": false}
 	var count: int = setup.members.size()
@@ -109,6 +173,28 @@ static func _run(id: StringName, entries: Array, step: float) -> Dictionary:
 				cruise_sum[fish] += obs.speed[fish]
 				pitch_sum[fish] += obs.pitch[fish]
 	var span: float = TOTAL_S - SETTLE_S
+	var cruise_fraction: PackedFloat64Array = PackedFloat64Array()
+	var cruise_pitch: PackedFloat64Array = PackedFloat64Array()
+	var idle_share: PackedFloat64Array = PackedFloat64Array()
+	var dart_interval: PackedFloat64Array = PackedFloat64Array()
+	var dart_duration: PackedFloat64Array = PackedFloat64Array()
+	var mean_height: PackedFloat64Array = PackedFloat64Array()
+	var depth_fraction: PackedFloat64Array = PackedFloat64Array()
+	var darts_match: bool = true
+	for fish: int in count:
+		var member: Rig.Member = setup.members[fish]
+		var cruising: int = cruise_steps[fish]
+		cruise_fraction.append(0.0 if cruising == 0 else cruise_sum[fish] / cruising / member.top)
+		cruise_pitch.append(0.0 if cruising == 0 else pitch_sum[fish] / cruising)
+		idle_share.append(float(idle_steps[fish]) / maxf(float(all_steps[fish]), 1.0))
+		dart_interval.append(INF if darts_after[fish] == 0 else span / darts_after[fish])
+		dart_duration.append(
+			0.0 if darts_done[fish] == 0 else duration_sum[fish] / darts_done[fish]
+		)
+		mean_height.append(height_sum[fish] / maxf(float(all_steps[fish]), 1.0))
+		depth_fraction.append(float(member.personality.get("depth_preference")))
+		if obs.darts[fish] != starts_total[fish]:
+			darts_match = false
 	var result: Dictionary = {
 		"ok": true,
 		"id": id,
@@ -119,42 +205,21 @@ static func _run(id: StringName, entries: Array, step: float) -> Dictionary:
 		"smooth": smooth,
 		"limits": limits,
 		"min_gap": min_gap,
-		"cruise_fraction": PackedFloat64Array(),
-		"idle_share": PackedFloat64Array(),
+		"cruise_fraction": cruise_fraction,
+		"idle_share": idle_share,
 		"darts": darts_after,
-		"dart_interval": PackedFloat64Array(),
-		"dart_duration": PackedFloat64Array(),
-		"mean_height": PackedFloat64Array(),
-		"depth_fraction": PackedFloat64Array(),
-		"cruise_pitch": PackedFloat64Array(),
-		"darts_match": true,
+		"dart_interval": dart_interval,
+		"dart_duration": dart_duration,
+		"mean_height": mean_height,
+		"depth_fraction": depth_fraction,
+		"cruise_pitch": cruise_pitch,
+		"darts_match": darts_match,
 	}
-	for fish: int in count:
-		var member: Rig.Member = setup.members[fish]
-		var cruising: int = cruise_steps[fish]
-		(result["cruise_fraction"] as PackedFloat64Array).append(
-			0.0 if cruising == 0 else cruise_sum[fish] / cruising / member.top
-		)
-		(result["cruise_pitch"] as PackedFloat64Array).append(
-			0.0 if cruising == 0 else pitch_sum[fish] / cruising
-		)
-		(result["idle_share"] as PackedFloat64Array).append(
-			float(idle_steps[fish]) / maxf(float(all_steps[fish]), 1.0)
-		)
-		(result["dart_interval"] as PackedFloat64Array).append(
-			INF if darts_after[fish] == 0 else span / darts_after[fish]
-		)
-		(result["dart_duration"] as PackedFloat64Array).append(
-			0.0 if darts_done[fish] == 0 else duration_sum[fish] / darts_done[fish]
-		)
-		(result["mean_height"] as PackedFloat64Array).append(
-			height_sum[fish] / maxf(float(all_steps[fish]), 1.0)
-		)
-		(result["depth_fraction"] as PackedFloat64Array).append(
-			float(member.personality.get("depth_preference"))
-		)
-		if obs.darts[fish] != starts_total[fish]:
-			result["darts_match"] = false
+	for key: String in PER_FISH:
+		var size: int = (result[key] as Variant).size()
+		if size != count:
+			push_error("FishSwimRuns %s: %s has %d entries for %d fish" % [id, key, size, count])
+			result["ok"] = false
 	result["wall_ms"] = Time.get_ticks_msec() - started
 	print("FishSwimRuns %s at 1/%d s: %d ms" % [id, roundi(1.0 / step), result["wall_ms"]])
 	return result
