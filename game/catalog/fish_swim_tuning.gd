@@ -25,8 +25,9 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 ## Yaw rate below this fraction of the turn cap is not counted as a turn (the flip rule's level).
 @export var yaw_deadband_fraction: float = 0.05
 ## A turn does not reverse before this many seconds after the last reversal (at most 2 heading-rate
-## sign flips per second; the test window is 1 s, so this must stay above 0.5).
-@export var min_flip_gap_s: float = 0.6
+## sign flips per second; the test window is 1 s). A frame hitch of 0.5 s delays the time at which
+## a flip is seen by up to 0.5 s, so three flips must be more than 1.5 s apart: 0.76 or more.
+@export var min_flip_gap_s: float = 0.76
 ## Time constant in seconds with which the heading follows the wanted direction.
 @export var yaw_response_s: float = 0.35
 ## Time constant in seconds with which the wanted direction follows the sum of the forces, so a
@@ -84,6 +85,10 @@ const DEFAULT_PATH: String = "res://catalog/behaviour/fish_swim_tuning.tres"
 ## The vertical part of the school and separation forces is scaled by this, so fish keep their
 ## depth zone while they keep together.
 @export var social_vertical_scale: float = 0.5
+## The vertical part of the spacing push is scaled by this as well (on top of the scale above), so
+## a few fish with a large personal space do not stack up to the edges of the band but keep the
+## height of their depth preference.
+@export var spacing_vertical_scale: float = 0.35
 ## The summed spacing and separation pushes of all neighbours are capped at these lengths (before
 ## their weights), so a crowd can not push a fish into the glass and hold it there.
 @export var spacing_force_cap: float = 3.0

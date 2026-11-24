@@ -155,3 +155,4 @@ scene tree; `FishCatalog.load_dir` loads every `.tres` in `res://catalog/fish`.
 - A change of the five salts, their order or the formula constants of rule 1 is a frozen-format
   change after the freeze. A change of the tuning resource or of the species behaviour values is
   owner tuning, not a format change.
+- **Depth under crowding.** The vertical part of the spacing push is scaled by `spacing_vertical_scale` (on top of `social_vertical_scale`), so a few fish with a large personal space keep the height of their depth preference instead of stacking to the band edges. A turn reversal waits `min_flip_gap_s` (0.76 s): a 0.5 s frame hitch delays the time a flip is seen by up to 0.5 s, so three flips must be more than 1.5 s apart. An override fish is sent to a goal at the glass, so it skips the wall steer-away (braking and the slide zone keep it off the glass). Wander and override goals live in `FishSwimGoals`.

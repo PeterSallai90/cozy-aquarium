@@ -33,6 +33,7 @@ var _keys: Dictionary[StringName, int] = {}
 var _scratch: FishSwimLimits.Vertical = FishSwimLimits.Vertical.new()
 ## The neighbour search results of the last search, by fish index.
 var _nb: FishSwimNeighbours = FishSwimNeighbours.new()
+var _goals: FishSwimGoals = null
 # Constants of the current substep and of the tuning.
 var _blend: float = 0.0
 var _pitch_gain: float = 0.0
@@ -44,6 +45,7 @@ var _slow_floor: float = 0.0
 func _init(tuning: FishSwimTuning, rng: RandomNumberGenerator) -> void:
 	_tuning = tuning
 	_rng = rng
+	_goals = FishSwimGoals.new(tuning, rng)
 	_slow_from = deg_to_rad(tuning.turn_slow_from_deg)
 	_slow_inv = 1.0 / (deg_to_rad(tuning.turn_slow_to_deg) - _slow_from)
 	_slow_floor = tuning.turn_slow_floor
@@ -62,7 +64,7 @@ func set_world(world: FishSwimWorld) -> void:
 		_refresh_pin(fish)
 		if not fish.recovering and _must_recover(fish):
 			begin_recovery(fish.uid)
-		_refresh_override_goal(fish)
+		_goals.refresh_override(fish, _world)
 
 
 ## Adds a fish at a start pose (speed 0, fresh timers). An existing fish of the uid is replaced.
@@ -155,7 +157,7 @@ func set_override(uid: String, target: Vector3) -> void:
 	fish.has_override = true
 	fish.override_raw = target
 	fish.detour_left = 0.0
-	_refresh_override_goal(fish)
+	_goals.refresh_override(fish, _world)
 
 
 func clear_override(uid: String) -> void:
@@ -311,18 +313,20 @@ func _update(f: FishSwimMember, h: float) -> void:
 			* (t.depth_restore_weight)
 		)
 	# Glass ahead (within a turning radius): nothing may pull the fish into it, and it steers away.
+	# An override fish is sent to a goal at the glass: braking and the slide zone below keep it off.
 	var avoid: float = p.avoid_m
 	var weight: float = t.wall_avoid_weight
-	var near_x: float = pos.x - half.x + avoid
-	var near_z: float = pos.z - half.y + avoid
-	if near_x > 0.0:
-		want.x = minf(want.x, 0.0) - minf(near_x / avoid, 1.5) * weight
-	elif pos.x + half.x - avoid < 0.0:
-		want.x = maxf(want.x, 0.0) + minf((avoid - half.x - pos.x) / avoid, 1.5) * weight
-	if near_z > 0.0:
-		want.z = minf(want.z, 0.0) - minf(near_z / avoid, 1.5) * weight
-	elif pos.z + half.y - avoid < 0.0:
-		want.z = maxf(want.z, 0.0) + minf((avoid - half.y - pos.z) / avoid, 1.5) * weight
+	if not overriding:
+		var near_x: float = pos.x - half.x + avoid
+		var near_z: float = pos.z - half.y + avoid
+		if near_x > 0.0:
+			want.x = minf(want.x, 0.0) - minf(near_x / avoid, 1.5) * weight
+		elif pos.x + half.x - avoid < 0.0:
+			want.x = maxf(want.x, 0.0) + minf((avoid - half.x - pos.x) / avoid, 1.5) * weight
+		if near_z > 0.0:
+			want.z = minf(want.z, 0.0) - minf(near_z / avoid, 1.5) * weight
+		elif pos.z + half.y - avoid < 0.0:
+			want.z = maxf(want.z, 0.0) + minf((avoid - half.y - pos.z) / avoid, 1.5) * weight
 	if mode != f.smooth_mode or mode == FishSwimState.Mode.DART:
 		f.smooth_mode = mode
 		f.want = want
@@ -512,6 +516,10 @@ func _unstick(f: FishSwimMember) -> void:
 	if f.mode == FishSwimState.Mode.OVERRIDE:
 		var hop: float = _tuning.detour_radius_bl * f.params.body_length_m
 		var goal: Vector3 = f.override_goal
+		# A fish that is as close to its override goal as the glass lets it get has arrived; it
+		# stays there instead of hopping around the goal.
+		if _flat_distance(f.position, goal) < f.params.body_length_m * _tuning.detour_radius_bl:
+			return
 		var shift_x: float = sin(f.yaw) * hop
 		var shift_z: float = cos(f.yaw) * hop
 		# A hop never points out of the water: it turns around at the glass.
@@ -546,53 +554,9 @@ func _pick_target(f: FishSwimMember) -> void:
 		var jitter: float = maxf(p.spacing_m, p.body_length_m)
 		var offset: Vector3 = Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0))
 		var shifted: Vector3 = mate.target + offset * jitter
-		f.target = _inside_goal(f, shifted.x, shifted.z, soft, shifted.y, false)
+		f.target = _goals.inside(f, shifted.x, shifted.z, soft, shifted.y, false, _world)
 		return
-	f.target = _random_goal(f, soft)
-
-
-func _random_goal(f: FishSwimMember, soft: Vector2) -> Vector3:
-	var p: FishSwimParams = f.params
-	var best: Vector3 = f.position
-	var best_gap: float = -1.0
-	var wanted_gap: float = 3.0 * p.body_length_m
-	var span_x: float = maxf(soft.x - p.avoid_m, 0.0)
-	var span_z: float = maxf(soft.y - p.avoid_m, 0.0)
-	for _attempt: int in 3:
-		var x: float = _rng.randf_range(-span_x, span_x)
-		var z: float = _rng.randf_range(-span_z, span_z)
-		var candidate: Vector3 = _inside_goal(f, x, z, soft, 0.0, true)
-		var gap: float = _flat_distance(candidate, f.position)
-		if gap > best_gap:
-			best = candidate
-			best_gap = gap
-		if gap >= wanted_gap:
-			break
-	return best
-
-
-## A goal at (x, z) kept inside the soft box with a height in the band: the preferred height with
-## a random variation, or `height` when `vary` is false.
-func _inside_goal(
-	f: FishSwimMember, x: float, z: float, soft: Vector2, height: float, vary: bool
-) -> Vector3:
-	var p: FishSwimParams = f.params
-	var gx: float = clampf(x, -soft.x, soft.x)
-	var gz: float = clampf(z, -soft.y, soft.y)
-	FishSwimLimits.vertical(_world, p, gx, gz, _scratch)
-	var low: float = _scratch.min_y
-	var high: float = _scratch.max_y
-	if high - low > 2.0 * _tuning.band_inset_m:
-		low += _tuning.band_inset_m
-		high -= _tuning.band_inset_m
-	var y: float = height
-	if vary:
-		var band: float = _scratch.max_y - _scratch.min_y
-		y = (
-			_scratch.preferred(p.depth_fraction)
-			+ band * _tuning.wander_height_jitter * _rng.randf_range(-1.0, 1.0)
-		)
-	return Vector3(gx, clampf(y, low, high), gz)
+	f.target = _goals.random(f, soft, _world)
 
 
 # --- steering helpers ---
@@ -605,6 +569,7 @@ func _school_force(f: FishSwimMember, i: int, pos: Vector3) -> Vector3:
 	if p.group_style < _GROUPED_FROM:
 		return Vector3.ZERO
 	var force: Vector3 = _nb.spc[i].limit_length(t.spacing_force_cap) * t.spacing_weight
+	force.y *= t.spacing_vertical_scale
 	var mates: int = _nb.count[i]
 	if mates > 0:
 		var off: Vector3 = _nb.coh[i] / mates - pos
@@ -941,22 +906,6 @@ func _refresh_pin(f: FishSwimMember) -> void:
 	f.was_pinned = f.vert.pinned
 	f.ahead_low = f.vert.min_y
 	f.ahead_high = f.vert.max_y
-
-
-func _refresh_override_goal(f: FishSwimMember) -> void:
-	if not f.has_override or _world == null:
-		return
-	var p: FishSwimParams = f.params
-	var soft: Vector2 = f.soft
-	var x: float = clampf(f.override_raw.x, -soft.x, soft.x)
-	var z: float = clampf(f.override_raw.z, -soft.y, soft.y)
-	FishSwimLimits.vertical(_world, p, x, z, _scratch)
-	var low: float = _scratch.hard_low
-	var high: float = _scratch.hard_high
-	if high - low > 2.0 * _tuning.band_inset_m:
-		low += _tuning.band_inset_m
-		high -= _tuning.band_inset_m
-	f.override_goal = Vector3(x, clampf(f.override_raw.y, low, high), z)
 
 
 func _is_outside(f: FishSwimMember) -> bool:
